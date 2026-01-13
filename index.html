@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CATS Weekly Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 18px; max-width: 980px; }
+    h1 { font-size: 22px; margin: 0 0 6px 0; }
+    .sub { font-size: 13px; color: #444; margin-bottom: 14px; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+    .meta label { font-size: 12px; color: #444; display: block; }
+    .meta input { width: 100%; padding: 8px; box-sizing: border-box; }
+    h2 { font-size: 16px; margin: 18px 0 8px 0; }
+    .box { border: 1px solid #ddd; border-radius: 12px; padding: 12px; }
+    .task { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; }
+    .task input[type="checkbox"] { margin-top: 2px; }
+    .task input[type="text"] { width: 100%; padding: 7px; }
+    textarea { width: 100%; min-height: 80px; padding: 10px; box-sizing: border-box; }
+    .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+    .day { border: 1px solid #ddd; border-radius: 12px; padding: 10px; min-height: 210px; }
+    .day h3 { font-size: 14px; margin: 0 0 8px 0; }
+    .actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    button { padding: 10px 12px; border: 1px solid #999; border-radius: 12px; background: #f6f6f6; cursor: pointer; }
+    button:hover { background: #eee; }
+    .small { font-size: 12px; color: #444; }
+  </style>
+</head>
+<body>
+
+  <h1>Weekly Tracker</h1>
+  <div class="sub">Check items as you finish. This page saves on your device automatically.</div>
+
+  <div class="box">
+    <div class="meta">
+      <div>
+        <label>Student name</label>
+        <input id="studentName" type="text" placeholder="First Last" />
+      </div>
+      <div>
+        <label>Sport</label>
+        <input id="sport" type="text" placeholder="Sport" />
+      </div>
+      <div>
+        <label>Week of</label>
+        <input id="weekOf" type="text" placeholder="MM/DD/YYYY" />
+      </div>
+      <div>
+        <label>Counselor</label>
+        <input id="counselor" type="text" placeholder="Name" />
+      </div>
+      <div>
+        <label>Learning specialist</label>
+        <input id="ls" type="text" placeholder="Elias Ortega" />
+      </div>
+      <div>
+        <label>Quick note</label>
+        <input id="note" type="text" placeholder="What matters this week" />
+      </div>
+    </div>
+  </div>
+
+  <h2>This Week Priorities</h2>
+  <div class="box">
+    <div class="task"><input type="checkbox" data-key="p1_done"><input type="text" data-key="p1_text" placeholder="Priority 1 (course, task, due date)" /></div>
+    <div class="task"><input type="checkbox" data-key="p2_done"><input type="text" data-key="p2_text" placeholder="Priority 2 (course, task, due date)" /></div>
+    <div class="task"><input type="checkbox" data-key="p3_done"><input type="text" data-key="p3_text" placeholder="Priority 3 (course, task, due date)" /></div>
+  </div>
+
+  <h2>Upcoming</h2>
+  <textarea class="box" data-key="upcoming" placeholder="Upcoming deadlines"></textarea>
+
+  <h2>Missing</h2>
+  <textarea class="box" data-key="missing" placeholder="Missing assignments"></textarea>
+
+  <h2>Daily Plan</h2>
+  <div class="grid" id="weekGrid"></div>
+
+  <div class="actions">
+    <button id="copySummary">Copy summary</button>
+    <button id="resetPage">Reset this page</button>
+  </div>
+
+  <div class="small" style="margin-top:10px;">
+    Tip: If you switch devices or clear browser data, your checkmarks may not carry over.
+  </div>
+
+  <script>
+    const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const pageKey = "cats_tracker_" + location.pathname.toLowerCase();
+
+    function createDayColumn(dayName, dayIndex) {
+      const day = document.createElement("div");
+      day.className = "day";
+      day.innerHTML = `<h3>${dayName}</h3>`;
+      for (let i = 1; i <= 5; i++) {
+        const wrap = document.createElement("div");
+        wrap.className = "task";
+        wrap.innerHTML = `
+          <input type="checkbox" data-key="d${dayIndex}_t${i}_done">
+          <input type="text" data-key="d${dayIndex}_t${i}_text" placeholder="Task ${i} (course + action)" />
+        `;
+        day.appendChild(wrap);
+      }
+      return day;
+    }
+
+    function allFields() {
+      return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note");
+    }
+
+    function saveAll() {
+      const data = {};
+      allFields().forEach(el => {
+        const key = el.getAttribute("data-key") || el.id;
+        data[key] = el.type === "checkbox" ? el.checked : el.value;
+      });
+      localStorage.setItem(pageKey, JSON.stringify(data));
+    }
+
+    function loadAll() {
+      const raw = localStorage.getItem(pageKey);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      allFields().forEach(el => {
+        const key = el.getAttribute("data-key") || el.id;
+        if (!(key in data)) return;
+        if (el.type === "checkbox") el.checked = data[key];
+        else el.value = data[key];
+      });
+    }
+
+    function hookAutosave() {
+      document.addEventListener("input", (e) => { if (e.target.matches("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note")) saveAll(); });
+      document.addEventListener("change", (e) => { if (e.target.matches("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note")) saveAll(); });
+    }
+
+    function copySummary() {
+      const name = document.getElementById("studentName").value || "Student";
+      const week = document.getElementById("weekOf").value || "";
+      let out = `${name} Weekly Tracker ${week}\n\nPriorities\n`;
+      for (let i = 1; i <= 3; i++) {
+        const text = document.querySelector(`[data-key="p${i}_text"]`).value || "";
+        const done = document.querySelector(`[data-key="p${i}_done"]`).checked ? "DONE" : "OPEN";
+        if (text.trim()) out += `${done} ${text}\n`;
+      }
+      out += `\nUpcoming\n${document.querySelector('[data-key="upcoming"]').value || ""}\n`;
+      out += `\nMissing\n${document.querySelector('[data-key="missing"]').value || ""}\n\n`;
+
+      days.forEach((d, di) => {
+        out += `${d}\n`;
+        for (let i = 1; i <= 5; i++) {
+          const t = document.querySelector(`[data-key="d${di}_t${i}_text"]`).value || "";
+          const c = document.querySelector(`[data-key="d${di}_t${i}_done"]`).checked ? "DONE" : "OPEN";
+          if (t.trim()) out += `${c} ${t}\n`;
+        }
+        out += "\n";
+      });
+
+      navigator.clipboard.writeText(out).then(() => alert("Copied. Paste into Retain or email.")).catch(() => alert("Copy failed. You can manually select and copy."));
+    }
+
+    function resetPage() {
+      if (!confirm("Reset everything on this page?")) return;
+      localStorage.removeItem(pageKey);
+      location.reload();
+    }
+
+    const grid = document.getElementById("weekGrid");
+    days.forEach((d, i) => grid.appendChild(createDayColumn(d, i)));
+
+    hookAutosave();
+    loadAll();
+
+    document.getElementById("copySummary").addEventListener("click", copySummary);
+    document.getElementById("resetPage").addEventListener("click", resetPage);
+  </script>
+
+</body>
+</html>
