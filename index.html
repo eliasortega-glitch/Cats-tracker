@@ -99,20 +99,25 @@
     const pageKey = "cats_tracker_" + location.pathname.toLowerCase();
 
     function createDayColumn(dayName, dayIndex) {
-      const day = document.createElement("div");
-      day.className = "day";
-      day.innerHTML = `<h3>${dayName}</h3>`;
-      for (let i = 1; i <= 5; i++) {
-        const wrap = document.createElement("div");
-        wrap.className = "task";
-        wrap.innerHTML = `
-          <input type="checkbox" data-key="d${dayIndex}_t${i}_done">
-          <input type="text" data-key="d${dayIndex}_t${i}_text" placeholder="Task ${i} (course + action)" />
-        `;
-        day.appendChild(wrap);
-      }
-      return day;
-    }
+  const day = document.createElement("div");
+  day.className = "day";
+  day.innerHTML = `<h3 class="day-header">${dayName}</h3>
+                   <div class="day-tasks" style="display: none;"></div>`;
+
+  const container = day.querySelector(".day-tasks");
+  for (let i = 1; i <= 5; i++) {
+    const wrap = document.createElement("div");
+    wrap.className = "task";
+    wrap.innerHTML = `
+      <input type="checkbox" data-key="d${dayIndex}_t${i}_done">
+      <input type="text" data-key="d${dayIndex}_t${i}_text" placeholder="Task ${i} (course + action)" />
+    `;
+    container.appendChild(wrap);
+  }
+
+  return day;
+}
+
 
     function allFields() {
       return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note");
@@ -184,6 +189,19 @@
     document.getElementById("copySummary").addEventListener("click", copySummary);
     document.getElementById("resetPage").addEventListener("click", resetPage);
   </script>
+// Make days clickable to expand/collapse tasks
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".day-header").forEach(header => {
+    header.addEventListener("click", () => {
+      const tasks = header.nextElementSibling;
+      if (tasks.style.display === "none") {
+        tasks.style.display = "block";
+      } else {
+        tasks.style.display = "none";
+      }
+    });
+  });
+});
 
 </body>
 </html>
