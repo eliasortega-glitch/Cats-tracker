@@ -1,47 +1,51 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CATS Weekly Tracker</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CATS Weekly Dashboard</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 18px; max-width: 980px; background: #fefefe; }
-  h1 { font-size: 24px; margin-bottom: 4px; }
-  .sub { font-size: 13px; color: #555; margin-bottom: 14px; }
-  .meta { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 10px 14px; margin-bottom: 20px; }
-  .meta label { font-size: 12px; color: #444; display: block; margin-bottom: 4px; }
-  .meta input, .meta select, .meta textarea { width: 100%; padding: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #ccc; }
-  h2 { font-size: 18px; margin: 18px 0 8px; }
-  .box { border: 1px solid #ddd; border-radius: 12px; padding: 12px; background: #fff; margin-bottom: 20px; }
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 12px;
+    background: #f7f9fc;
+    color: #333;
+  }
+  h1 { font-size: 24px; margin-bottom: 4px; text-align: center; }
+  .sub { font-size: 13px; color: #555; text-align: center; margin-bottom: 18px; }
+  .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .meta label { display: block; font-size: 12px; margin-bottom: 4px; color: #444; }
+  .meta input, .meta select, .meta textarea { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; }
+  h2 { font-size: 18px; margin: 20px 0 10px; }
+  .box { background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px; }
   .task { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; }
-  .task input[type="checkbox"] { margin-top: 2px; }
-  .task input[type="text"] { width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #ccc; }
-  textarea { width: 100%; min-height: 80px; padding: 10px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; }
-  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
-  .day { border: 1px solid #ddd; border-radius: 12px; padding: 10px; min-height: 80px; cursor: pointer; background: #fafafa; transition: background 0.2s ease; }
-  .day:hover { background: #f0f0f0; }
-  .day h3 { font-size: 14px; margin: 0 0 8px 0; }
+  .task input[type="checkbox"] { margin-top: 3px; }
+  .task input[type="text"] { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+  .day { background: #fff; border-radius: 12px; padding: 10px; cursor: pointer; transition: background 0.2s; margin-bottom: 10px; }
+  .day:hover { background: #f0f4f8; }
+  .day-header { font-weight: bold; margin: 0 0 6px; }
   .day-tasks { display: none; margin-top: 6px; }
-  .actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-  button { padding: 10px 12px; border: 1px solid #999; border-radius: 12px; background: #f6f6f6; cursor: pointer; }
-  button:hover { background: #eee; }
-  .small { font-size: 12px; color: #444; margin-top: 10px; }
-  .add-task { font-size: 12px; color: #0073e6; cursor: pointer; margin-top: 4px; display: inline-block; }
+  .add-task { font-size: 12px; color: #0073e6; cursor: pointer; display: inline-block; margin-top: 6px; }
   .remove-task { font-size: 12px; color: #e60000; cursor: pointer; margin-left: 6px; }
+  .actions { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 10px 14px; border-radius: 12px; border: 1px solid #999; background: #f6f6f6; cursor: pointer; }
+  button:hover { background: #e0e0e0; }
+  @media(max-width: 600px){
+    .meta { grid-template-columns: 1fr; }
+    .day { padding: 8px; }
+    .task input[type="text"] { font-size: 14px; }
+  }
 </style>
 </head>
 <body>
 
-<h1>CATS Weekly Tracker</h1>
-<div class="sub">Collaborative student-athlete planning. Click each day to expand tasks. Changes save automatically to the cloud.</div>
+<h1>CATS Weekly Dashboard</h1>
+<div class="sub">Students and Learning Specialists can update tasks and priorities live. Tap a day to expand tasks.</div>
 
 <div class="box meta">
-  <div>
-    <label>Student name</label>
-    <input id="studentName" type="text" placeholder="First Last" />
-  </div>
-  <div>
-    <label>Sport</label>
+  <div><label>Student Name</label><input id="studentName" type="text" placeholder="First Last"></div>
+  <div><label>Sport</label>
     <select id="sport">
       <option value="">Select sport</option>
       <option>Football</option>
@@ -51,30 +55,14 @@
       <option>Track & Field</option>
     </select>
   </div>
-  <div>
-    <label>Week of</label>
-    <input id="weekOf" type="date" />
+  <div><label>Week Of</label><input id="weekOf" type="date"></div>
+  <div><label>Counselor</label>
+    <select id="counselor"><option value="">Select Counselor</option><option>Jennifer</option><option>Sarah</option></select>
   </div>
-  <div>
-    <label>Counselor</label>
-    <select id="counselor">
-      <option value="">Select counselor</option>
-      <option>Jennifer</option>
-      <option>Sarah</option>
-    </select>
+  <div><label>Learning Specialist</label>
+    <select id="ls"><option value="">Select LS</option><option>Elias Ortega</option><option>Other LS</option></select>
   </div>
-  <div>
-    <label>Learning Specialist</label>
-    <select id="ls">
-      <option value="">Select LS</option>
-      <option>Elias Ortega</option>
-      <option>Other LS</option>
-    </select>
-  </div>
-  <div>
-    <label>Quick note</label>
-    <textarea id="note" placeholder="What matters this week"></textarea>
-  </div>
+  <div><label>Quick Note</label><textarea id="note" placeholder="What matters this week"></textarea></div>
 </div>
 
 <h2>This Week Priorities</h2>
@@ -88,20 +76,20 @@
 <textarea class="box" data-key="missing" placeholder="Missing assignments"></textarea>
 
 <h2>Daily Plan</h2>
-<div class="grid" id="weekGrid"></div>
+<div id="weekGrid"></div>
 
 <div class="actions">
-  <button id="copySummary">Copy summary</button>
-  <button id="resetPage">Reset this page</button>
+  <button id="copySummary">Copy Summary</button>
+  <button id="resetPage">Reset Page</button>
 </div>
-<div class="small">Tip: Changes save automatically. Multiple users can update the tracker simultaneously.</div>
+<div class="small">Tip: Changes save automatically. Works on phones and tablets.</div>
 
 <script>
 const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
 const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 let prioritiesCount = 0;
 
-// --- CREATE PRIORITIES ---
+// --- Priorities Section ---
 const prioritiesBox = document.getElementById("prioritiesBox");
 document.getElementById("addPriority").addEventListener("click", () => {
   prioritiesCount++;
@@ -112,100 +100,73 @@ document.getElementById("addPriority").addEventListener("click", () => {
   prioritiesBox.appendChild(div);
 });
 
-// --- CREATE DAILY PLAN ---
-function createDayColumn(dayName, dayIndex) {
+// --- Daily Plan Section ---
+function createDayColumn(dayName, dayIndex){
   const day = document.createElement("div");
   day.className = "day";
-  day.innerHTML = `<h3 class="day-header">${dayName}</h3><div class="day-tasks"></div><span class="add-task">+ Add Task</span>`;
-
+  day.innerHTML = `<div class="day-header">${dayName}</div><div class="day-tasks"></div><span class="add-task">+ Add Task</span>`;
   const container = day.querySelector(".day-tasks");
   const addBtn = day.querySelector(".add-task");
+
   function addTask() {
     const wrap = document.createElement("div");
     wrap.className = "task";
     wrap.innerHTML = `<input type="checkbox" data-key="d${dayIndex}_t${container.children.length+1}_done"><input type="text" data-key="d${dayIndex}_t${container.children.length+1}_text" placeholder="Task ${container.children.length+1}"><span class="remove-task">x</span>`;
-    wrap.querySelector(".remove-task").addEventListener("click", () => wrap.remove());
+    wrap.querySelector(".remove-task").addEventListener("click", ()=>wrap.remove());
     container.appendChild(wrap);
   }
-  // Add 3 default tasks
+
   for(let i=0;i<3;i++) addTask();
   addBtn.addEventListener("click", addTask);
-
-  day.querySelector(".day-header").addEventListener("click", () => {
-    container.style.display = container.style.display === "none" || container.style.display === "" ? "block" : "none";
-  });
+  day.querySelector(".day-header").addEventListener("click", ()=>{ container.style.display = container.style.display==="none"?"block":"none"; });
 
   return day;
 }
 
 const grid = document.getElementById("weekGrid");
-days.forEach((d,i)=> grid.appendChild(createDayColumn(d,i)));
+days.forEach((d,i)=>grid.appendChild(createDayColumn(d,i)));
 
-// --- ALL FIELDS ---
-function allFields() {
-  return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note");
-}
+// --- All Fields ---
+function allFields(){ return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note"); }
 
-// --- SAVE TO GOOGLE SHEET ---
-async function saveAll() {
+// --- Autosave to Google Sheet ---
+async function saveAll(){
   const data = {};
-  allFields().forEach(el => {
-    const key = el.getAttribute("data-key") || el.id;
-    data[key] = el.type === "checkbox" ? el.checked : el.value;
-  });
-  data["Student Name"] = document.getElementById("studentName").value;
-  data["Week Of"] = document.getElementById("weekOf").value;
-  await fetch(webAppURL, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
+  allFields().forEach(el=>{ const key=el.getAttribute("data-key")||el.id; data[key]=el.type==="checkbox"?el.checked:el.value; });
+  data["Student Name"]=document.getElementById("studentName").value;
+  data["Week Of"]=document.getElementById("weekOf").value;
+  await fetch(webAppURL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
 }
 
-// --- LOAD FROM GOOGLE SHEET ---
-async function loadAll() {
-  const resp = await fetch(webAppURL);
-  const allData = await resp.json();
-  const row = allData.find(r => r["Student Name"] === document.getElementById("studentName").value && r["Week Of"] === document.getElementById("weekOf").value);
-  if(!row) return;
-  Object.keys(row).forEach(key => {
-    const el = document.querySelector(`[data-key="${key}"]`) || document.getElementById(key);
-    if(!el) return;
-    if(el.type==="checkbox") el.checked = row[key];
-    else el.value = row[key];
+// --- Copy Summary ---
+document.getElementById("copySummary").addEventListener("click", async ()=>{
+  await saveAll();
+  let out=`Student: ${document.getElementById("studentName").value}\nWeek: ${document.getElementById("weekOf").value}\n\nPriorities\n`;
+  document.querySelectorAll("#prioritiesBox .task").forEach(t=>{
+    const text=t.querySelector(`[data-key$="_text"]`).value||"";
+    const done=t.querySelector(`[data-key$="_done"]`).checked?"DONE":"OPEN";
+    if(text) out+=`${done} ${text}\n`;
   });
-}
+  out+=`\nUpcoming\n${document.querySelector('[data-key="upcoming"]').value||""}\n`;
+  out+=`\nMissing\n${document.querySelector('[data-key="missing"]').value||""}\n\n`;
+  days.forEach((d,di)=>{
+    out+=`${d}\n`;
+    document.querySelectorAll(`#weekGrid .day`)[di].querySelectorAll(".task").forEach(task=>{
+      const text=task.querySelector(`[data-key$="_text"]`).value||"";
+      const done=task.querySelector(`[data-key$="_done"]`).checked?"DONE":"OPEN";
+      if(text) out+=`${done} ${text}\n`;
+    });
+    out+="\n";
+  });
+  navigator.clipboard.writeText(out).then(()=>alert("Summary copied!"));
+});
 
-// --- AUTOSAVE ---
+// --- Reset Page ---
+document.getElementById("resetPage").addEventListener("click", ()=>{if(confirm("Reset everything?"))location.reload();});
+
+// --- Autosave on Input ---
 document.addEventListener("input", saveAll);
 document.addEventListener("change", saveAll);
-
-// --- COPY SUMMARY ---
-document.getElementById("copySummary").addEventListener("click", async () => {
-  await saveAll();
-  let out = `Student: ${document.getElementById("studentName").value}\nWeek of: ${document.getElementById("weekOf").value}\n\nPriorities\n`;
-  document.querySelectorAll("#prioritiesBox .task").forEach(t=>{
-    const text = t.querySelector(`[data-key$="_text"]`).value || "";
-    const done = t.querySelector(`[data-key$="_done"]`).checked ? "DONE" : "OPEN";
-    if(text) out+= `${done} ${text}\n`;
-  });
-  out += `\nUpcoming\n${document.querySelector('[data-key="upcoming"]').value || ""}\n`;
-  out += `\nMissing\n${document.querySelector('[data-key="missing"]').value || ""}\n\n`;
-  days.forEach((d,di)=>{
-    out += `${d}\n`;
-    document.querySelectorAll(`#weekGrid .day`)[di].querySelectorAll(".task").forEach(task=>{
-      const text = task.querySelector(`[data-key$="_text"]`).value || "";
-      const done = task.querySelector(`[data-key$="_done"]`).checked ? "DONE" : "OPEN";
-      if(text) out += `${done} ${text}\n`;
-    });
-    out += "\n";
-  });
-  navigator.clipboard.writeText(out).then(()=>alert("Copied summary!"));
-});
-
-// --- RESET PAGE ---
-document.getElementById("resetPage").addEventListener("click", () => {
-  if(confirm("Reset everything?")) location.reload();
-});
-
-// --- INITIAL LOAD ---
-window.addEventListener("load", loadAll);
 </script>
 
 </body>
