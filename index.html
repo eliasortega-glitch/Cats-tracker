@@ -1,92 +1,85 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CATS Weekly Tracker</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 18px; max-width: 980px; background: #f9f9f9; }
-    h1 { font-size: 24px; margin-bottom: 6px; }
-    .sub { font-size: 14px; color: #444; margin-bottom: 14px; }
-    .meta { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 10px 14px; }
-    .meta label { font-size: 12px; color: #444; display: block; margin-bottom: 4px; }
-    .meta input, .meta select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
-    h2 { font-size: 18px; margin: 18px 0 8px 0; }
-    .box { border: 1px solid #ddd; border-radius: 12px; padding: 12px; background: #fff; }
-    .task { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; }
-    .task input[type="checkbox"] { margin-top: 6px; }
-    .task textarea { width: 100%; min-height: 60px; padding: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; }
-    .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
-    .day { border: 1px solid #ddd; border-radius: 12px; padding: 10px; background: #fff; cursor: pointer; }
-    .day h3 { font-size: 14px; margin: 0 0 8px 0; }
-    .day-tasks { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
-    .day-tasks.show { max-height: 2000px; } 
-    .day-tasks .task button { width: 24px; height: 24px; padding: 0; margin-left: 4px; cursor: pointer; border-radius: 6px; border: 1px solid #aaa; background: #f6f6f6; }
-    .day-tasks .task button:hover { background: #eee; }
-    .add-task-btn { margin-top: 6px; padding: 6px 10px; border-radius: 8px; border: 1px solid #aaa; background: #f6f6f6; cursor: pointer; font-size: 12px; }
-    .add-task-btn:hover { background: #eee; }
-    .actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-    button { padding: 10px 12px; border: 1px solid #999; border-radius: 12px; background: #f6f6f6; cursor: pointer; }
-    button:hover { background: #eee; }
-    .small { font-size: 12px; color: #444; margin-top:10px; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CATS Weekly Tracker</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 18px; max-width: 980px; background: #fefefe; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #555; margin-bottom: 14px; }
+  .meta { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 10px 14px; margin-bottom: 20px; }
+  .meta label { font-size: 12px; color: #444; display: block; margin-bottom: 4px; }
+  .meta input, .meta select, .meta textarea { width: 100%; padding: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #ccc; }
+  h2 { font-size: 18px; margin: 18px 0 8px; }
+  .box { border: 1px solid #ddd; border-radius: 12px; padding: 12px; background: #fff; margin-bottom: 20px; }
+  .task { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; }
+  .task input[type="checkbox"] { margin-top: 2px; }
+  .task input[type="text"] { width: 100%; padding: 7px; border-radius: 6px; border: 1px solid #ccc; }
+  textarea { width: 100%; min-height: 80px; padding: 10px; box-sizing: border-box; border-radius: 6px; border: 1px solid #ccc; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+  .day { border: 1px solid #ddd; border-radius: 12px; padding: 10px; min-height: 80px; cursor: pointer; background: #fafafa; transition: background 0.2s ease; }
+  .day:hover { background: #f0f0f0; }
+  .day h3 { font-size: 14px; margin: 0 0 8px 0; }
+  .day-tasks { display: none; margin-top: 6px; }
+  .actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  button { padding: 10px 12px; border: 1px solid #999; border-radius: 12px; background: #f6f6f6; cursor: pointer; }
+  button:hover { background: #eee; }
+  .small { font-size: 12px; color: #444; margin-top: 10px; }
+  .add-task { font-size: 12px; color: #0073e6; cursor: pointer; margin-top: 4px; display: inline-block; }
+  .remove-task { font-size: 12px; color: #e60000; cursor: pointer; margin-left: 6px; }
+</style>
 </head>
 <body>
 
-<h1>Weekly Tracker</h1>
-<div class="sub">Check items as you finish. This page saves on your device automatically.</div>
+<h1>CATS Weekly Tracker</h1>
+<div class="sub">Collaborative student-athlete planning. Click each day to expand tasks. Changes save automatically to the cloud.</div>
 
-<div class="box">
-  <div class="meta">
-    <div>
-      <label>Student name</label>
-      <input id="studentName" type="text" placeholder="First Last" />
-    </div>
-    <div>
-      <label>Sport</label>
-      <select id="sport">
-        <option value="">Select sport</option>
-        <option>Football</option>
-        <option>Men's Basketball</option>
-        <option>Women's Basketball</option>
-        <option>Soccer</option>
-        <option>Track & Field</option>
-      </select>
-    </div>
-    <div>
-      <label>Week of</label>
-      <input id="weekOf" type="text" placeholder="MM/DD/YYYY" />
-    </div>
-    <div>
-      <label>Counselor</label>
-      <select id="counselor">
-        <option value="">Select counselor</option>
-        <option>Jennifer</option>
-        <option>Sarah</option>
-        <option>Other</option>
-      </select>
-    </div>
-    <div>
-      <label>Learning specialist</label>
-      <select id="ls">
-        <option value="">Select LS</option>
-        <option>Elias Ortega</option>
-        <option>Other</option>
-      </select>
-    </div>
-    <div>
-      <label>Quick note</label>
-      <input id="note" type="text" placeholder="What matters this week" />
-    </div>
+<div class="box meta">
+  <div>
+    <label>Student name</label>
+    <input id="studentName" type="text" placeholder="First Last" />
+  </div>
+  <div>
+    <label>Sport</label>
+    <select id="sport">
+      <option value="">Select sport</option>
+      <option>Football</option>
+      <option>Men's Basketball</option>
+      <option>Women's Basketball</option>
+      <option>Soccer</option>
+      <option>Track & Field</option>
+    </select>
+  </div>
+  <div>
+    <label>Week of</label>
+    <input id="weekOf" type="date" />
+  </div>
+  <div>
+    <label>Counselor</label>
+    <select id="counselor">
+      <option value="">Select counselor</option>
+      <option>Jennifer</option>
+      <option>Sarah</option>
+    </select>
+  </div>
+  <div>
+    <label>Learning Specialist</label>
+    <select id="ls">
+      <option value="">Select LS</option>
+      <option>Elias Ortega</option>
+      <option>Other LS</option>
+    </select>
+  </div>
+  <div>
+    <label>Quick note</label>
+    <textarea id="note" placeholder="What matters this week"></textarea>
   </div>
 </div>
 
 <h2>This Week Priorities</h2>
-<div class="box">
-  <div class="task"><input type="checkbox" data-key="p1_done"><textarea data-key="p1_text" placeholder="Priority 1 (course, task, due date)"></textarea></div>
-  <div class="task"><input type="checkbox" data-key="p2_done"><textarea data-key="p2_text" placeholder="Priority 2 (course, task, due date)"></textarea></div>
-  <div class="task"><input type="checkbox" data-key="p3_done"><textarea data-key="p3_text" placeholder="Priority 3 (course, task, due date)"></textarea></div>
-</div>
+<div class="box" id="prioritiesBox"></div>
+<span class="add-task" id="addPriority">+ Add Priority</span>
 
 <h2>Upcoming</h2>
 <textarea class="box" data-key="upcoming" placeholder="Upcoming deadlines"></textarea>
@@ -101,135 +94,118 @@
   <button id="copySummary">Copy summary</button>
   <button id="resetPage">Reset this page</button>
 </div>
-
-<div class="small">
-  Tip: If you switch devices or clear browser data, your checkmarks may not carry over.
-</div>
+<div class="small">Tip: Changes save automatically. Multiple users can update the tracker simultaneously.</div>
 
 <script>
+const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
 const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-const pageKey = "cats_tracker_" + location.pathname.toLowerCase();
+let prioritiesCount = 0;
 
+// --- CREATE PRIORITIES ---
+const prioritiesBox = document.getElementById("prioritiesBox");
+document.getElementById("addPriority").addEventListener("click", () => {
+  prioritiesCount++;
+  const div = document.createElement("div");
+  div.className = "task";
+  div.innerHTML = `<input type="checkbox" data-key="p${prioritiesCount}_done"><input type="text" data-key="p${prioritiesCount}_text" placeholder="Priority ${prioritiesCount}"><span class="remove-task">x</span>`;
+  div.querySelector(".remove-task").addEventListener("click", () => div.remove());
+  prioritiesBox.appendChild(div);
+});
+
+// --- CREATE DAILY PLAN ---
 function createDayColumn(dayName, dayIndex) {
   const day = document.createElement("div");
   day.className = "day";
-  day.innerHTML = `<h3 class="day-header">${dayName}</h3>
-                   <div class="day-tasks"></div>
-                   <button class="add-task-btn">+ Add Task</button>`;
+  day.innerHTML = `<h3 class="day-header">${dayName}</h3><div class="day-tasks"></div><span class="add-task">+ Add Task</span>`;
 
   const container = day.querySelector(".day-tasks");
-
-  function addTask(defaultText="") {
-    const taskWrap = document.createElement("div");
-    taskWrap.className = "task";
-    taskWrap.innerHTML = `
-      <input type="checkbox" data-key="d${dayIndex}_t${Date.now()}_done">
-      <textarea data-key="d${dayIndex}_t${Date.now()}_text" placeholder="Task (course + action)">${defaultText}</textarea>
-      <button title="Remove Task">x</button>
-    `;
-    const removeBtn = taskWrap.querySelector("button");
-    removeBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      taskWrap.remove();
-      saveAll();
-    });
-    container.appendChild(taskWrap);
+  const addBtn = day.querySelector(".add-task");
+  function addTask() {
+    const wrap = document.createElement("div");
+    wrap.className = "task";
+    wrap.innerHTML = `<input type="checkbox" data-key="d${dayIndex}_t${container.children.length+1}_done"><input type="text" data-key="d${dayIndex}_t${container.children.length+1}_text" placeholder="Task ${container.children.length+1}"><span class="remove-task">x</span>`;
+    wrap.querySelector(".remove-task").addEventListener("click", () => wrap.remove());
+    container.appendChild(wrap);
   }
+  // Add 3 default tasks
+  for(let i=0;i<3;i++) addTask();
+  addBtn.addEventListener("click", addTask);
 
-  // Add default 1 task
-  addTask();
-
-  // Add task button
-  day.querySelector(".add-task-btn").addEventListener("click", (e) => {
-    e.stopPropagation();
-    addTask();
-    saveAll();
+  day.querySelector(".day-header").addEventListener("click", () => {
+    container.style.display = container.style.display === "none" || container.style.display === "" ? "block" : "none";
   });
 
   return day;
 }
 
+const grid = document.getElementById("weekGrid");
+days.forEach((d,i)=> grid.appendChild(createDayColumn(d,i)));
+
+// --- ALL FIELDS ---
 function allFields() {
   return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note");
 }
 
-function saveAll() {
+// --- SAVE TO GOOGLE SHEET ---
+async function saveAll() {
   const data = {};
   allFields().forEach(el => {
     const key = el.getAttribute("data-key") || el.id;
     data[key] = el.type === "checkbox" ? el.checked : el.value;
   });
-  localStorage.setItem(pageKey, JSON.stringify(data));
+  data["Student Name"] = document.getElementById("studentName").value;
+  data["Week Of"] = document.getElementById("weekOf").value;
+  await fetch(webAppURL, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
 }
 
-function loadAll() {
-  const raw = localStorage.getItem(pageKey);
-  if (!raw) return;
-  const data = JSON.parse(raw);
-  allFields().forEach(el => {
-    const key = el.getAttribute("data-key") || el.id;
-    if (!(key in data)) return;
-    if (el.type === "checkbox") el.checked = data[key];
-    else el.value = data[key];
+// --- LOAD FROM GOOGLE SHEET ---
+async function loadAll() {
+  const resp = await fetch(webAppURL);
+  const allData = await resp.json();
+  const row = allData.find(r => r["Student Name"] === document.getElementById("studentName").value && r["Week Of"] === document.getElementById("weekOf").value);
+  if(!row) return;
+  Object.keys(row).forEach(key => {
+    const el = document.querySelector(`[data-key="${key}"]`) || document.getElementById(key);
+    if(!el) return;
+    if(el.type==="checkbox") el.checked = row[key];
+    else el.value = row[key];
   });
 }
 
-function hookAutosave() {
-  document.addEventListener("input", (e) => { if (e.target.matches("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note")) saveAll(); });
-  document.addEventListener("change", (e) => { if (e.target.matches("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note")) saveAll(); });
-}
+// --- AUTOSAVE ---
+document.addEventListener("input", saveAll);
+document.addEventListener("change", saveAll);
 
-function copySummary() {
-  const name = document.getElementById("studentName").value || "Student";
-  const week = document.getElementById("weekOf").value || "";
-  let out = `${name} Weekly Tracker ${week}\n\nPriorities\n`;
-  for (let i = 1; i <= 3; i++) {
-    const text = document.querySelector(`[data-key="p${i}_text"]`).value || "";
-    const done = document.querySelector(`[data-key="p${i}_done"]`).checked ? "DONE" : "OPEN";
-    if (text.trim()) out += `${done} ${text}\n`;
-  }
+// --- COPY SUMMARY ---
+document.getElementById("copySummary").addEventListener("click", async () => {
+  await saveAll();
+  let out = `Student: ${document.getElementById("studentName").value}\nWeek of: ${document.getElementById("weekOf").value}\n\nPriorities\n`;
+  document.querySelectorAll("#prioritiesBox .task").forEach(t=>{
+    const text = t.querySelector(`[data-key$="_text"]`).value || "";
+    const done = t.querySelector(`[data-key$="_done"]`).checked ? "DONE" : "OPEN";
+    if(text) out+= `${done} ${text}\n`;
+  });
   out += `\nUpcoming\n${document.querySelector('[data-key="upcoming"]').value || ""}\n`;
   out += `\nMissing\n${document.querySelector('[data-key="missing"]').value || ""}\n\n`;
-
-  days.forEach((d, di) => {
+  days.forEach((d,di)=>{
     out += `${d}\n`;
-    document.querySelectorAll(`#weekGrid .day:nth-child(${di+1}) .task`).forEach(task => {
-      const t = task.querySelector("textarea").value || "";
-      const c = task.querySelector("input[type=checkbox]").checked ? "DONE" : "OPEN";
-      if (t.trim()) out += `${c} ${t}\n`;
+    document.querySelectorAll(`#weekGrid .day`)[di].querySelectorAll(".task").forEach(task=>{
+      const text = task.querySelector(`[data-key$="_text"]`).value || "";
+      const done = task.querySelector(`[data-key$="_done"]`).checked ? "DONE" : "OPEN";
+      if(text) out += `${done} ${text}\n`;
     });
     out += "\n";
   });
-
-  navigator.clipboard.writeText(out).then(() => alert("Copied. Paste into Retain or email.")).catch(() => alert("Copy failed. You can manually select and copy."));
-}
-
-function resetPage() {
-  if (!confirm("Reset everything on this page?")) return;
-  localStorage.removeItem(pageKey);
-  location.reload();
-}
-
-// Initialize
-const grid = document.getElementById("weekGrid");
-days.forEach((d, i) => grid.appendChild(createDayColumn(d, i)));
-
-hookAutosave();
-loadAll();
-
-// Event listeners
-document.getElementById("copySummary").addEventListener("click", copySummary);
-document.getElementById("resetPage").addEventListener("click", resetPage);
-
-// Expand/collapse each day's tasks
-document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll(".day-header").forEach(header => {
-    header.addEventListener("click", () => {
-      const tasks = header.nextElementSibling;
-      tasks.classList.toggle("show");
-    });
-  });
+  navigator.clipboard.writeText(out).then(()=>alert("Copied summary!"));
 });
+
+// --- RESET PAGE ---
+document.getElementById("resetPage").addEventListener("click", () => {
+  if(confirm("Reset everything?")) location.reload();
+});
+
+// --- INITIAL LOAD ---
+window.addEventListener("load", loadAll);
 </script>
 
 </body>
