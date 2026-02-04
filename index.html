@@ -31,6 +31,9 @@
   .actions { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
   button { padding: 10px 14px; border-radius: 12px; border: 1px solid #999; background: #f6f6f6; cursor: pointer; }
   button:hover { background: #e0e0e0; }
+  .status-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; color: #555; margin-bottom: 8px; flex-wrap: wrap; }
+  .status-pill { background: #e9f2ff; color: #1a4b8f; padding: 4px 8px; border-radius: 999px; font-weight: 600; }
+  .share-link { font-size: 12px; color: #0073e6; word-break: break-all; }
   @media(max-width: 600px){
     .meta { grid-template-columns: 1fr; }
     .day { padding: 8px; }
@@ -42,6 +45,10 @@
 
 <h1>CATS Weekly Dashboard</h1>
 <div class="sub">Students and Learning Specialists can update tasks and priorities live. Tap a day to expand tasks.</div>
+<div class="status-bar">
+  <div class="status-pill" id="syncStatus">Live sync: connecting…</div>
+  <div class="share-link">Share this page URL with your team for real-time updates.</div>
+</div>
 
 <div class="box meta">
   <div><label>Student Name</label><input id="studentName" type="text" placeholder="First Last"></div>
@@ -88,6 +95,9 @@
 const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
 const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 let prioritiesCount = 0;
+let isSyncing = false;
+let lastSyncAt = null;
+let loadTimer = null;
 
 // --- Priorities Section ---
 const prioritiesBox = document.getElementById("prioritiesBox");
@@ -129,13 +139,68 @@ days.forEach((d,i)=>grid.appendChild(createDayColumn(d,i)));
 // --- All Fields ---
 function allFields(){ return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note"); }
 
+function updateSyncStatus(state, detail){
+  const status = document.getElementById("syncStatus");
+  if(state === "ok"){
+    status.textContent = `Live sync: ${detail || "up to date"}`;
+  } else if(state === "saving"){
+    status.textContent = "Live sync: saving…";
+  } else if(state === "loading"){
+    status.textContent = "Live sync: checking…";
+  } else {
+    status.textContent = `Live sync: ${detail || "offline"}`;
+  }
+}
+
+function isFieldEditable(el){
+  const active = document.activeElement;
+  return active === el || active?.closest?.(".task") === el.closest?.(".task");
+}
+
+function applyDataToField(el, value){
+  if(el.type === "checkbox"){
+    el.checked = Boolean(value);
+  } else if(!isFieldEditable(el)) {
+    el.value = value ?? "";
+  }
+}
+
 // --- Autosave to Google Sheet ---
 async function saveAll(){
+  if(isSyncing) return;
   const data = {};
   allFields().forEach(el=>{ const key=el.getAttribute("data-key")||el.id; data[key]=el.type==="checkbox"?el.checked:el.value; });
   data["Student Name"]=document.getElementById("studentName").value;
   data["Week Of"]=document.getElementById("weekOf").value;
-  await fetch(webAppURL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+  try {
+    updateSyncStatus("saving");
+    await fetch(webAppURL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    lastSyncAt = new Date();
+    updateSyncStatus("ok", `saved ${lastSyncAt.toLocaleTimeString()}`);
+  } catch (error){
+    updateSyncStatus("error", "offline");
+  }
+}
+
+async function loadAll(){
+  if(isSyncing) return;
+  isSyncing = true;
+  updateSyncStatus("loading");
+  try {
+    const response = await fetch(webAppURL);
+    if(!response.ok) throw new Error("Failed to load");
+    const data = await response.json();
+    allFields().forEach(el=>{
+      const key = el.getAttribute("data-key") || el.id;
+      if(key in data) applyDataToField(el, data[key]);
+    });
+    lastSyncAt = new Date();
+    updateSyncStatus("ok", `synced ${lastSyncAt.toLocaleTimeString()}`);
+  } catch (error){
+    updateSyncStatus("error", "offline");
+  } finally {
+    isSyncing = false;
+  }
 }
 
 // --- Copy Summary ---
@@ -167,6 +232,10 @@ document.getElementById("resetPage").addEventListener("click", ()=>{if(confirm("
 // --- Autosave on Input ---
 document.addEventListener("input", saveAll);
 document.addEventListener("change", saveAll);
+
+// --- Poll for live updates ---
+loadAll();
+loadTimer = setInterval(loadAll, 5000);
 </script>
 
 </body>
