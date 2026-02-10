@@ -11,7 +11,7 @@
     --radius:14px;
   }
   *{ box-sizing:border-box; }
-  body{ margin:0; padding:12px 12px 84px; font-family: Arial, sans-serif; background:var(--bg); color:var(--text); }
+  body{ margin:0; padding:12px 12px 92px; font-family: Arial, sans-serif; background:var(--bg); color:var(--text); }
   h1{ font-size:20px; margin:2px 0 4px; text-align:center; letter-spacing:.2px; }
   .sub{ font-size:12px; color:var(--muted); text-align:center; margin:0 0 10px; }
 
@@ -40,17 +40,25 @@
 
   .topbar{ display:flex; gap:10px; align-items:stretch; }
   .top-left{ flex:1; }
+
   .top-right{
-    width:220px; min-width:220px;
+    width:260px; min-width:260px;
     display:flex; flex-direction:column; justify-content:space-between;
     padding:12px; border-radius:var(--radius); border:1px solid var(--line); background:var(--card); box-shadow:var(--shadow);
+    gap:10px;
   }
-  .meter{ display:flex; align-items:center; gap:10px; }
+
+  .meter{ display:flex; align-items:flex-start; gap:10px; }
   .pill{
     display:inline-flex; align-items:center; gap:6px;
     padding:6px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px; color:var(--muted);
     background:#fff;
+    white-space:nowrap;
   }
+  .pill.good{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
+  .pill.warn{ background:rgba(204,0,51,.08); border-color:transparent; color:#8f0026; }
+  .pill.gray{ background:rgba(102,112,133,.08); border-color:transparent; color:#475467; }
+
   .big{ font-size:20px; font-weight:700; }
   .small{ font-size:11px; color:var(--muted); }
   .btnrow{ display:flex; gap:8px; flex-wrap:wrap; }
@@ -61,6 +69,7 @@
   .btn.primary{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
   .btn.danger{ background:rgba(204,0,51,.10); border-color:transparent; color:#8f0026; }
   .btn:active{ transform:translateY(1px); }
+  .btn:disabled{ opacity:.55; cursor:not-allowed; }
 
   .task{
     display:flex; gap:8px; align-items:flex-start; margin:8px 0;
@@ -93,11 +102,42 @@
   }
   .status{ font-size:12px; color:var(--muted); }
   .status strong{ color:var(--text); }
+  .status .meta{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* Toast */
+  .toast{
+    position:fixed; left:50%; transform:translateX(-50%);
+    bottom:86px;
+    background:#111827; color:#fff;
+    padding:10px 12px; border-radius:12px;
+    box-shadow:0 10px 25px rgba(0,0,0,.15);
+    font-size:13px; opacity:0; pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
+    max-width:92vw;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+  /* Staff/student feel: subtle header chips */
+  .chipbar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:6px 0 0; }
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:6px 10px; border-radius:999px;
+    border:1px solid var(--line); background:#fff;
+    font-size:12px; color:#475467;
+  }
+  .dot{
+    width:8px; height:8px; border-radius:999px; display:inline-block;
+    background:#98a2b3;
+  }
+  .dot.green{ background:#12b76a; }
+  .dot.red{ background:#f04438; }
+  .dot.blue{ background:#0b6bff; }
 
   @media(max-width:720px){
     .topbar{ flex-direction:column; }
     .top-right{ width:100%; min-width:unset; }
-    body{ padding-bottom:96px; }
+    body{ padding-bottom:104px; }
+    .toast{ bottom:98px; }
   }
 </style>
 </head>
@@ -105,10 +145,15 @@
 <body>
 <div class="wrap">
   <h1>CATS Weekly Dashboard</h1>
-  <div class="sub">Short, clean, and built for phones. Save is automatic, and “Load Week” pulls the shared version.</div>
+  <div class="sub">Built for phones. Autosaves after you set Student + Week. “Load Week” pulls the shared version.</div>
+
+  <div class="chipbar">
+    <div class="chip" id="chipOnline"><span class="dot" id="dotOnline"></span><span id="onlineText">Checking connection…</span></div>
+    <div class="chip"><span class="dot blue"></span><span id="syncText">Last synced: —</span></div>
+  </div>
 
   <!-- Header / Meta + Meter -->
-  <div class="topbar">
+  <div class="topbar" style="margin-top:10px;">
     <div class="top-left card pad">
       <div class="row">
         <div class="col">
@@ -169,18 +214,21 @@
 
     <div class="top-right">
       <div class="meter">
-        <div>
+        <div style="flex:1;">
           <div class="small">Weekly Progress</div>
           <div class="big"><span id="doneCount">0</span>/<span id="totalCount">0</span></div>
           <div class="small"><span id="pct">0%</span> tasks marked done</div>
+          <div class="small" id="localText" style="margin-top:6px;">Local backup: —</div>
         </div>
-        <div class="pill" id="riskPill">Momentum: steady</div>
+        <div class="pill gray" id="riskPill">Momentum: steady</div>
       </div>
 
       <div class="btnrow" style="justify-content:flex-end;">
         <button class="btn primary" id="loadWeek" type="button">Load Week</button>
         <button class="btn" id="copySummary" type="button">Copy Summary</button>
+        <button class="btn" id="shareLink" type="button">Share Link</button>
       </div>
+      <div class="hint" style="margin:0;">Tip: “Share Link” copies a pre-filled link (same student + week) for staff.</div>
     </div>
   </div>
 
@@ -244,13 +292,18 @@
 <!-- Sticky bar -->
 <div class="sticky">
   <div class="inner">
-    <div class="status" id="status">Status: <strong>idle</strong></div>
+    <div class="status" id="status">
+      Status: <strong>idle</strong>
+      <span class="meta" id="statusMeta">Set Student + Week to enable autosave.</span>
+    </div>
     <div class="btnrow">
       <button class="btn" id="saveNow" type="button">Save Now</button>
       <button class="btn danger" id="resetPage" type="button">Reset</button>
     </div>
   </div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script>
   const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
@@ -260,19 +313,78 @@
   let lastSavedHash = "";
   let selectedDayIndex = 0;
 
-  // ---------- status ----------
-  function setStatus(state){
-    const el = document.getElementById("status");
-    el.innerHTML = "Status: <strong>" + state + "</strong>";
+  // Auto-refresh (shared feel)
+  let refreshTimer = null;
+  let isApplyingLoad = false;
+
+  // ---------- UI helpers ----------
+  function nowStamp(){
+    return new Date().toLocaleString();
   }
 
-  // ---------- keys / hashing ----------
+  function toast(msg){
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(el._t);
+    el._t = setTimeout(()=>el.classList.remove("show"), 1600);
+  }
+
+  function setStatus(state, meta){
+    const el = document.getElementById("status");
+    el.innerHTML = "Status: <strong>" + state + "</strong>";
+    const metaEl = document.getElementById("statusMeta");
+    if(typeof meta === "string") metaEl.textContent = meta;
+  }
+
+  function setSyncText(text){
+    document.getElementById("syncText").textContent = "Last synced: " + text;
+  }
+
+  function setLocalText(text){
+    document.getElementById("localText").textContent = "Local backup: " + text;
+  }
+
+  // ---------- connection indicator ----------
+  function updateOnlineChip(){
+    const online = navigator.onLine;
+    const dot = document.getElementById("dotOnline");
+    const txt = document.getElementById("onlineText");
+    if(online){
+      dot.className = "dot green";
+      txt.textContent = "Online";
+    }else{
+      dot.className = "dot red";
+      txt.textContent = "Offline";
+    }
+  }
+  window.addEventListener("online", ()=>{ updateOnlineChip(); toast("Back online"); });
+  window.addEventListener("offline", ()=>{ updateOnlineChip(); toast("Offline mode"); });
+  updateOnlineChip();
+
+  // ---------- record key ----------
   function stableKey(){
     const student = (document.getElementById("studentName").value || "").trim();
     const week = document.getElementById("weekOf").value || "";
     return { student, week, key: (student + "|" + week).toLowerCase() };
   }
 
+  function hasRequiredKey(){
+    const sk = stableKey();
+    return !!(sk.student && sk.week);
+  }
+
+  function cacheKey(){
+    const sk = stableKey();
+    return "cats_week_data_" + sk.key;
+  }
+
+  function metaKey(){
+    const sk = stableKey();
+    return "cats_week_meta_" + sk.key;
+  }
+
+  // ---------- fields ----------
   function allFields(){
     return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note");
   }
@@ -292,13 +404,7 @@
 
   function hashData(obj){ return JSON.stringify(obj); }
 
-  function debounceSave(){
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveAll, 700);
-    setStatus("typing...");
-  }
-
-  // ---------- progress meter ----------
+  // ---------- progress ----------
   function updateProgress(){
     const checks = document.querySelectorAll('input[type="checkbox"][data-key]');
     let total = 0, done = 0;
@@ -309,44 +415,69 @@
     document.getElementById("pct").textContent = pct + "%";
 
     const pill = document.getElementById("riskPill");
-    if(pct >= 70) pill.textContent = "Momentum: strong";
-    else if(pct >= 35) pill.textContent = "Momentum: steady";
-    else pill.textContent = "Momentum: building";
+    pill.classList.remove("good","warn","gray");
+    if(pct >= 70){ pill.textContent = "Momentum: strong"; pill.classList.add("good"); }
+    else if(pct >= 35){ pill.textContent = "Momentum: steady"; pill.classList.add("gray"); }
+    else { pill.textContent = "Momentum: building"; pill.classList.add("warn"); }
+  }
+
+  // ---------- ids / tasks ----------
+  function uid(){
+    return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   }
 
   // ---------- priorities ----------
   const prioritiesBox = document.getElementById("prioritiesBox");
-
-  function uid(){
-    return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-  }
 
   function addPriorityRow(text="", done=false){
     const id = uid();
     const div = document.createElement("div");
     div.className = "task";
     div.innerHTML = `
-      <input type="checkbox" data-key="p_${id}_done">
-      <input type="text" data-key="p_${id}_text" placeholder="Priority">
-      <span class="x" title="Remove">×</span>
+      <input type="checkbox" data-key="p_${id}_done" aria-label="Priority done">
+      <input type="text" data-key="p_${id}_text" placeholder="Priority" aria-label="Priority text">
+      <span class="x" title="Remove" aria-label="Remove priority" role="button">×</span>
     `;
     div.querySelector(`[data-key="p_${id}_done"]`).checked = !!done;
     div.querySelector(`[data-key="p_${id}_text"]`).value = text || "";
-    div.querySelector(".x").addEventListener("click",(e)=>{ e.stopPropagation(); div.remove(); updateProgress(); debounceSave(); });
+    div.querySelector(".x").addEventListener("click",(e)=>{
+      e.stopPropagation();
+      div.remove();
+      updateProgress();
+      debounceSave();
+    });
     prioritiesBox.appendChild(div);
     updateProgress();
   }
 
-  document.getElementById("addPriority").addEventListener("click", ()=>{ addPriorityRow(); debounceSave(); });
-  document.getElementById("quick3").addEventListener("click", ()=>{ addPriorityRow(); addPriorityRow(); addPriorityRow(); debounceSave(); });
+  document.getElementById("addPriority").addEventListener("click", ()=>{
+    addPriorityRow();
+    debounceSave();
+  });
+  document.getElementById("quick3").addEventListener("click", ()=>{
+    addPriorityRow(); addPriorityRow(); addPriorityRow();
+    debounceSave();
+  });
 
-  // start with 3 priorities so it feels alive
-  addPriorityRow(); addPriorityRow(); addPriorityRow();
+  function ensureSeededNewRecord(){
+    // Only seed if priorities and daily are truly empty (new record)
+    const anyPriority = prioritiesBox.querySelector(".task");
+    if(!anyPriority){
+      addPriorityRow(); addPriorityRow(); addPriorityRow();
+    }
+    days.forEach((d,i)=>{
+      const panel = document.getElementById("daypanel_" + i);
+      const any = panel.querySelector(".task");
+      if(!any){
+        addDayTask(i,"");
+        addDayTask(i,"");
+      }
+    });
+  }
 
-  // ---------- daily plan (compact: day switcher + panel) ----------
+  // ---------- daily plan ----------
   const daybar = document.getElementById("daybar");
   const dayPanels = document.getElementById("dayPanels");
-  const dayTaskCounters = Array(days.length).fill(0);
 
   function addDayTask(dayIndex, text="", done=false){
     const id = uid();
@@ -354,14 +485,18 @@
     const wrap = document.createElement("div");
     wrap.className = "task";
     wrap.innerHTML = `
-      <input type="checkbox" data-key="d${dayIndex}_${id}_done">
-      <input type="text" data-key="d${dayIndex}_${id}_text" placeholder="Task">
-      <span class="x" title="Remove">×</span>
+      <input type="checkbox" data-key="d${dayIndex}_${id}_done" aria-label="Task done">
+      <input type="text" data-key="d${dayIndex}_${id}_text" placeholder="Task" aria-label="Task text">
+      <span class="x" title="Remove" aria-label="Remove task" role="button">×</span>
     `;
     wrap.querySelector(`[data-key="d${dayIndex}_${id}_done"]`).checked = !!done;
     wrap.querySelector(`[data-key="d${dayIndex}_${id}_text"]`).value = text || "";
-    wrap.querySelector(".x").addEventListener("click",(e)=>{ e.stopPropagation(); wrap.remove(); updateProgress(); debounceSave(); });
-
+    wrap.querySelector(".x").addEventListener("click",(e)=>{
+      e.stopPropagation();
+      wrap.remove();
+      updateProgress();
+      debounceSave();
+    });
     panel.appendChild(wrap);
     updateProgress();
   }
@@ -384,13 +519,8 @@
     p.className = "daypanel";
     p.id = "daypanel_" + i;
     dayPanels.appendChild(p);
-
-    // seed 2 tasks per day to feel interactive but still compact
-    addDayTask(i,"");
-    addDayTask(i,"");
   });
 
-  // default to today-ish (Mon=0); safe fallback
   (function pickToday(){
     const jsDay = new Date().getDay(); // Sun=0
     const map = {1:0,2:1,3:2,4:3,5:4,6:5,0:6};
@@ -403,12 +533,8 @@
   });
 
   document.getElementById("addStudyTemplate").addEventListener("click", ()=>{
-    const template = [
-      "Check Brightspace + due dates",
-      "Finish highest-impact assignment",
-      "Submit + confirm submission"
-    ];
-    template.forEach(t=>addDayTask(selectedDayIndex, t, false));
+    ["Check Brightspace + due dates","Finish highest-impact assignment","Submit + confirm submission"]
+      .forEach(t=>addDayTask(selectedDayIndex, t, false));
     debounceSave();
   });
 
@@ -424,130 +550,262 @@
     });
   });
 
+  // ---------- local cache (FULL DATA) ----------
+  function cacheSave(data, meta){
+    try{
+      localStorage.setItem(cacheKey(), JSON.stringify(data));
+      localStorage.setItem(metaKey(), JSON.stringify(meta));
+      setLocalText(meta?.localSavedAt ? meta.localSavedAt : "saved");
+    }catch(e){}
+  }
+
+  function cacheLoad(){
+    try{
+      const raw = localStorage.getItem(cacheKey());
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function cacheMeta(){
+    try{
+      const raw = localStorage.getItem(metaKey());
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){
+      return null;
+    }
+  }
+
+  // ---------- autosave gating ----------
+  function debounceSave(){
+    if(isApplyingLoad) return;
+    if(!hasRequiredKey()){
+      setStatus("idle","Set Student + Week to enable autosave.");
+      return;
+    }
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(()=>saveAll(false), 700);
+    setStatus("typing...","Autosave on. Changes save automatically.");
+  }
+
   // ---------- save/load ----------
   async function saveAll(force=false){
-    const sk = stableKey();
-    if(!sk.student || !sk.week){
-      setStatus("enter Student Name + Week Of");
+    if(!hasRequiredKey()){
+      setStatus("idle","Set Student + Week to enable autosave.");
       return;
     }
 
     const data = collectData();
     const h = hashData(data);
-    if(!force && h === lastSavedHash) { setStatus("saved"); return; }
+    if(!force && h === lastSavedHash){
+      setStatus("saved","Up to date.");
+      return;
+    }
 
-    // Local safety net (helps if Apps Script is down)
-    try{ localStorage.setItem("cats_week_" + sk.key, h); }catch(e){}
+    // Always write local backup first
+    const meta = { localSavedAt: nowStamp() };
+    cacheSave(data, meta);
 
+    // Then try server
     try{
-      setStatus("saving...");
+      setStatus("saving...","Syncing to shared version.");
       await fetch(webAppURL, {
         method:"POST",
         headers:{ "Content-Type":"application/json" },
         body: JSON.stringify(data)
       });
       lastSavedHash = h;
-      setStatus("saved");
+      const syncedAt = nowStamp();
+      setSyncText(syncedAt);
+      setStatus("saved","Shared version updated.");
+      toast("Saved");
     }catch(err){
-      setStatus("offline (saved locally)");
+      setStatus("offline (saved locally)","No internet or server issue. Your work is still safe on this device.");
+      toast("Saved locally");
     }
   }
 
-  async function loadWeek(){
-    const sk = stableKey();
-    if(!sk.student || !sk.week){
-      setStatus("enter Student Name + Week Of");
+  async function loadWeek(opts={silent:false}){
+    if(!hasRequiredKey()){
+      setStatus("idle","Set Student + Week to enable autosave.");
       return;
     }
 
-    setStatus("loading...");
-    // Try server first
+    // If user has unsaved edits (local differs from lastSavedHash), warn on manual load
+    const currentHash = hashData(collectData());
+    const hasUnsaved = (lastSavedHash && currentHash !== lastSavedHash);
+
+    if(!opts.silent && hasUnsaved){
+      const ok = confirm("Load Week will overwrite what’s on screen. Continue?");
+      if(!ok) return;
+    }
+
+    setStatus("loading...","Pulling the shared version.");
+    const sk = stableKey();
+
+    // server first
     try{
       const url = webAppURL + "?studentName=" + encodeURIComponent(sk.student) + "&weekOf=" + encodeURIComponent(sk.week);
       const res = await fetch(url, { method:"GET" });
       const obj = await res.json();
       if(obj && !obj.error){
         applyLoaded(obj);
-        setStatus("loaded");
+        const syncedAt = nowStamp();
+        setSyncText(syncedAt);
+        setStatus("loaded","Shared version loaded.");
+        if(!opts.silent) toast("Loaded");
         return;
       }
     }catch(e){}
 
-    // Fallback: local cache
-    try{
-      const cached = localStorage.getItem("cats_week_" + sk.key);
-      if(cached){
-        const obj = JSON.parse(cached);
-        // cached is hash string of full data, not an object — so this is limited
-        // we won’t try to reconstruct UI from hash. It’s just safety so you don’t lose progress.
-        setStatus("no server record (local cache exists)");
-      }else{
-        setStatus("no saved record found");
-      }
-    }catch(e){
-      setStatus("load failed");
+    // fallback: local
+    const cached = cacheLoad();
+    if(cached){
+      applyLoaded(cached);
+      const m = cacheMeta();
+      setLocalText(m?.localSavedAt ? m.localSavedAt : "available");
+      setStatus("loaded (local)","Shared version unavailable. Using local backup.");
+      if(!opts.silent) toast("Loaded (local)");
+    }else{
+      setStatus("no saved record found","Try again after setting Student + Week, or check spelling/date.");
+      if(!opts.silent) toast("No record found");
     }
   }
 
+  function clearAllTasks(){
+    prioritiesBox.innerHTML = "";
+    dayPanels.querySelectorAll(".daypanel").forEach(p=>p.innerHTML="");
+  }
+
   function applyLoaded(obj){
-    // Fill simple fields
+    isApplyingLoad = true;
+
+    // Fill simple fields (keep studentName/weekOf as user-controlled, since those define the record)
     ["sport","counselor","ls","note"].forEach(id=>{
       if(document.getElementById(id)) document.getElementById(id).value = obj[id] || "";
     });
+
     const up = document.querySelector('[data-key="upcoming"]');
     const mi = document.querySelector('[data-key="missing"]');
-    if(up) up.value = obj["upcoming"] || obj.upcoming || "";
-    if(mi) mi.value = obj["missing"] || obj.missing || "";
+    if(up) up.value = obj["upcoming"] ?? obj.upcoming ?? "";
+    if(mi) mi.value = obj["missing"] ?? obj.missing ?? "";
 
     // Rebuild priorities + daily from keys
-    prioritiesBox.innerHTML = "";
-    dayPanels.querySelectorAll(".daypanel").forEach(p=>p.innerHTML="");
+    clearAllTasks();
 
+    // Recreate priorities / daily tasks from saved keys
     Object.keys(obj).forEach(k=>{
-      const el = document.querySelector(`[data-key="${k}"]`);
-      if(el){
-        if(el.type === "checkbox") el.checked = (obj[k] === true || obj[k] === "true");
-        else el.value = obj[k] || "";
-      } else {
-        // Recreate tasks that don't exist yet
-        // Priorities
-        if(k.startsWith("p_") && k.endsWith("_text")){
-          const base = k.replace("_text","");
-          const text = obj[k] || "";
-          const doneKey = base + "_done";
-          const done = (obj[doneKey] === true || obj[doneKey] === "true");
-          if(text || done) addPriorityRow(text, done);
-        }
-        // Daily tasks
-        const m = k.match(/^d(\d+)_(.+)_text$/);
-        if(m){
-          const dayIndex = parseInt(m[1],10);
-          const id = m[2];
-          const text = obj[k] || "";
-          const doneKey = `d${dayIndex}_${id}_done`;
-          const done = (obj[doneKey] === true || obj[doneKey] === "true");
-          if(text || done) addDayTask(dayIndex, text, done);
-        }
+      if(k.startsWith("p_") && k.endsWith("_text")){
+        const base = k.replace("_text","");
+        const text = obj[k] || "";
+        const doneKey = base + "_done";
+        const done = (obj[doneKey] === true || obj[doneKey] === "true");
+        if(text || done) addPriorityRow(text, done);
+      }
+
+      const m = k.match(/^d(\d+)_(.+)_text$/);
+      if(m){
+        const dayIndex = parseInt(m[1],10);
+        const id = m[2];
+        const text = obj[k] || "";
+        const doneKey = `d${dayIndex}_${id}_done`;
+        const done = (obj[doneKey] === true || obj[doneKey] === "true");
+        if(text || done) addDayTask(dayIndex, text, done);
       }
     });
 
+    // If it’s a brand new record, keep it “alive” with starter blanks
+    ensureSeededNewRecord();
+
+    // Update hashes + meters
     lastSavedHash = hashData(collectData());
     updateProgress();
+
+    // Refresh local meta display if present
+    const m = cacheMeta();
+    if(m?.localSavedAt) setLocalText(m.localSavedAt);
+
+    isApplyingLoad = false;
   }
 
-  document.getElementById("loadWeek").addEventListener("click", loadWeek);
+  // ---------- auto-refresh (shared feel) ----------
+  function startAutoRefresh(){
+    stopAutoRefresh();
+    refreshTimer = setInterval(()=>{
+      if(hasRequiredKey()){
+        // Silent load so it doesn't pop confirmations
+        loadWeek({silent:true});
+      }
+    }, 20000); // 20 seconds
+  }
+
+  function stopAutoRefresh(){
+    if(refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+
+  // When student/week changes: show local availability + start refresh
+  function onKeyChanged(){
+    if(!hasRequiredKey()){
+      stopAutoRefresh();
+      setStatus("idle","Set Student + Week to enable autosave.");
+      setLocalText("—");
+      setSyncText("—");
+      return;
+    }
+
+    // Show if local backup exists for this record
+    const cached = cacheLoad();
+    const m = cacheMeta();
+    if(cached){
+      setLocalText(m?.localSavedAt ? m.localSavedAt : "available");
+      setStatus("ready","Local backup found for this student/week.");
+      toast("Record ready");
+    }else{
+      setLocalText("none yet");
+      setStatus("ready","New record. Start typing—autosave is on.");
+      // Seed blanks so it doesn't feel empty
+      ensureSeededNewRecord();
+    }
+
+    startAutoRefresh();
+  }
+
+  // ---------- buttons ----------
+  document.getElementById("loadWeek").addEventListener("click", ()=>loadWeek({silent:false}));
   document.getElementById("saveNow").addEventListener("click", ()=>saveAll(true));
+
+  document.getElementById("shareLink").addEventListener("click", async ()=>{
+    const sk = stableKey();
+    if(!sk.student || !sk.week){
+      toast("Set Student + Week first");
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("student", sk.student);
+    url.searchParams.set("week", sk.week);
+    try{
+      await navigator.clipboard.writeText(url.toString());
+      toast("Link copied");
+    }catch(e){
+      toast("Copy failed");
+    }
+  });
 
   // ---------- copy summary ----------
   document.getElementById("copySummary").addEventListener("click", async ()=>{
-    await saveAll(true);
+    if(hasRequiredKey()) await saveAll(true);
 
     const student = (document.getElementById("studentName").value || "").trim();
     const week = document.getElementById("weekOf").value || "";
     let out = "";
     out += "Student: " + student + "\n";
     out += "Week Of: " + week + "\n";
-    out += "Sport: " + (document.getElementById("sport").value || "") + "\n\n";
+    out += "Sport: " + (document.getElementById("sport").value || "") + "\n";
+    out += "Counselor: " + (document.getElementById("counselor").value || "") + "\n";
+    out += "LS: " + (document.getElementById("ls").value || "") + "\n\n";
+    out += "Focus Note: " + (document.getElementById("note").value || "") + "\n\n";
 
     out += "Priorities\n";
     prioritiesBox.querySelectorAll(".task").forEach(t=>{
@@ -572,9 +830,9 @@
 
     try{
       await navigator.clipboard.writeText(out);
-      alert("Summary copied.");
+      toast("Summary copied");
     }catch(e){
-      alert("Copy failed. Try manually selecting the text after pasting somewhere.");
+      toast("Copy failed");
     }
   });
 
@@ -584,11 +842,42 @@
   });
 
   // ---------- autosave triggers ----------
-  document.addEventListener("input", ()=>{ updateProgress(); debounceSave(); });
-  document.addEventListener("change", ()=>{ updateProgress(); debounceSave(); });
+  document.addEventListener("input", (e)=>{
+    updateProgress();
+    // Avoid autosave spam while key isn't set
+    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")) return;
+    debounceSave();
+  });
 
+  document.addEventListener("change", (e)=>{
+    updateProgress();
+    // Key fields: handle record setup + refresh
+    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")){
+      onKeyChanged();
+      return;
+    }
+    debounceSave();
+  });
+
+  // ---------- URL prefill (wow factor for staff sharing) ----------
+  (function prefillFromURL(){
+    const url = new URL(window.location.href);
+    const student = url.searchParams.get("student");
+    const week = url.searchParams.get("week");
+    if(student) document.getElementById("studentName").value = student;
+    if(week) document.getElementById("weekOf").value = week;
+    if(student || week){
+      onKeyChanged();
+      // If both exist, try loading immediately
+      if(student && week) loadWeek({silent:true});
+    }
+  })();
+
+  // ---------- initialize ----------
   updateProgress();
-  setStatus("idle");
+  setSyncText("—");
+  setLocalText("—");
+  setStatus("idle","Set Student + Week to enable autosave.");
 </script>
 </body>
 </html>
