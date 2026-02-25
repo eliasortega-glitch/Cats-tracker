@@ -1,58 +1,214 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CATS Weekly Dashboard</title>
 <style>
-  body {
+  body{
     font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 12px;
-    background: #f7f9fc;
-    color: #333;
+    margin:0;
+    padding:12px;
+    background:#f7f9fc;
+    color:#333;
   }
-  h1 { font-size: 24px; margin-bottom: 4px; text-align: center; }
-  .sub { font-size: 13px; color: #555; text-align: center; margin-bottom: 18px; }
-  .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 20px; }
-  .meta label { display: block; font-size: 12px; margin-bottom: 4px; color: #444; }
-  .meta input, .meta select, .meta textarea { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; }
-  h2 { font-size: 18px; margin: 20px 0 10px; }
-  .box { background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px; }
-  .task { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; }
-  .task input[type="checkbox"] { margin-top: 3px; }
-  .task input[type="text"] { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
-  .day { background: #fff; border-radius: 12px; padding: 10px; cursor: pointer; transition: background 0.2s; margin-bottom: 10px; }
-  .day:hover { background: #f0f4f8; }
-  .day-header { font-weight: bold; margin: 0 0 6px; }
-  .day-tasks { display: none; margin-top: 6px; }
-  .add-task { font-size: 12px; color: #0073e6; cursor: pointer; display: inline-block; margin-top: 6px; }
-  .remove-task { font-size: 12px; color: #e60000; cursor: pointer; margin-left: 6px; }
-  .actions { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
-  button { padding: 10px 14px; border-radius: 12px; border: 1px solid #999; background: #f6f6f6; cursor: pointer; }
-  button:hover { background: #e0e0e0; }
-  .status-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; color: #555; margin-bottom: 8px; flex-wrap: wrap; }
-  .status-pill { background: #e9f2ff; color: #1a4b8f; padding: 4px 8px; border-radius: 999px; font-weight: 600; }
-  .share-link { font-size: 12px; color: #0073e6; word-break: break-all; }
-  @media(max-width: 600px){
-    .meta { grid-template-columns: 1fr; }
-    .day { padding: 8px; }
-    .task input[type="text"] { font-size: 14px; }
+  h1{ font-size:24px; margin:6px 0 4px; text-align:center; }
+  .sub{ font-size:13px; color:#555; text-align:center; margin-bottom:18px; }
+
+  .meta{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap:10px;
+    margin-bottom:20px;
+  }
+  .meta label{ display:block; font-size:12px; margin-bottom:4px; color:#444; }
+  .meta input, .meta select, .meta textarea{
+    width:100%;
+    padding:8px;
+    border-radius:6px;
+    border:1px solid #ccc;
+    box-sizing:border-box;
+  }
+
+  h2{ font-size:18px; margin:20px 0 10px; }
+  .box{
+    background:#fff;
+    padding:12px;
+    border-radius:12px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.08);
+    margin-bottom:14px;
+  }
+
+  .task{
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    margin:8px 0;
+  }
+  .task input[type="checkbox"]{ margin-top:3px; }
+  .task input[type="text"]{
+    flex:1;
+    padding:8px;
+    border-radius:6px;
+    border:1px solid #ccc;
+  }
+  .remove-task{ font-size:12px; color:#e60000; cursor:pointer; margin-left:6px; user-select:none; }
+
+  .day{
+    background:#fff;
+    border-radius:12px;
+    padding:10px;
+    cursor:pointer;
+    transition: background 0.2s;
+    margin-bottom:10px;
+  }
+  .day:hover{ background:#f0f4f8; }
+  .day-header{ font-weight:bold; margin:0 0 6px; }
+  .day-tasks{ display:none; margin-top:6px; }
+
+  .add-task{
+    font-size:12px;
+    color:#0073e6;
+    cursor:pointer;
+    display:inline-block;
+    margin-top:6px;
+    user-select:none;
+  }
+
+  .actions{
+    display:flex;
+    gap:10px;
+    margin:14px 0 8px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  button{
+    padding:10px 14px;
+    border-radius:12px;
+    border:1px solid #999;
+    background:#f6f6f6;
+    cursor:pointer;
+  }
+  button:hover{ background:#e0e0e0; }
+
+  .status-bar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    font-size:12px;
+    color:#555;
+    margin-bottom:8px;
+    flex-wrap:wrap;
+  }
+  .status-pill{
+    background:#e9f2ff;
+    color:#1a4b8f;
+    padding:4px 8px;
+    border-radius:999px;
+    font-weight:600;
+  }
+  .share-link{ font-size:12px; color:#0073e6; word-break:break-all; }
+
+  /* Rewards / Slot */
+  .rewards-grid{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:12px;
+  }
+  .rewards-top{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    justify-content:space-between;
+  }
+  .pill{
+    background:#f0f4ff;
+    border:1px solid #d6e2ff;
+    color:#1b3f7a;
+    padding:6px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:700;
+  }
+  .slot-wrap{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .slot-machine{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    align-items:center;
+    padding:12px;
+    border-radius:14px;
+    border:1px solid #e5e5e5;
+    background: #fbfbfb;
+  }
+  .reel{
+    width:74px;
+    height:74px;
+    border-radius:14px;
+    border:1px solid #d9d9d9;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:34px;
+    background:#ffffff;
+    box-shadow: inset 0 1px 0 rgba(0,0,0,0.04);
+    user-select:none;
+  }
+  .slot-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .muted{ font-size:12px; color:#666; }
+  .small{ font-size:12px; color:#666; text-align:center; margin-top:6px; }
+
+  .two-col{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap:12px;
+  }
+  textarea{
+    width:100%;
+    min-height:80px;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid #ccc;
+    box-sizing:border-box;
+    resize:vertical;
+  }
+
+  @media(max-width:600px){
+    .meta{ grid-template-columns:1fr; }
+    .day{ padding:8px; }
+    .task input[type="text"]{ font-size:14px; }
+    .reel{ width:68px; height:68px; font-size:32px; }
   }
 </style>
 </head>
-<body>
 
+<body>
 <h1>CATS Weekly Dashboard</h1>
 <div class="sub">Students and Learning Specialists can update tasks and priorities live. Tap a day to expand tasks.</div>
+
 <div class="status-bar">
   <div class="status-pill" id="syncStatus">Live sync: connecting…</div>
   <div class="share-link">Share this page URL with your team for real-time updates.</div>
 </div>
 
 <div class="box meta">
-  <div><label>Student Name</label><input id="studentName" type="text" placeholder="First Last"></div>
-  <div><label>Sport</label>
+  <div>
+    <label>Student Name</label>
+    <input id="studentName" type="text" placeholder="First Last" />
+  </div>
+  <div>
+    <label>Sport</label>
     <select id="sport">
       <option value="">Select sport</option>
       <option>Football</option>
@@ -62,14 +218,30 @@
       <option>Track & Field</option>
     </select>
   </div>
-  <div><label>Week Of</label><input id="weekOf" type="date"></div>
-  <div><label>Counselor</label>
-    <select id="counselor"><option value="">Select Counselor</option><option>Jennifer</option><option>Sarah</option></select>
+  <div>
+    <label>Week Of</label>
+    <input id="weekOf" type="date" />
   </div>
-  <div><label>Learning Specialist</label>
-    <select id="ls"><option value="">Select LS</option><option>Elias Ortega</option><option>Other LS</option></select>
+  <div>
+    <label>Counselor</label>
+    <select id="counselor">
+      <option value="">Select Counselor</option>
+      <option>Jennifer</option>
+      <option>Sarah</option>
+    </select>
   </div>
-  <div><label>Quick Note</label><textarea id="note" placeholder="What matters this week"></textarea></div>
+  <div>
+    <label>Learning Specialist</label>
+    <select id="ls">
+      <option value="">Select LS</option>
+      <option>Elias Ortega</option>
+      <option>Other LS</option>
+    </select>
+  </div>
+  <div>
+    <label>Quick Note</label>
+    <textarea id="note" placeholder="What matters this week"></textarea>
+  </div>
 </div>
 
 <h2>This Week Priorities</h2>
@@ -85,6 +257,57 @@
 <h2>Daily Plan</h2>
 <div id="weekGrid"></div>
 
+<h2>Rewards Arcade</h2>
+<div class="box rewards-grid">
+  <div class="rewards-top">
+    <div class="pill">Tokens: <span id="tokenCount">0</span></div>
+    <div class="pill">Spins used: <span id="spinCount">0</span></div>
+    <div class="pill">Last win: <span id="lastWin">—</span></div>
+  </div>
+
+  <div class="slot-wrap">
+    <div class="slot-machine" aria-label="Slot machine">
+      <div class="reel" id="reel1">🍒</div>
+      <div class="reel" id="reel2">⭐</div>
+      <div class="reel" id="reel3">🍋</div>
+    </div>
+
+    <div class="slot-actions">
+      <button id="spinBtn">Spin (costs 1 token)</button>
+      <button id="claimTokenBtn">Claim 1 token (manual)</button>
+      <button id="clearRewardsBtn">Clear rewards log</button>
+    </div>
+
+    <div class="muted">
+      How to earn tokens: every time you mark a task as DONE for the first time, you earn 1 token.
+      (Use “Claim 1 token” if you want a quick manual reward.)
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <label style="display:block;font-size:12px;margin:2px 0 6px;color:#444;">Rewards Log</label>
+      <textarea data-key="rewardsLog" placeholder="Wins and notes will show up here…"></textarea>
+    </div>
+
+    <div>
+      <label style="display:block;font-size:12px;margin:2px 0 6px;color:#444;">Appointment / Accountability Actions</label>
+      <div style="display:grid;gap:8px;">
+        <input type="text" data-key="cancelApptWhen" placeholder="If canceling: date/time (example: Thu 3:30pm)" />
+        <input type="text" data-key="cancelApptReason" placeholder="Reason (example: travel, class conflict, sick)" />
+        <button id="requestCancelBtn">Request Appointment Cancellation</button>
+        <div class="muted">
+          This doesn’t cancel anything automatically — it saves a clearly labeled request in the shared log so the team can follow up.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input type="hidden" data-key="tokens" id="tokensField" />
+  <input type="hidden" data-key="spinsUsed" id="spinsField" />
+  <input type="hidden" data-key="lastWinValue" id="lastWinField" />
+</div>
+
 <div class="actions">
   <button id="copySummary">Copy Summary</button>
   <button id="resetPage">Reset Page</button>
@@ -92,43 +315,88 @@
 <div class="small">Tip: Changes save automatically. Works on phones and tablets.</div>
 
 <script>
+/* ===========================
+   CONFIG
+=========================== */
 const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
 const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-let prioritiesCount = 0;
-let isSyncing = false;
-let lastSyncAt = null;
-let loadTimer = null;
 
-// --- Priorities Section ---
+/* ===========================
+   STATE
+=========================== */
+let prioritiesCount = 0;
+let isLoading = false;
+let isSaving = false;
+let lastSyncAt = null;
+let pollTimer = null;
+let saveTimer = null;
+
+// Reward state
+let tokens = 0;
+let spinsUsed = 0;
+let lastWin = "—";
+
+// Track which checkboxes already minted a token (so you don’t farm tokens by unchecking/rechecking)
+const tokenMintedForKey = new Set();
+
+/* ===========================
+   PRIORITIES UI
+=========================== */
 const prioritiesBox = document.getElementById("prioritiesBox");
-document.getElementById("addPriority").addEventListener("click", () => {
+
+function addPriorityRow(){
   prioritiesCount++;
   const div = document.createElement("div");
   div.className = "task";
-  div.innerHTML = `<input type="checkbox" data-key="p${prioritiesCount}_done"><input type="text" data-key="p${prioritiesCount}_text" placeholder="Priority ${prioritiesCount}"><span class="remove-task">x</span>`;
+  div.innerHTML =
+    `<input type="checkbox" data-key="p${prioritiesCount}_done">
+     <input type="text" data-key="p${prioritiesCount}_text" placeholder="Priority ${prioritiesCount}">
+     <span class="remove-task" title="Remove">x</span>`;
   div.querySelector(".remove-task").addEventListener("click", () => div.remove());
   prioritiesBox.appendChild(div);
-});
+}
 
-// --- Daily Plan Section ---
+document.getElementById("addPriority").addEventListener("click", addPriorityRow);
+
+// Start with 2 priorities by default
+addPriorityRow();
+addPriorityRow();
+
+/* ===========================
+   DAILY PLAN UI
+=========================== */
 function createDayColumn(dayName, dayIndex){
   const day = document.createElement("div");
   day.className = "day";
-  day.innerHTML = `<div class="day-header">${dayName}</div><div class="day-tasks"></div><span class="add-task">+ Add Task</span>`;
+  day.innerHTML =
+    `<div class="day-header">${dayName}</div>
+     <div class="day-tasks"></div>
+     <span class="add-task">+ Add Task</span>`;
+
   const container = day.querySelector(".day-tasks");
   const addBtn = day.querySelector(".add-task");
 
-  function addTask() {
+  function addTask(){
+    const taskIndex = container.children.length + 1;
     const wrap = document.createElement("div");
     wrap.className = "task";
-    wrap.innerHTML = `<input type="checkbox" data-key="d${dayIndex}_t${container.children.length+1}_done"><input type="text" data-key="d${dayIndex}_t${container.children.length+1}_text" placeholder="Task ${container.children.length+1}"><span class="remove-task">x</span>`;
+    wrap.innerHTML =
+      `<input type="checkbox" data-key="d${dayIndex}_t${taskIndex}_done">
+       <input type="text" data-key="d${dayIndex}_t${taskIndex}_text" placeholder="Task ${taskIndex}">
+       <span class="remove-task" title="Remove">x</span>`;
     wrap.querySelector(".remove-task").addEventListener("click", ()=>wrap.remove());
     container.appendChild(wrap);
   }
 
+  // default 3 tasks per day
   for(let i=0;i<3;i++) addTask();
+
   addBtn.addEventListener("click", addTask);
-  day.querySelector(".day-header").addEventListener("click", ()=>{ container.style.display = container.style.display==="none"?"block":"none"; });
+
+  // Toggle open/close by tapping header
+  day.querySelector(".day-header").addEventListener("click", ()=>{
+    container.style.display = (container.style.display === "none" || !container.style.display) ? "block" : "none";
+  });
 
   return day;
 }
@@ -136,8 +404,12 @@ function createDayColumn(dayName, dayIndex){
 const grid = document.getElementById("weekGrid");
 days.forEach((d,i)=>grid.appendChild(createDayColumn(d,i)));
 
-// --- All Fields ---
-function allFields(){ return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note"); }
+/* ===========================
+   FIELD COLLECTION + SAFE APPLY
+=========================== */
+function allFields(){
+  return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note");
+}
 
 function updateSyncStatus(state, detail){
   const status = document.getElementById("syncStatus");
@@ -154,7 +426,9 @@ function updateSyncStatus(state, detail){
 
 function isFieldEditable(el){
   const active = document.activeElement;
-  return active === el || active?.closest?.(".task") === el.closest?.(".task");
+  if(!active) return false;
+  // If the user is actively typing in the same input/textarea, don’t overwrite it.
+  return active === el;
 }
 
 function applyDataToField(el, value){
@@ -165,78 +439,354 @@ function applyDataToField(el, value){
   }
 }
 
-// --- Autosave to Google Sheet ---
-async function saveAll(){
-  if(isSyncing) return;
+/* ===========================
+   REWARDS: UI HELPERS
+=========================== */
+const tokenCountEl = document.getElementById("tokenCount");
+const spinCountEl  = document.getElementById("spinCount");
+const lastWinEl    = document.getElementById("lastWin");
+const tokensField  = document.getElementById("tokensField");
+const spinsField   = document.getElementById("spinsField");
+const lastWinField = document.getElementById("lastWinField");
+
+function syncRewardsToHiddenFields(){
+  tokensField.value = String(tokens);
+  spinsField.value  = String(spinsUsed);
+  lastWinField.value = String(lastWin);
+}
+
+function renderRewards(){
+  tokenCountEl.textContent = tokens;
+  spinCountEl.textContent = spinsUsed;
+  lastWinEl.textContent = lastWin || "—";
+  syncRewardsToHiddenFields();
+}
+
+function appendRewardsLog(line){
+  const log = document.querySelector('[data-key="rewardsLog"]');
+  const stamp = new Date().toLocaleString();
+  const current = log.value ? log.value.trimEnd() + "\n" : "";
+  log.value = `${current}[${stamp}] ${line}\n`;
+}
+
+/* ===========================
+   REWARDS: TOKEN EARNING
+=========================== */
+function maybeMintTokenFromCheckbox(el){
+  if(el.type !== "checkbox") return;
+
+  const key = el.getAttribute("data-key") || el.id;
+  if(!key) return;
+
+  // Only for "done" checkboxes
+  if(!key.endsWith("_done")) return;
+
+  // If checked -> award token once per checkbox key
+  if(el.checked && !tokenMintedForKey.has(key)){
+    tokenMintedForKey.add(key);
+    tokens += 1;
+    renderRewards();
+    appendRewardsLog(`✅ Task completed (+1 token). Key: ${key}`);
+    scheduleSave();
+  }
+}
+
+/* ===========================
+   REWARDS: SLOT MACHINE
+=========================== */
+const reelSymbols = ["🍒","🍋","🔔","⭐","💎","7️⃣"];
+// Prize list (non-cash, school-friendly)
+const prizes = [
+  { name:"Snack pass (1)", weight: 20 },
+  { name:"Hydration reminder + check-in", weight: 18 },
+  { name:"Music break (5 min)", weight: 16 },
+  { name:"Study sprint (25 min) + choice of topic", weight: 14 },
+  { name:"Priority bump (move 1 task to top)", weight: 12 },
+  { name:"Advisor shout-out message", weight: 10 },
+  { name:"Bonus token back", weight: 8 },
+  { name:"Mystery challenge: finish 1 small task now", weight: 8 }
+];
+
+function weightedPick(list){
+  const total = list.reduce((s,x)=>s+x.weight,0);
+  let r = Math.random() * total;
+  for(const item of list){
+    r -= item.weight;
+    if(r <= 0) return item;
+  }
+  return list[list.length - 1];
+}
+
+function setReels(a,b,c){
+  document.getElementById("reel1").textContent = a;
+  document.getElementById("reel2").textContent = b;
+  document.getElementById("reel3").textContent = c;
+}
+
+function randomReel(){
+  return reelSymbols[Math.floor(Math.random() * reelSymbols.length)];
+}
+
+function animateSpin(durationMs = 900){
+  return new Promise(resolve=>{
+    const start = Date.now();
+    const tick = () => {
+      setReels(randomReel(), randomReel(), randomReel());
+      if(Date.now() - start >= durationMs){
+        resolve();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    tick();
+  });
+}
+
+document.getElementById("spinBtn").addEventListener("click", async ()=>{
+  if(tokens <= 0){
+    alert("No tokens yet. Complete a task (DONE) to earn tokens, or use Claim 1 token.");
+    return;
+  }
+
+  tokens -= 1;
+  spinsUsed += 1;
+  renderRewards();
+  scheduleSave();
+
+  // Spin animation
+  const btn = document.getElementById("spinBtn");
+  btn.disabled = true;
+  btn.textContent = "Spinning…";
+
+  await animateSpin(1000);
+
+  // Final reels
+  const r1 = randomReel();
+  const r2 = randomReel();
+  const r3 = randomReel();
+  setReels(r1,r2,r3);
+
+  // Determine win type
+  let winText = "";
+  if(r1 === r2 && r2 === r3){
+    // Big win: pick higher value
+    const big = weightedPick([
+      { name:"Bonus token back (+2 tokens)", weight: 25 },
+      { name:"Choice: remove 1 small missing item OR do a quick catch-up plan", weight: 25 },
+      { name:"Snack pass (2)", weight: 20 },
+      { name:"Free ‘cancel request’ pass (if needed) — no guilt", weight: 15 },
+      { name:"Advisor shout-out message + progress note", weight: 15 }
+    ]);
+    winText = `JACKPOT 🎉 (${r1}${r2}${r3}) — ${big.name}`;
+    if(big.name.includes("+2 tokens")) tokens += 2;
+  } else if(r1 === r2 || r2 === r3 || r1 === r3){
+    const mid = weightedPick(prizes);
+    winText = `Win ✅ (${r1}${r2}${r3}) — ${mid.name}`;
+    if(mid.name === "Bonus token back") tokens += 1;
+  } else {
+    // Small consolation: sometimes a “mini” reward
+    const miniChance = Math.random();
+    if(miniChance < 0.35){
+      winText = `Mini win 👍 (${r1}${r2}${r3}) — +1 encouragement note in log`;
+    } else {
+      winText = `No win this time (${r1}${r2}${r3}) — keep going.`;
+    }
+  }
+
+  lastWin = winText;
+  renderRewards();
+  appendRewardsLog(winText);
+  scheduleSave();
+
+  btn.disabled = false;
+  btn.textContent = "Spin (costs 1 token)";
+});
+
+document.getElementById("claimTokenBtn").addEventListener("click", ()=>{
+  tokens += 1;
+  renderRewards();
+  appendRewardsLog("🪙 Manual token claimed (+1 token).");
+  scheduleSave();
+});
+
+document.getElementById("clearRewardsBtn").addEventListener("click", ()=>{
+  const log = document.querySelector('[data-key="rewardsLog"]');
+  if(confirm("Clear the rewards log?")){
+    log.value = "";
+    appendRewardsLog("🧹 Rewards log cleared.");
+    scheduleSave();
+  }
+});
+
+/* ===========================
+   APPOINTMENT CANCEL REQUEST
+=========================== */
+document.getElementById("requestCancelBtn").addEventListener("click", ()=>{
+  const when = (document.querySelector('[data-key="cancelApptWhen"]').value || "").trim();
+  const reason = (document.querySelector('[data-key="cancelApptReason"]').value || "").trim();
+
+  if(!when && !reason){
+    alert("Add a date/time or a reason so the team knows what you mean.");
+    return;
+  }
+  appendRewardsLog(`📌 Appointment cancellation request saved. When: ${when || "—"} | Reason: ${reason || "—"}`);
+  lastWin = "Cancellation request saved";
+  renderRewards();
+  scheduleSave();
+});
+
+/* ===========================
+   SAVE / LOAD (GOOGLE APPS SCRIPT)
+   - Debounced save to avoid spamming
+=========================== */
+function buildPayload(){
   const data = {};
-  allFields().forEach(el=>{ const key=el.getAttribute("data-key")||el.id; data[key]=el.type==="checkbox"?el.checked:el.value; });
-  data["Student Name"]=document.getElementById("studentName").value;
-  data["Week Of"]=document.getElementById("weekOf").value;
-  try {
+  allFields().forEach(el=>{
+    const key = el.getAttribute("data-key") || el.id;
+    if(!key) return;
+    data[key] = (el.type === "checkbox") ? el.checked : el.value;
+  });
+
+  // Friendly headers (optional)
+  data["Student Name"] = document.getElementById("studentName").value;
+  data["Week Of"] = document.getElementById("weekOf").value;
+
+  return data;
+}
+
+function scheduleSave(){
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveAll, 350);
+}
+
+async function saveAll(){
+  if(isLoading || isSaving) return;
+  isSaving = true;
+
+  // keep reward fields in sync
+  renderRewards();
+
+  const data = buildPayload();
+
+  try{
     updateSyncStatus("saving");
-    await fetch(webAppURL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    await fetch(webAppURL, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(data)
+    });
     lastSyncAt = new Date();
     updateSyncStatus("ok", `saved ${lastSyncAt.toLocaleTimeString()}`);
-  } catch (error){
+  } catch(e){
     updateSyncStatus("error", "offline");
+  } finally {
+    isSaving = false;
   }
 }
 
 async function loadAll(){
-  if(isSyncing) return;
-  isSyncing = true;
+  if(isLoading || isSaving) return;
+  isLoading = true;
   updateSyncStatus("loading");
-  try {
+
+  try{
     const response = await fetch(webAppURL);
     if(!response.ok) throw new Error("Failed to load");
     const data = await response.json();
+
+    // apply fields
     allFields().forEach(el=>{
       const key = el.getAttribute("data-key") || el.id;
       if(key in data) applyDataToField(el, data[key]);
     });
+
+    // restore rewards (if present)
+    if("tokens" in data) tokens = Number(data["tokens"]) || 0;
+    if("spinsUsed" in data) spinsUsed = Number(data["spinsUsed"]) || 0;
+    if("lastWinValue" in data) lastWin = data["lastWinValue"] || "—";
+
+    renderRewards();
+
     lastSyncAt = new Date();
     updateSyncStatus("ok", `synced ${lastSyncAt.toLocaleTimeString()}`);
-  } catch (error){
+  } catch(e){
     updateSyncStatus("error", "offline");
   } finally {
-    isSyncing = false;
+    isLoading = false;
   }
 }
 
-// --- Copy Summary ---
+/* ===========================
+   COPY SUMMARY
+=========================== */
 document.getElementById("copySummary").addEventListener("click", async ()=>{
   await saveAll();
-  let out=`Student: ${document.getElementById("studentName").value}\nWeek: ${document.getElementById("weekOf").value}\n\nPriorities\n`;
+
+  let out = `Student: ${document.getElementById("studentName").value}\n` +
+            `Week: ${document.getElementById("weekOf").value}\n\n`;
+
+  out += `Priorities\n`;
   document.querySelectorAll("#prioritiesBox .task").forEach(t=>{
-    const text=t.querySelector(`[data-key$="_text"]`).value||"";
-    const done=t.querySelector(`[data-key$="_done"]`).checked?"DONE":"OPEN";
-    if(text) out+=`${done} ${text}\n`;
+    const text = t.querySelector(`[data-key$="_text"]`)?.value || "";
+    const done = t.querySelector(`[data-key$="_done"]`)?.checked ? "DONE" : "OPEN";
+    if(text) out += `${done} ${text}\n`;
   });
-  out+=`\nUpcoming\n${document.querySelector('[data-key="upcoming"]').value||""}\n`;
-  out+=`\nMissing\n${document.querySelector('[data-key="missing"]').value||""}\n\n`;
-  days.forEach((d,di)=>{
-    out+=`${d}\n`;
-    document.querySelectorAll(`#weekGrid .day`)[di].querySelectorAll(".task").forEach(task=>{
-      const text=task.querySelector(`[data-key$="_text"]`).value||"";
-      const done=task.querySelector(`[data-key$="_done"]`).checked?"DONE":"OPEN";
-      if(text) out+=`${done} ${text}\n`;
+
+  out += `\nUpcoming\n${document.querySelector('[data-key="upcoming"]').value || ""}\n`;
+  out += `\nMissing\n${document.querySelector('[data-key="missing"]').value || ""}\n\n`;
+
+  out += `Daily Plan\n`;
+  days.forEach((d, di)=>{
+    out += `${d}\n`;
+    const dayEl = document.querySelectorAll(`#weekGrid .day`)[di];
+    dayEl.querySelectorAll(".task").forEach(task=>{
+      const text = task.querySelector(`[data-key$="_text"]`)?.value || "";
+      const done = task.querySelector(`[data-key$="_done"]`)?.checked ? "DONE" : "OPEN";
+      if(text) out += `${done} ${text}\n`;
     });
-    out+="\n";
+    out += `\n`;
   });
+
+  out += `Rewards Arcade\n`;
+  out += `Tokens: ${tokens} | Spins used: ${spinsUsed}\n`;
+  out += `Last win: ${lastWin}\n`;
+  out += `\nRewards Log\n${document.querySelector('[data-key="rewardsLog"]').value || ""}\n`;
+
   navigator.clipboard.writeText(out).then(()=>alert("Summary copied!"));
 });
 
-// --- Reset Page ---
-document.getElementById("resetPage").addEventListener("click", ()=>{if(confirm("Reset everything?"))location.reload();});
+/* ===========================
+   RESET PAGE
+=========================== */
+document.getElementById("resetPage").addEventListener("click", ()=>{
+  if(confirm("Reset everything? This will reload the page.")){
+    location.reload();
+  }
+});
 
-// --- Autosave on Input ---
-document.addEventListener("input", saveAll);
-document.addEventListener("change", saveAll);
+/* ===========================
+   AUTO-SAVE + TOKEN EARNING HOOKS
+=========================== */
+document.addEventListener("change", (e)=>{
+  const el = e.target;
+  if(!el) return;
 
-// --- Poll for live updates ---
+  // Token earning for DONE checkboxes
+  maybeMintTokenFromCheckbox(el);
+
+  scheduleSave();
+});
+
+document.addEventListener("input", ()=>{
+  scheduleSave();
+});
+
+/* ===========================
+   STARTUP
+=========================== */
+renderRewards();
 loadAll();
-loadTimer = setInterval(loadAll, 5000);
+pollTimer = setInterval(loadAll, 5000);
 </script>
-
 </body>
 </html>
