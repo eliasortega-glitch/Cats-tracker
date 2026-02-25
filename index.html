@@ -8,16 +8,12 @@
   :root{
     --bg:#f7f9fc; --card:#fff; --text:#222; --muted:#667085;
     --line:#e6eaf0; --blue:#0b6bff; --red:#cc0033; --shadow:0 1px 6px rgba(0,0,0,.08);
-    --radius:14px;
-    --good:#12b76a;
-    --warn:#f04438;
-    --gold:#f5c542;
+    --radius:14px; --good:#12b76a; --gold:#f5c542; --dark:#111827;
   }
   *{ box-sizing:border-box; }
   body{ margin:0; padding:12px 12px 110px; font-family: Arial, sans-serif; background:var(--bg); color:var(--text); }
   h1{ font-size:20px; margin:2px 0 4px; text-align:center; letter-spacing:.2px; }
   .sub{ font-size:12px; color:var(--muted); text-align:center; margin:0 0 10px; }
-
   .wrap{ max-width:980px; margin:0 auto; }
 
   .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
@@ -43,9 +39,8 @@
 
   .topbar{ display:flex; gap:10px; align-items:stretch; }
   .top-left{ flex:1; }
-
   .top-right{
-    width:260px; min-width:260px;
+    width:280px; min-width:280px;
     display:flex; flex-direction:column; justify-content:space-between;
     padding:12px; border-radius:var(--radius); border:1px solid var(--line); background:var(--card); box-shadow:var(--shadow);
     gap:10px;
@@ -55,14 +50,11 @@
   .pill{
     display:inline-flex; align-items:center; gap:6px;
     padding:6px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px; color:var(--muted);
-    background:#fff;
-    white-space:nowrap;
+    background:#fff; white-space:nowrap;
   }
   .pill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
-  .pill.warn{ background:rgba(240,68,56,.10); border-color:transparent; color:#8f0026; }
-  .pill.gray{ background:rgba(102,112,133,.08); border-color:transparent; color:#475467; }
-  .pill.gold{ background:rgba(245,197,66,.18); border-color:transparent; color:#7a5a00; }
   .pill.blue{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
+  .pill.gold{ background:rgba(245,197,66,.18); border-color:transparent; color:#7a5a00; }
 
   .big{ font-size:20px; font-weight:700; }
   .small{ font-size:11px; color:var(--muted); }
@@ -114,7 +106,7 @@
   .toast{
     position:fixed; left:50%; transform:translateX(-50%);
     bottom:98px;
-    background:#111827; color:#fff;
+    background:var(--dark); color:#fff;
     padding:10px 12px; border-radius:12px;
     box-shadow:0 10px 25px rgba(0,0,0,.15);
     font-size:13px; opacity:0; pointer-events:none;
@@ -131,26 +123,18 @@
     border:1px solid var(--line); background:#fff;
     font-size:12px; color:#475467;
   }
-  .dot{
-    width:8px; height:8px; border-radius:999px; display:inline-block;
-    background:#98a2b3;
-  }
+  .dot{ width:8px; height:8px; border-radius:999px; display:inline-block; background:#98a2b3; }
   .dot.green{ background:var(--good); }
-  .dot.red{ background:var(--warn); }
+  .dot.red{ background:var(--red); }
   .dot.blue{ background:var(--blue); }
 
-  /* Rewards */
-  .arcade{
+  /* Slot (simple numbers) */
+  .slotWrap{
     display:grid;
-    grid-template-columns: 1fr;
     gap:12px;
   }
-  .arcadeTop{
-    display:flex;
-    gap:10px;
-    justify-content:space-between;
-    align-items:center;
-    flex-wrap:wrap;
+  .slotTop{
+    display:flex; gap:10px; justify-content:space-between; align-items:center; flex-wrap:wrap;
   }
   .slotFrame{
     border:1px solid var(--line);
@@ -159,22 +143,22 @@
     padding:12px;
     box-shadow: inset 0 1px 0 rgba(0,0,0,.04);
   }
-  .slotMachine{
+  .machine{
     display:flex;
     gap:10px;
     justify-content:center;
     align-items:center;
-    padding:12px;
+    padding:14px 10px;
   }
   .reel{
-    width:84px;
-    height:84px;
+    width:92px; height:92px;
     border-radius:18px;
     border:1px solid #d9dfe8;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:36px;
+    font-size:44px;
+    font-weight:800;
     background:#fff;
     user-select:none;
     position:relative;
@@ -188,9 +172,9 @@
                 radial-gradient(circle at 70% 80%, rgba(245,197,66,.14), transparent 45%);
     pointer-events:none;
   }
-  .spark{ animation: spark .35s ease-in-out 2; }
-  @keyframes spark{ 0%{ transform:scale(1);} 50%{ transform:scale(1.06);} 100%{ transform:scale(1);} }
-  .shake{ animation: shake .35s ease-in-out 1; }
+  .spark{ animation: spark .28s ease-in-out 2; }
+  @keyframes spark{ 0%{ transform:scale(1);} 50%{ transform:scale(1.05);} 100%{ transform:scale(1);} }
+  .shake{ animation: shake .33s ease-in-out 1; }
   @keyframes shake{ 0%{ transform:translateX(0);} 25%{ transform:translateX(-4px);} 50%{ transform:translateX(4px);} 75%{ transform:translateX(-3px);} 100%{ transform:translateX(0);} }
 
   .confetti{ position:relative; overflow:hidden; }
@@ -204,23 +188,16 @@
   }
   @keyframes fall{ to{ transform: translateY(220px) rotate(300deg); opacity:0; } }
 
-  /* Staff approve panel */
-  .approve{
-    border:1px dashed rgba(245,197,66,.7);
-    background: rgba(245,197,66,.10);
-    border-radius:14px;
-    padding:10px;
+  .mono{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   }
-  .approveTitle{ font-weight:700; color:#6b4a00; }
-  .approveHint{ font-size:12px; color:#7a5a00; margin-top:4px; }
-  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
   @media(max-width:720px){
     .topbar{ flex-direction:column; }
     .top-right{ width:100%; min-width:unset; }
     body{ padding-bottom:118px; }
     .toast{ bottom:108px; }
-    .reel{ width:74px; height:74px; font-size:34px; }
+    .reel{ width:78px; height:78px; font-size:40px; }
   }
 </style>
 </head>
@@ -228,10 +205,10 @@
 <body>
 <div class="wrap">
   <h1>CATS Weekly Dashboard</h1>
-  <div class="sub">Built for phones. Autosaves after you set Student + Week. “Load Week” pulls the shared version.</div>
+  <div class="sub">Autosaves after you set Student + Week. “Load Week” pulls the shared version.</div>
 
   <div class="chipbar">
-    <div class="chip" id="chipOnline"><span class="dot" id="dotOnline"></span><span id="onlineText">Checking connection…</span></div>
+    <div class="chip"><span class="dot" id="dotOnline"></span><span id="onlineText">Checking connection…</span></div>
     <div class="chip"><span class="dot blue"></span><span id="syncText">Last synced: —</span></div>
   </div>
 
@@ -298,12 +275,12 @@
     <div class="top-right">
       <div class="meter">
         <div style="flex:1;">
-          <div class="small">Weekly Progress</div>
+          <div class="small">Weekly Completion</div>
           <div class="big"><span id="doneCount">0</span>/<span id="totalCount">0</span></div>
           <div class="small"><span id="pct">0%</span> tasks marked done</div>
           <div class="small" id="localText" style="margin-top:6px;">Local backup: —</div>
         </div>
-        <div class="pill gray" id="riskPill">Momentum: steady</div>
+        <div class="pill blue" id="weekPill">Week status: in progress</div>
       </div>
 
       <div class="btnrow" style="justify-content:flex-end;">
@@ -311,7 +288,9 @@
         <button class="btn" id="copySummary" type="button">Copy Summary</button>
         <button class="btn" id="shareLink" type="button">Share Link</button>
       </div>
-      <div class="hint" style="margin:0;">Tip: “Share Link” copies a pre-filled link (same student + week) for staff.</div>
+      <div class="hint" style="margin:0;">
+        Earn <strong>1 spin</strong> only when the entire week is done (100%).
+      </div>
     </div>
   </div>
 
@@ -320,7 +299,7 @@
     <div class="tab active" data-tab="priorities">Priorities</div>
     <div class="tab" data-tab="daily">Daily Plan</div>
     <div class="tab" data-tab="notes">Upcoming / Missing</div>
-    <div class="tab" data-tab="rewards">Rewards</div>
+    <div class="tab" data-tab="slot">One Spin</div>
   </div>
 
   <!-- Priorities -->
@@ -329,7 +308,7 @@
       <div class="row" style="align-items:center; justify-content:space-between;">
         <div>
           <div style="font-weight:700;">This Week Priorities</div>
-          <div class="hint">Keep it tight. If it’s not moving the grade or the eligibility picture, it probably doesn’t belong here.</div>
+          <div class="hint">Keep it tight. If it doesn’t move grades or eligibility, it can wait.</div>
         </div>
         <div class="btnrow">
           <button class="btn primary" id="addPriority" type="button">+ Add Priority</button>
@@ -344,7 +323,7 @@
   <div class="section" id="daily">
     <div class="card pad">
       <div style="font-weight:700;">Daily Plan</div>
-      <div class="hint">Pick a day. Add tasks. Tap DONE. This stays compact so you’re not scrolling forever.</div>
+      <div class="hint">Pick a day. Add tasks. Tap DONE.</div>
 
       <div class="daybar" id="daybar"></div>
       <div id="dayPanels"></div>
@@ -361,99 +340,72 @@
     <div class="row">
       <div class="col card pad">
         <div style="font-weight:700;">Upcoming</div>
-        <div class="hint">Deadlines coming soon (exams, papers, labs, quizzes, travel).</div>
-        <textarea data-key="upcoming" placeholder="Example: BIO midterm Fri / ENGL draft due Sun"></textarea>
+        <textarea data-key="upcoming" placeholder="Deadlines coming soon"></textarea>
       </div>
       <div class="col card pad">
         <div style="font-weight:700;">Missing</div>
-        <div class="hint">Only the missing items that actually matter right now.</div>
-        <textarea data-key="missing" placeholder="Example: 2 late discussion posts + 1 quiz"></textarea>
+        <textarea data-key="missing" placeholder="Missing assignments"></textarea>
       </div>
     </div>
   </div>
 
-  <!-- Rewards -->
-  <div class="section" id="rewards">
-    <div class="card pad arcade">
-      <div class="arcadeTop">
+  <!-- Slot -->
+  <div class="section" id="slot">
+    <div class="card pad slotWrap">
+      <div class="slotTop">
         <div>
-          <div style="font-weight:700;">Rewards Arcade</div>
+          <div style="font-weight:700;">One Spin Slot</div>
           <div class="hint">
-            Earn <strong>1 token</strong> the first time you mark a task DONE.
-            Streak bonus: every <strong>3 DONE</strong> earns <strong>1 free spin</strong>.
+            You unlock <strong>1 spin</strong> when all tasks are DONE (100%).  
+            Match numbers to win the reward: <strong>Cancel CATS Appointment</strong> (request logged).
           </div>
         </div>
         <div class="row" style="margin:0;">
-          <div class="pill gold">🪙 Tokens: <span id="tokenCount">0</span></div>
-          <div class="pill gray">🎰 Spins: <span id="spinCount">0</span></div>
-          <div class="pill blue">🔥 Streak: <span id="streakCount">0</span>/3</div>
-          <div class="pill good">🆓 Free spins: <span id="freeSpinCount">0</span></div>
-          <div class="pill good">🏆 Last: <span id="lastWin">—</span></div>
+          <div class="pill gold">🎟 Spins available: <span id="spinsAvail">0</span></div>
+          <div class="pill good">🏆 Reward status: <span id="rewardStatus">—</span></div>
         </div>
       </div>
 
       <div class="slotFrame confetti" id="slotBox">
-        <div class="slotMachine" aria-label="Slot machine">
-          <div class="reel" id="reel1">🍒</div>
-          <div class="reel" id="reel2">⭐</div>
-          <div class="reel" id="reel3">🍋</div>
+        <div class="machine" aria-label="Slot machine numbers">
+          <div class="reel mono" id="reel1">0</div>
+          <div class="reel mono" id="reel2">0</div>
+          <div class="reel mono" id="reel3">0</div>
         </div>
 
         <div class="btnrow" style="justify-content:center;">
-          <button class="btn primary" id="spinBtn" type="button">Spin (1 token)</button>
-          <button class="btn gold" id="freeSpinBtn" type="button">Use Free Spin</button>
-          <button class="btn" id="claimTokenBtn" type="button">Claim 1 token</button>
-          <button class="btn" id="clearRewardsBtn" type="button">Clear log</button>
+          <button class="btn primary" id="spinBtn" type="button">Spin</button>
+          <button class="btn" id="resetSpinBtn" type="button">Reset Spin (staff)</button>
         </div>
 
         <div class="hint" style="text-align:center; margin-top:6px;">
-          Big rewards require staff approval. Students can still spin and see “PENDING” until approved.
+          Win rules: <strong>3 of a kind</strong> = WIN. <strong>Any 2 match</strong> = “near win” (no reward).
         </div>
-      </div>
-
-      <div class="approve" id="approvePanel" style="display:none;">
-        <div class="approveTitle">Staff Approval Needed</div>
-        <div class="approveHint" id="approveText">Pending reward: —</div>
-        <div class="row" style="margin-top:10px;">
-          <div class="col" style="min-width:220px;">
-            <label>Staff code</label>
-            <input id="staffCodeInput" class="mono" type="password" placeholder="Enter code" autocomplete="off" />
-          </div>
-          <div class="col" style="display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap;">
-            <button class="btn primary" id="approveBtn" type="button">Approve</button>
-            <button class="btn danger" id="denyBtn" type="button">Deny</button>
-            <button class="btn" id="unlockStaffBtn" type="button">Unlock Staff Mode (30 min)</button>
-          </div>
-        </div>
-        <div class="approveHint" id="staffModeText" style="margin-top:8px;">Staff mode: locked</div>
       </div>
 
       <div class="row">
-        <div class="col">
-          <div style="font-weight:700;">Rewards Log</div>
-          <div class="hint">This saves with the student/week. Reinforce effort, not luck.</div>
-          <textarea data-key="rewardsLog" placeholder="Wins and notes show here…"></textarea>
+        <div class="col card pad">
+          <div style="font-weight:700;">Cancel Appointment Request</div>
+          <div class="hint">If you WIN, this section auto-fills and logs the request. Staff still confirms/cancels officially.</div>
+          <input type="text" data-key="cancelApptWhen" placeholder="Appointment date/time (ex: Thu 3:30pm)" />
+          <div style="height:8px;"></div>
+          <input type="text" data-key="cancelApptReason" placeholder="Reason (optional)" />
+          <div style="height:8px;"></div>
+          <button class="btn danger" id="submitCancelBtn" type="button">Submit Cancellation Request</button>
+          <div class="hint" style="margin-top:8px;">This logs the request in the weekly record.</div>
         </div>
-        <div class="col">
-          <div style="font-weight:700;">Appointment Action</div>
-          <div class="hint">Logs a request (does not auto-cancel). Staff follow-up required.</div>
-          <input type="text" data-key="cancelApptWhen" placeholder="Cancel request: date/time (ex: Thu 3:30pm)" />
-          <div style="height:8px;"></div>
-          <input type="text" data-key="cancelApptReason" placeholder="Reason (ex: travel, class conflict, sick)" />
-          <div style="height:8px;"></div>
-          <button class="btn danger" id="requestCancelBtn" type="button">Request Appointment Cancellation</button>
-          <div class="hint" style="margin-top:8px;">This can also become “reschedule request” later.</div>
+
+        <div class="col card pad">
+          <div style="font-weight:700;">Spin Log</div>
+          <div class="hint">Saved with the student/week.</div>
+          <textarea data-key="spinLog" placeholder="Spin results show here…"></textarea>
+
+          <!-- Hidden fields saved to sheet -->
+          <input type="hidden" data-key="spinsAvailable" id="spinsAvailableField" />
+          <input type="hidden" data-key="spinUsedThisWeek" id="spinUsedField" />
+          <input type="hidden" data-key="rewardWon" id="rewardWonField" />
         </div>
       </div>
-
-      <!-- Hidden fields saved to sheet -->
-      <input type="hidden" data-key="tokens" id="tokensField" />
-      <input type="hidden" data-key="spinsUsed" id="spinsField" />
-      <input type="hidden" data-key="lastWinValue" id="lastWinField" />
-      <input type="hidden" data-key="streak" id="streakField" />
-      <input type="hidden" data-key="freeSpins" id="freeSpinsField" />
-      <input type="hidden" data-key="pendingBigReward" id="pendingBigRewardField" />
-      <input type="hidden" data-key="pendingBigRewardStatus" id="pendingBigRewardStatusField" />
     </div>
   </div>
 </div>
@@ -475,57 +427,19 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  // ========= STAFF CODE =========
-  // Change this to whatever you want. Note: it's client-side, so don't use a sensitive password.
-  const STAFF_CODE = "CATS2026";
-
   const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
   const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
   let saveTimer = null;
   let lastSavedHash = "";
   let selectedDayIndex = 0;
-
-  // Auto-refresh (shared feel)
   let refreshTimer = null;
   let isApplyingLoad = false;
 
-  // Rewards state
-  let tokens = 0;
-  let spinsUsed = 0;
-  let lastWin = "—";
-  let streak = 0;          // counts DONE actions (earned token events)
-  let freeSpins = 0;       // awarded every 3 streak
-  const mintedTokenKeys = new Set(); // prevent farming
-
-  // Big reward pending (requires staff approval)
-  let pendingBigReward = "";
-  let pendingBigRewardStatus = ""; // "PENDING" | "APPROVED" | "DENIED" | ""
-
-  // Staff unlock session (30 min)
-  function staffSessionKey(){ return "cats_staff_unlock_until"; }
-  function isStaffUnlocked(){
-    const raw = sessionStorage.getItem(staffSessionKey());
-    const until = raw ? Number(raw) : 0;
-    return Date.now() < until;
-  }
-  function setStaffUnlocked(minutes){
-    const until = Date.now() + minutes*60*1000;
-    sessionStorage.setItem(staffSessionKey(), String(until));
-    updateStaffModeText();
-  }
-  function updateStaffModeText(){
-    const el = document.getElementById("staffModeText");
-    if(!el) return;
-    if(isStaffUnlocked()){
-      const raw = sessionStorage.getItem(staffSessionKey());
-      const until = raw ? Number(raw) : 0;
-      const minsLeft = Math.max(0, Math.ceil((until - Date.now())/60000));
-      el.textContent = "Staff mode: unlocked (" + minsLeft + " min left)";
-    }else{
-      el.textContent = "Staff mode: locked";
-    }
-  }
+  // Slot state: 1 spin max per completed week
+  let spinsAvailable = 0;        // 0 or 1
+  let spinUsedThisWeek = false;  // locks after spinning
+  let rewardWon = false;
 
   // ---------- UI helpers ----------
   function nowStamp(){ return new Date().toLocaleString(); }
@@ -579,6 +493,9 @@
   }
 
   function collectData(){
+    // sync slot state into hidden fields before save
+    syncSlotHiddenFields();
+
     const data = {};
     allFields().forEach(el=>{
       const key = el.getAttribute("data-key") || el.id;
@@ -590,6 +507,7 @@
     data["Week Of"] = sk.week;
     return data;
   }
+
   function hashData(obj){ return JSON.stringify(obj); }
 
   // ---------- progress ----------
@@ -597,16 +515,34 @@
     const checks = document.querySelectorAll('input[type="checkbox"][data-key]');
     let total = 0, done = 0;
     checks.forEach(c=>{ total++; if(c.checked) done++; });
+
     document.getElementById("totalCount").textContent = total;
     document.getElementById("doneCount").textContent = done;
+
     const pct = total ? Math.round((done/total)*100) : 0;
     document.getElementById("pct").textContent = pct + "%";
 
-    const pill = document.getElementById("riskPill");
-    pill.classList.remove("good","warn","gray");
-    if(pct >= 70){ pill.textContent = "Momentum: strong"; pill.classList.add("good"); }
-    else if(pct >= 35){ pill.textContent = "Momentum: steady"; pill.classList.add("gray"); }
-    else { pill.textContent = "Momentum: building"; pill.classList.add("warn"); }
+    const weekPill = document.getElementById("weekPill");
+    if(pct === 100 && total > 0){
+      weekPill.textContent = "Week status: COMPLETE";
+      weekPill.className = "pill good";
+    }else{
+      weekPill.textContent = "Week status: in progress";
+      weekPill.className = "pill blue";
+    }
+
+    // Unlock 1 spin ONLY when week is complete and they haven't spun yet
+    refreshSpinEligibility(pct, total);
+  }
+
+  function refreshSpinEligibility(pct, total){
+    if(pct === 100 && total > 0 && !spinUsedThisWeek){
+      spinsAvailable = 1;
+    }else{
+      // keep at 0 if not complete, or if they already used it
+      spinsAvailable = 0;
+    }
+    renderSlotUI();
   }
 
   // ---------- ids / tasks ----------
@@ -614,6 +550,7 @@
 
   // ---------- priorities ----------
   const prioritiesBox = document.getElementById("prioritiesBox");
+
   function addPriorityRow(text="", done=false){
     const id = uid();
     const div = document.createElement("div");
@@ -634,6 +571,7 @@
     prioritiesBox.appendChild(div);
     updateProgress();
   }
+
   document.getElementById("addPriority").addEventListener("click", ()=>{ addPriorityRow(); debounceSave(); });
   document.getElementById("quick3").addEventListener("click", ()=>{ addPriorityRow(); addPriorityRow(); addPriorityRow(); debounceSave(); });
 
@@ -751,78 +689,26 @@
     setStatus("typing...","Autosave on. Changes save automatically.");
   }
 
-  // ---------- Rewards UI + mechanics ----------
-  function renderRewards(){
-    const t = document.getElementById("tokenCount");
-    const s = document.getElementById("spinCount");
-    const l = document.getElementById("lastWin");
-    const st = document.getElementById("streakCount");
-    const fs = document.getElementById("freeSpinCount");
-
-    if(t) t.textContent = tokens;
-    if(s) s.textContent = spinsUsed;
-    if(l) l.textContent = lastWin || "—";
-    if(st) st.textContent = streak;
-    if(fs) fs.textContent = freeSpins;
-
-    const tf = document.getElementById("tokensField");
-    const sf = document.getElementById("spinsField");
-    const lf = document.getElementById("lastWinField");
-    const stf = document.getElementById("streakField");
-    const fsf = document.getElementById("freeSpinsField");
-    const pbrf = document.getElementById("pendingBigRewardField");
-    const pbrsf = document.getElementById("pendingBigRewardStatusField");
-
-    if(tf) tf.value = String(tokens);
-    if(sf) sf.value = String(spinsUsed);
-    if(lf) lf.value = String(lastWin);
-    if(stf) stf.value = String(streak);
-    if(fsf) fsf.value = String(freeSpins);
-    if(pbrf) pbrf.value = String(pendingBigReward || "");
-    if(pbrsf) pbrsf.value = String(pendingBigRewardStatus || "");
-
-    // Approval panel visibility
-    const panel = document.getElementById("approvePanel");
-    const text = document.getElementById("approveText");
-    if(panel && text){
-      if(pendingBigRewardStatus === "PENDING"){
-        panel.style.display = "block";
-        text.textContent = "Pending reward: " + pendingBigReward;
-      }else{
-        panel.style.display = "none";
-      }
-    }
-
-    // Free spin button
-    const freeBtn = document.getElementById("freeSpinBtn");
-    if(freeBtn) freeBtn.disabled = freeSpins <= 0;
-
-    updateStaffModeText();
+  // ---------- slot mechanics ----------
+  function syncSlotHiddenFields(){
+    document.getElementById("spinsAvailableField").value = String(spinsAvailable);
+    document.getElementById("spinUsedField").value = String(spinUsedThisWeek);
+    document.getElementById("rewardWonField").value = String(rewardWon);
   }
 
-  function logReward(line){
-    const box = document.querySelector('[data-key="rewardsLog"]');
-    if(!box) return;
-    const stamp = nowStamp();
-    box.value = (box.value ? box.value.trimEnd() + "\n" : "") + `[${stamp}] ${line}\n`;
+  function renderSlotUI(){
+    const spinsEl = document.getElementById("spinsAvail");
+    const statusEl = document.getElementById("rewardStatus");
+    const spinBtn = document.getElementById("spinBtn");
+
+    spinsEl.textContent = spinsAvailable;
+    if(rewardWon) statusEl.textContent = "WIN (request ready)";
+    else statusEl.textContent = (spinUsedThisWeek ? "spin used" : "—");
+
+    spinBtn.disabled = !(spinsAvailable === 1 && !spinUsedThisWeek);
+    syncSlotHiddenFields();
   }
 
-  function sparkReels(){
-    ["reel1","reel2","reel3"].forEach(id=>{
-      const r = document.getElementById(id);
-      if(!r) return;
-      r.classList.remove("spark");
-      void r.offsetWidth;
-      r.classList.add("spark");
-    });
-  }
-  function shakeBox(){
-    const box = document.getElementById("slotBox");
-    if(!box) return;
-    box.classList.remove("shake");
-    void box.offsetWidth;
-    box.classList.add("shake");
-  }
   function spawnConfetti(count=24){
     const box = document.getElementById("slotBox");
     if(!box) return;
@@ -837,107 +723,118 @@
     }
   }
 
-  const symbols = ["🍒","🍋","🔔","⭐","💎","7️⃣"];
-  function pickSymbol(){ return symbols[Math.floor(Math.random()*symbols.length)]; }
+  function sparkReels(){
+    ["reel1","reel2","reel3"].forEach(id=>{
+      const r = document.getElementById(id);
+      r.classList.remove("spark");
+      void r.offsetWidth;
+      r.classList.add("spark");
+    });
+  }
 
+  function shakeBox(){
+    const box = document.getElementById("slotBox");
+    box.classList.remove("shake");
+    void box.offsetWidth;
+    box.classList.add("shake");
+  }
+
+  function randDigit(){ return Math.floor(Math.random()*10); }
   function setReels(a,b,c){
-    const r1 = document.getElementById("reel1");
-    const r2 = document.getElementById("reel2");
-    const r3 = document.getElementById("reel3");
-    if(r1) r1.textContent = a;
-    if(r2) r2.textContent = b;
-    if(r3) r3.textContent = c;
+    document.getElementById("reel1").textContent = a;
+    document.getElementById("reel2").textContent = b;
+    document.getElementById("reel3").textContent = c;
   }
-
   function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
-  async function spinAnimation(ms=900){
+
+  function logSpin(line){
+    const box = document.querySelector('[data-key="spinLog"]');
+    const stamp = nowStamp();
+    box.value = (box.value ? box.value.trimEnd() + "\n" : "") + `[${stamp}] ${line}\n`;
+  }
+
+  async function spinOnce(){
+    if(!(spinsAvailable === 1 && !spinUsedThisWeek)){
+      toast("Spin is locked. Complete the whole week first.");
+      return;
+    }
+
+    spinUsedThisWeek = true;
+    spinsAvailable = 0;
+    rewardWon = false;
+    renderSlotUI();
+    debounceSave();
+
+    const btn = document.getElementById("spinBtn");
+    btn.disabled = true;
+    btn.textContent = "Spinning…";
+
+    shakeBox();
+
     const start = Date.now();
-    while(Date.now() - start < ms){
-      setReels(pickSymbol(), pickSymbol(), pickSymbol());
+    while(Date.now() - start < 900){
+      setReels(randDigit(), randDigit(), randDigit());
       sparkReels();
-      await sleep(60);
+      await sleep(70);
     }
-  }
 
-  function rewardFromResult(a,b,c){
-    // Big reward always requires approval
-    if(a===b && b===c){
-      const jackpots = [
-        "JACKPOT: staff-approved big reward (choose from list)",
-        "JACKPOT: staff-approved snack pass +2 bonus tokens",
-        "JACKPOT: staff-approved “priority bump” +2 bonus tokens",
-        "JACKPOT: staff-approved “reschedule pass” +2 bonus tokens"
-      ];
-      return { type:"jackpot", text: jackpots[Math.floor(Math.random()*jackpots.length)] };
+    const a = randDigit(), b = randDigit(), c = randDigit();
+    setReels(a,b,c);
+
+    const three = (a===b && b===c);
+    const two = (a===b || b===c || a===c);
+
+    if(three){
+      rewardWon = true;
+      spawnConfetti(30);
+      toast("WIN!");
+      logSpin(`🎰 Result ${a}-${b}-${c} = WIN. Reward unlocked: Cancel CATS appointment (request).`);
+      // auto-fill something helpful (student can edit)
+      const when = document.querySelector('[data-key="cancelApptWhen"]');
+      if(when && !when.value.trim()) when.value = "Enter appointment date/time here";
+      const reason = document.querySelector('[data-key="cancelApptReason"]');
+      if(reason && !reason.value.trim()) reason.value = "Won weekly spin reward";
+    } else if(two){
+      toast("So close — no reward");
+      logSpin(`🎰 Result ${a}-${b}-${c} = near win (2 match). No reward.`);
+    } else {
+      toast("No match — no reward");
+      logSpin(`🎰 Result ${a}-${b}-${c} = no match. No reward.`);
     }
-    if(a===b || b===c || a===c){
-      const wins = [
-        "Win: +1 token back",
-        "Win: 3-minute reset break",
-        "Win: music break (1 song)",
-        "Win: pick your next task (your choice)"
-      ];
-      return { type:"win", text: wins[Math.floor(Math.random()*wins.length)] };
-    }
-    const misses = [
-      "No win — but momentum still counts. Knock out one small task.",
-      "No win — try again after 1 more DONE.",
-      "No win — quick check: what’s the next highest-impact thing?"
-    ];
-    return { type:"miss", text: misses[Math.floor(Math.random()*misses.length)] };
-  }
 
-  // Streak bonus: every 3 DONE actions => +1 free spin
-  function addStreakPoint(){
-    streak += 1;
-    if(streak >= 3){
-      streak = 0;
-      freeSpins += 1;
-      logReward("🔥 Streak bonus: +1 free spin (3 DONE).");
-      toast("Streak bonus! +1 free spin");
-      spawnConfetti(14);
-    }
-    renderRewards();
-  }
-
-  function showPendingApproval(rewardText){
-    pendingBigReward = rewardText;
-    pendingBigRewardStatus = "PENDING";
-    renderRewards();
-    toast("Pending staff approval");
-  }
-
-  function clearPending(){
-    pendingBigReward = "";
-    pendingBigRewardStatus = "";
-    const input = document.getElementById("staffCodeInput");
-    if(input) input.value = "";
-    renderRewards();
-  }
-
-  function approvePending(){
-    // Apply the "big" impact here:
-    // - always add +2 tokens on approval
-    tokens += 2;
-    pendingBigRewardStatus = "APPROVED";
-    logReward("✅ APPROVED by staff: " + pendingBigReward + " (+2 tokens applied)");
-    lastWin = "APPROVED: " + pendingBigReward + " (+2 tokens)";
-    spawnConfetti(28);
-    toast("Approved");
-    clearPending();
-    renderRewards();
+    renderSlotUI();
     debounceSave();
+
+    btn.textContent = "Spin";
+    btn.disabled = true; // stays disabled since spin used
   }
 
-  function denyPending(){
-    pendingBigRewardStatus = "DENIED";
-    logReward("⛔ DENIED by staff: " + pendingBigReward);
-    lastWin = "DENIED: " + pendingBigReward;
-    toast("Denied");
-    clearPending();
-    renderRewards();
+  document.getElementById("spinBtn").addEventListener("click", spinOnce);
+
+  // Simple staff reset button (kept basic; you can remove if you don’t want it)
+  document.getElementById("resetSpinBtn").addEventListener("click", ()=>{
+    const ok = confirm("Staff reset spin lock for this week?");
+    if(!ok) return;
+    spinUsedThisWeek = false;
+    rewardWon = false;
+    updateProgress(); // will re-evaluate eligibility
+    logSpin("🔧 Staff reset: spin lock cleared.");
     debounceSave();
-  }
+    toast("Spin reset");
+  });
+
+  // Cancel request submit
+  document.getElementById("submitCancelBtn").addEventListener("click", ()=>{
+    const when = (document.querySelector('[data-key="cancelApptWhen"]').value || "").trim();
+    if(!when){
+      toast("Add the appointment time first");
+      return;
+    }
+    const reason = (document.querySelector('[data-key="cancelApptReason"]').value || "").trim();
+    logSpin(`📌 Cancellation request submitted. When: ${when} | Reason: ${reason || "—"}`);
+    toast("Request saved");
+    debounceSave();
+  });
 
   // ---------- save/load ----------
   async function saveAll(force=false){
@@ -946,8 +843,6 @@
       return;
     }
 
-    renderRewards(); // sync hidden fields before saving
-
     const data = collectData();
     const h = hashData(data);
     if(!force && h === lastSavedHash){
@@ -955,8 +850,7 @@
       return;
     }
 
-    const meta = { localSavedAt: nowStamp() };
-    cacheSave(data, meta);
+    cacheSave(data, { localSavedAt: nowStamp() });
 
     try{
       setStatus("saving...","Syncing to shared version.");
@@ -979,14 +873,6 @@
     if(!hasRequiredKey()){
       setStatus("idle","Set Student + Week to enable autosave.");
       return;
-    }
-
-    const currentHash = hashData(collectData());
-    const hasUnsaved = (lastSavedHash && currentHash !== lastSavedHash);
-
-    if(!opts.silent && hasUnsaved){
-      const ok = confirm("Load Week will overwrite what’s on screen. Continue?");
-      if(!ok) return;
     }
 
     setStatus("loading...","Pulling the shared version.");
@@ -1035,14 +921,10 @@
     if(up) up.value = obj["upcoming"] ?? obj.upcoming ?? "";
     if(mi) mi.value = obj["missing"] ?? obj.missing ?? "";
 
-    // Restore rewards
-    tokens = Number(obj.tokens ?? obj["tokens"] ?? 0) || 0;
-    spinsUsed = Number(obj.spinsUsed ?? obj["spinsUsed"] ?? 0) || 0;
-    lastWin = obj.lastWinValue ?? obj["lastWinValue"] ?? "—";
-    streak = Number(obj.streak ?? obj["streak"] ?? 0) || 0;
-    freeSpins = Number(obj.freeSpins ?? obj["freeSpins"] ?? 0) || 0;
-    pendingBigReward = obj.pendingBigReward ?? obj["pendingBigReward"] ?? "";
-    pendingBigRewardStatus = obj.pendingBigRewardStatus ?? obj["pendingBigRewardStatus"] ?? "";
+    // Restore slot state
+    spinsAvailable = Number(obj.spinsAvailable ?? obj["spinsAvailable"] ?? 0) || 0;
+    spinUsedThisWeek = String(obj.spinUsedThisWeek ?? obj["spinUsedThisWeek"] ?? "false") === "true";
+    rewardWon = String(obj.rewardWon ?? obj["rewardWon"] ?? "false") === "true";
 
     clearAllTasks();
 
@@ -1069,8 +951,8 @@
     ensureSeededNewRecord();
 
     lastSavedHash = hashData(collectData());
-    updateProgress();
-    renderRewards();
+    updateProgress(); // recalculates eligibility (may set spin to 1 if complete + unused)
+    renderSlotUI();
 
     const m = cacheMeta();
     if(m?.localSavedAt) setLocalText(m.localSavedAt);
@@ -1081,24 +963,17 @@
   // ---------- auto-refresh ----------
   function startAutoRefresh(){
     stopAutoRefresh();
-    refreshTimer = setInterval(()=>{
-      if(hasRequiredKey()) loadWeek({silent:true});
-    }, 20000);
+    refreshTimer = setInterval(()=>{ if(hasRequiredKey()) loadWeek({silent:true}); }, 20000);
   }
-  function stopAutoRefresh(){
-    if(refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = null;
-  }
+  function stopAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer = null; }
 
   function onKeyChanged(){
     if(!hasRequiredKey()){
       stopAutoRefresh();
       setStatus("idle","Set Student + Week to enable autosave.");
-      setLocalText("—");
-      setSyncText("—");
+      setLocalText("—"); setSyncText("—");
       return;
     }
-
     const cached = cacheLoad();
     const m = cacheMeta();
     if(cached){
@@ -1162,11 +1037,9 @@
       out += "\n";
     });
 
-    out += "Rewards\n";
-    out += "Tokens: " + tokens + " | Spins: " + spinsUsed + " | Streak: " + streak + "/3 | Free spins: " + freeSpins + "\n";
-    out += "Last: " + lastWin + "\n";
-    out += "Big reward: " + (pendingBigRewardStatus ? (pendingBigRewardStatus + " - " + pendingBigReward) : "—") + "\n";
-    out += "\nRewards Log\n" + (document.querySelector('[data-key="rewardsLog"]').value || "") + "\n";
+    out += "Slot\n";
+    out += "Spins available: " + spinsAvailable + " | Used: " + spinUsedThisWeek + " | Reward won: " + rewardWon + "\n";
+    out += "\nSpin Log\n" + (document.querySelector('[data-key="spinLog"]').value || "") + "\n";
 
     try{ await navigator.clipboard.writeText(out); toast("Summary copied"); }
     catch(e){ toast("Copy failed"); }
@@ -1177,138 +1050,7 @@
     if(confirm("Reset everything? This will reload the page.")) location.reload();
   });
 
-  // ---------- rewards actions ----------
-  document.getElementById("claimTokenBtn").addEventListener("click", ()=>{
-    tokens += 1;
-    lastWin = "Manual token claimed";
-    renderRewards();
-    logReward("🪙 Manual token claimed (+1).");
-    debounceSave();
-    toast("+1 token");
-  });
-
-  document.getElementById("clearRewardsBtn").addEventListener("click", ()=>{
-    const box = document.querySelector('[data-key="rewardsLog"]');
-    if(box && confirm("Clear rewards log?")){
-      box.value = "";
-      debounceSave();
-      toast("Log cleared");
-    }
-  });
-
-  document.getElementById("requestCancelBtn").addEventListener("click", ()=>{
-    const when = (document.querySelector('[data-key="cancelApptWhen"]').value || "").trim();
-    const reason = (document.querySelector('[data-key="cancelApptReason"]').value || "").trim();
-    if(!when && !reason){ toast("Add a time or reason first"); return; }
-    const line = `📌 Appointment cancellation request saved. When: ${when || "—"} | Reason: ${reason || "—"}`;
-    lastWin = "Cancel request saved";
-    renderRewards();
-    logReward(line);
-    debounceSave();
-    toast("Request saved");
-  });
-
-  async function doSpin({useFreeSpin=false}){
-    if(useFreeSpin){
-      if(freeSpins <= 0){ toast("No free spins"); return; }
-      freeSpins -= 1;
-    }else{
-      if(tokens <= 0){ toast("No tokens yet — mark a task DONE."); return; }
-      tokens -= 1;
-    }
-
-    spinsUsed += 1;
-    renderRewards();
-    debounceSave();
-
-    const btn = document.getElementById("spinBtn");
-    const fbtn = document.getElementById("freeSpinBtn");
-    if(btn) { btn.disabled = true; btn.textContent = "Spinning…"; }
-    if(fbtn) fbtn.disabled = true;
-
-    shakeBox();
-    await spinAnimation(1050);
-
-    const a = pickSymbol(), b = pickSymbol(), c = pickSymbol();
-    setReels(a,b,c);
-
-    const outcome = rewardFromResult(a,b,c);
-
-    if(outcome.type === "jackpot"){
-      spawnConfetti(28);
-      const msg = outcome.text + " (" + a + b + c + ")";
-      lastWin = "PENDING: " + msg;
-      logReward("🎉 JACKPOT (PENDING): " + msg);
-      showPendingApproval(msg);
-      // No bonus tokens applied until staff approves
-    } else if(outcome.type === "win"){
-      tokens += 1; // immediate, small reward
-      lastWin = outcome.text + " (" + a + b + c + ")";
-      logReward("✅ " + lastWin);
-      spawnConfetti(12);
-      toast("Nice!");
-    } else {
-      lastWin = outcome.text + " (" + a + b + c + ")";
-      logReward("— " + lastWin);
-      toast("Keep going");
-    }
-
-    renderRewards();
-    debounceSave();
-
-    if(btn) { btn.disabled = false; btn.textContent = "Spin (1 token)"; }
-    if(fbtn) fbtn.disabled = (freeSpins <= 0);
-  }
-
-  document.getElementById("spinBtn").addEventListener("click", ()=>doSpin({useFreeSpin:false}));
-  document.getElementById("freeSpinBtn").addEventListener("click", ()=>doSpin({useFreeSpin:true}));
-
-  // ---------- staff approval ----------
-  document.getElementById("unlockStaffBtn").addEventListener("click", ()=>{
-    const input = document.getElementById("staffCodeInput");
-    const code = (input?.value || "").trim();
-    if(code === STAFF_CODE){
-      setStaffUnlocked(30);
-      toast("Staff mode unlocked");
-      if(input) input.value = "";
-    }else{
-      toast("Wrong code");
-    }
-  });
-
-  document.getElementById("approveBtn").addEventListener("click", ()=>{
-    if(pendingBigRewardStatus !== "PENDING"){ toast("No pending reward"); return; }
-    if(isStaffUnlocked()){
-      approvePending();
-      return;
-    }
-    const input = document.getElementById("staffCodeInput");
-    const code = (input?.value || "").trim();
-    if(code === STAFF_CODE){
-      approvePending();
-      if(input) input.value = "";
-    }else{
-      toast("Wrong code");
-    }
-  });
-
-  document.getElementById("denyBtn").addEventListener("click", ()=>{
-    if(pendingBigRewardStatus !== "PENDING"){ toast("No pending reward"); return; }
-    if(isStaffUnlocked()){
-      denyPending();
-      return;
-    }
-    const input = document.getElementById("staffCodeInput");
-    const code = (input?.value || "").trim();
-    if(code === STAFF_CODE){
-      denyPending();
-      if(input) input.value = "";
-    }else{
-      toast("Wrong code");
-    }
-  });
-
-  // ---------- autosave triggers + token earning + streak ----------
+  // ---------- autosave triggers ----------
   document.addEventListener("input", (e)=>{
     updateProgress();
     if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")) return;
@@ -1317,21 +1059,6 @@
 
   document.addEventListener("change", (e)=>{
     updateProgress();
-
-    // Earn 1 token + streak point the first time a DONE checkbox is checked
-    if(e.target && e.target.type === "checkbox"){
-      const k = e.target.getAttribute("data-key");
-      if(k && k.endsWith("_done") && e.target.checked && !mintedTokenKeys.has(k)){
-        mintedTokenKeys.add(k);
-        tokens += 1;
-        addStreakPoint();
-        lastWin = "Token earned from DONE task";
-        renderRewards();
-        logReward(`✅ DONE task token (+1). Key: ${k}`);
-        toast("+1 token");
-      }
-    }
-
     if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")){
       onKeyChanged();
       return;
@@ -1354,8 +1081,7 @@
 
   // ---------- initialize ----------
   updateProgress();
-  renderRewards();
-  updateStaffModeText();
+  renderSlotUI();
   setSyncText("—");
   setLocalText("—");
   setStatus("idle","Set Student + Week to enable autosave.");
