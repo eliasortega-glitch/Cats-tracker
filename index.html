@@ -9,9 +9,12 @@
     --bg:#f7f9fc; --card:#fff; --text:#222; --muted:#667085;
     --line:#e6eaf0; --blue:#0b6bff; --red:#cc0033; --shadow:0 1px 6px rgba(0,0,0,.08);
     --radius:14px;
+    --good:#12b76a;
+    --warn:#f04438;
+    --gold:#f5c542;
   }
   *{ box-sizing:border-box; }
-  body{ margin:0; padding:12px 12px 92px; font-family: Arial, sans-serif; background:var(--bg); color:var(--text); }
+  body{ margin:0; padding:12px 12px 110px; font-family: Arial, sans-serif; background:var(--bg); color:var(--text); }
   h1{ font-size:20px; margin:2px 0 4px; text-align:center; letter-spacing:.2px; }
   .sub{ font-size:12px; color:var(--muted); text-align:center; margin:0 0 10px; }
 
@@ -55,9 +58,11 @@
     background:#fff;
     white-space:nowrap;
   }
-  .pill.good{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
-  .pill.warn{ background:rgba(204,0,51,.08); border-color:transparent; color:#8f0026; }
+  .pill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
+  .pill.warn{ background:rgba(240,68,56,.10); border-color:transparent; color:#8f0026; }
   .pill.gray{ background:rgba(102,112,133,.08); border-color:transparent; color:#475467; }
+  .pill.gold{ background:rgba(245,197,66,.18); border-color:transparent; color:#7a5a00; }
+  .pill.blue{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
 
   .big{ font-size:20px; font-weight:700; }
   .small{ font-size:11px; color:var(--muted); }
@@ -68,6 +73,7 @@
   }
   .btn.primary{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
   .btn.danger{ background:rgba(204,0,51,.10); border-color:transparent; color:#8f0026; }
+  .btn.gold{ background:rgba(245,197,66,.22); border-color:transparent; color:#6b4a00; }
   .btn:active{ transform:translateY(1px); }
   .btn:disabled{ opacity:.55; cursor:not-allowed; }
 
@@ -107,7 +113,7 @@
   /* Toast */
   .toast{
     position:fixed; left:50%; transform:translateX(-50%);
-    bottom:86px;
+    bottom:98px;
     background:#111827; color:#fff;
     padding:10px 12px; border-radius:12px;
     box-shadow:0 10px 25px rgba(0,0,0,.15);
@@ -117,7 +123,7 @@
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
 
-  /* Staff/student feel: subtle header chips */
+  /* Header chips */
   .chipbar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:6px 0 0; }
   .chip{
     display:inline-flex; align-items:center; gap:6px;
@@ -129,15 +135,92 @@
     width:8px; height:8px; border-radius:999px; display:inline-block;
     background:#98a2b3;
   }
-  .dot.green{ background:#12b76a; }
-  .dot.red{ background:#f04438; }
-  .dot.blue{ background:#0b6bff; }
+  .dot.green{ background:var(--good); }
+  .dot.red{ background:var(--warn); }
+  .dot.blue{ background:var(--blue); }
+
+  /* Rewards */
+  .arcade{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:12px;
+  }
+  .arcadeTop{
+    display:flex;
+    gap:10px;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .slotFrame{
+    border:1px solid var(--line);
+    border-radius:18px;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    padding:12px;
+    box-shadow: inset 0 1px 0 rgba(0,0,0,.04);
+  }
+  .slotMachine{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    align-items:center;
+    padding:12px;
+  }
+  .reel{
+    width:84px;
+    height:84px;
+    border-radius:18px;
+    border:1px solid #d9dfe8;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:36px;
+    background:#fff;
+    user-select:none;
+    position:relative;
+    overflow:hidden;
+  }
+  .reel:after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background: radial-gradient(circle at 30% 20%, rgba(11,107,255,.10), transparent 45%),
+                radial-gradient(circle at 70% 80%, rgba(245,197,66,.14), transparent 45%);
+    pointer-events:none;
+  }
+  .spark{ animation: spark .35s ease-in-out 2; }
+  @keyframes spark{ 0%{ transform:scale(1);} 50%{ transform:scale(1.06);} 100%{ transform:scale(1);} }
+  .shake{ animation: shake .35s ease-in-out 1; }
+  @keyframes shake{ 0%{ transform:translateX(0);} 25%{ transform:translateX(-4px);} 50%{ transform:translateX(4px);} 75%{ transform:translateX(-3px);} 100%{ transform:translateX(0);} }
+
+  .confetti{ position:relative; overflow:hidden; }
+  .confetti i{
+    position:absolute;
+    width:8px; height:14px;
+    border-radius:3px;
+    opacity:.95;
+    top:-20px;
+    animation: fall 950ms linear forwards;
+  }
+  @keyframes fall{ to{ transform: translateY(220px) rotate(300deg); opacity:0; } }
+
+  /* Staff approve panel */
+  .approve{
+    border:1px dashed rgba(245,197,66,.7);
+    background: rgba(245,197,66,.10);
+    border-radius:14px;
+    padding:10px;
+  }
+  .approveTitle{ font-weight:700; color:#6b4a00; }
+  .approveHint{ font-size:12px; color:#7a5a00; margin-top:4px; }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
   @media(max-width:720px){
     .topbar{ flex-direction:column; }
     .top-right{ width:100%; min-width:unset; }
-    body{ padding-bottom:104px; }
-    .toast{ bottom:98px; }
+    body{ padding-bottom:118px; }
+    .toast{ bottom:108px; }
+    .reel{ width:74px; height:74px; font-size:34px; }
   }
 </style>
 </head>
@@ -237,6 +320,7 @@
     <div class="tab active" data-tab="priorities">Priorities</div>
     <div class="tab" data-tab="daily">Daily Plan</div>
     <div class="tab" data-tab="notes">Upcoming / Missing</div>
+    <div class="tab" data-tab="rewards">Rewards</div>
   </div>
 
   <!-- Priorities -->
@@ -287,6 +371,91 @@
       </div>
     </div>
   </div>
+
+  <!-- Rewards -->
+  <div class="section" id="rewards">
+    <div class="card pad arcade">
+      <div class="arcadeTop">
+        <div>
+          <div style="font-weight:700;">Rewards Arcade</div>
+          <div class="hint">
+            Earn <strong>1 token</strong> the first time you mark a task DONE.
+            Streak bonus: every <strong>3 DONE</strong> earns <strong>1 free spin</strong>.
+          </div>
+        </div>
+        <div class="row" style="margin:0;">
+          <div class="pill gold">🪙 Tokens: <span id="tokenCount">0</span></div>
+          <div class="pill gray">🎰 Spins: <span id="spinCount">0</span></div>
+          <div class="pill blue">🔥 Streak: <span id="streakCount">0</span>/3</div>
+          <div class="pill good">🆓 Free spins: <span id="freeSpinCount">0</span></div>
+          <div class="pill good">🏆 Last: <span id="lastWin">—</span></div>
+        </div>
+      </div>
+
+      <div class="slotFrame confetti" id="slotBox">
+        <div class="slotMachine" aria-label="Slot machine">
+          <div class="reel" id="reel1">🍒</div>
+          <div class="reel" id="reel2">⭐</div>
+          <div class="reel" id="reel3">🍋</div>
+        </div>
+
+        <div class="btnrow" style="justify-content:center;">
+          <button class="btn primary" id="spinBtn" type="button">Spin (1 token)</button>
+          <button class="btn gold" id="freeSpinBtn" type="button">Use Free Spin</button>
+          <button class="btn" id="claimTokenBtn" type="button">Claim 1 token</button>
+          <button class="btn" id="clearRewardsBtn" type="button">Clear log</button>
+        </div>
+
+        <div class="hint" style="text-align:center; margin-top:6px;">
+          Big rewards require staff approval. Students can still spin and see “PENDING” until approved.
+        </div>
+      </div>
+
+      <div class="approve" id="approvePanel" style="display:none;">
+        <div class="approveTitle">Staff Approval Needed</div>
+        <div class="approveHint" id="approveText">Pending reward: —</div>
+        <div class="row" style="margin-top:10px;">
+          <div class="col" style="min-width:220px;">
+            <label>Staff code</label>
+            <input id="staffCodeInput" class="mono" type="password" placeholder="Enter code" autocomplete="off" />
+          </div>
+          <div class="col" style="display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap;">
+            <button class="btn primary" id="approveBtn" type="button">Approve</button>
+            <button class="btn danger" id="denyBtn" type="button">Deny</button>
+            <button class="btn" id="unlockStaffBtn" type="button">Unlock Staff Mode (30 min)</button>
+          </div>
+        </div>
+        <div class="approveHint" id="staffModeText" style="margin-top:8px;">Staff mode: locked</div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <div style="font-weight:700;">Rewards Log</div>
+          <div class="hint">This saves with the student/week. Reinforce effort, not luck.</div>
+          <textarea data-key="rewardsLog" placeholder="Wins and notes show here…"></textarea>
+        </div>
+        <div class="col">
+          <div style="font-weight:700;">Appointment Action</div>
+          <div class="hint">Logs a request (does not auto-cancel). Staff follow-up required.</div>
+          <input type="text" data-key="cancelApptWhen" placeholder="Cancel request: date/time (ex: Thu 3:30pm)" />
+          <div style="height:8px;"></div>
+          <input type="text" data-key="cancelApptReason" placeholder="Reason (ex: travel, class conflict, sick)" />
+          <div style="height:8px;"></div>
+          <button class="btn danger" id="requestCancelBtn" type="button">Request Appointment Cancellation</button>
+          <div class="hint" style="margin-top:8px;">This can also become “reschedule request” later.</div>
+        </div>
+      </div>
+
+      <!-- Hidden fields saved to sheet -->
+      <input type="hidden" data-key="tokens" id="tokensField" />
+      <input type="hidden" data-key="spinsUsed" id="spinsField" />
+      <input type="hidden" data-key="lastWinValue" id="lastWinField" />
+      <input type="hidden" data-key="streak" id="streakField" />
+      <input type="hidden" data-key="freeSpins" id="freeSpinsField" />
+      <input type="hidden" data-key="pendingBigReward" id="pendingBigRewardField" />
+      <input type="hidden" data-key="pendingBigRewardStatus" id="pendingBigRewardStatusField" />
+    </div>
+  </div>
 </div>
 
 <!-- Sticky bar -->
@@ -306,6 +475,10 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  // ========= STAFF CODE =========
+  // Change this to whatever you want. Note: it's client-side, so don't use a sensitive password.
+  const STAFF_CODE = "CATS2026";
+
   const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
   const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
@@ -317,10 +490,45 @@
   let refreshTimer = null;
   let isApplyingLoad = false;
 
-  // ---------- UI helpers ----------
-  function nowStamp(){
-    return new Date().toLocaleString();
+  // Rewards state
+  let tokens = 0;
+  let spinsUsed = 0;
+  let lastWin = "—";
+  let streak = 0;          // counts DONE actions (earned token events)
+  let freeSpins = 0;       // awarded every 3 streak
+  const mintedTokenKeys = new Set(); // prevent farming
+
+  // Big reward pending (requires staff approval)
+  let pendingBigReward = "";
+  let pendingBigRewardStatus = ""; // "PENDING" | "APPROVED" | "DENIED" | ""
+
+  // Staff unlock session (30 min)
+  function staffSessionKey(){ return "cats_staff_unlock_until"; }
+  function isStaffUnlocked(){
+    const raw = sessionStorage.getItem(staffSessionKey());
+    const until = raw ? Number(raw) : 0;
+    return Date.now() < until;
   }
+  function setStaffUnlocked(minutes){
+    const until = Date.now() + minutes*60*1000;
+    sessionStorage.setItem(staffSessionKey(), String(until));
+    updateStaffModeText();
+  }
+  function updateStaffModeText(){
+    const el = document.getElementById("staffModeText");
+    if(!el) return;
+    if(isStaffUnlocked()){
+      const raw = sessionStorage.getItem(staffSessionKey());
+      const until = raw ? Number(raw) : 0;
+      const minsLeft = Math.max(0, Math.ceil((until - Date.now())/60000));
+      el.textContent = "Staff mode: unlocked (" + minsLeft + " min left)";
+    }else{
+      el.textContent = "Staff mode: locked";
+    }
+  }
+
+  // ---------- UI helpers ----------
+  function nowStamp(){ return new Date().toLocaleString(); }
 
   function toast(msg){
     const el = document.getElementById("toast");
@@ -337,26 +545,16 @@
     if(typeof meta === "string") metaEl.textContent = meta;
   }
 
-  function setSyncText(text){
-    document.getElementById("syncText").textContent = "Last synced: " + text;
-  }
-
-  function setLocalText(text){
-    document.getElementById("localText").textContent = "Local backup: " + text;
-  }
+  function setSyncText(text){ document.getElementById("syncText").textContent = "Last synced: " + text; }
+  function setLocalText(text){ document.getElementById("localText").textContent = "Local backup: " + text; }
 
   // ---------- connection indicator ----------
   function updateOnlineChip(){
     const online = navigator.onLine;
     const dot = document.getElementById("dotOnline");
     const txt = document.getElementById("onlineText");
-    if(online){
-      dot.className = "dot green";
-      txt.textContent = "Online";
-    }else{
-      dot.className = "dot red";
-      txt.textContent = "Offline";
-    }
+    if(online){ dot.className = "dot green"; txt.textContent = "Online"; }
+    else{ dot.className = "dot red"; txt.textContent = "Offline"; }
   }
   window.addEventListener("online", ()=>{ updateOnlineChip(); toast("Back online"); });
   window.addEventListener("offline", ()=>{ updateOnlineChip(); toast("Offline mode"); });
@@ -368,21 +566,12 @@
     const week = document.getElementById("weekOf").value || "";
     return { student, week, key: (student + "|" + week).toLowerCase() };
   }
-
   function hasRequiredKey(){
     const sk = stableKey();
     return !!(sk.student && sk.week);
   }
-
-  function cacheKey(){
-    const sk = stableKey();
-    return "cats_week_data_" + sk.key;
-  }
-
-  function metaKey(){
-    const sk = stableKey();
-    return "cats_week_meta_" + sk.key;
-  }
+  function cacheKey(){ return "cats_week_data_" + stableKey().key; }
+  function metaKey(){ return "cats_week_meta_" + stableKey().key; }
 
   // ---------- fields ----------
   function allFields(){
@@ -401,7 +590,6 @@
     data["Week Of"] = sk.week;
     return data;
   }
-
   function hashData(obj){ return JSON.stringify(obj); }
 
   // ---------- progress ----------
@@ -422,13 +610,10 @@
   }
 
   // ---------- ids / tasks ----------
-  function uid(){
-    return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-  }
+  function uid(){ return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
   // ---------- priorities ----------
   const prioritiesBox = document.getElementById("prioritiesBox");
-
   function addPriorityRow(text="", done=false){
     const id = uid();
     const div = document.createElement("div");
@@ -449,29 +634,16 @@
     prioritiesBox.appendChild(div);
     updateProgress();
   }
-
-  document.getElementById("addPriority").addEventListener("click", ()=>{
-    addPriorityRow();
-    debounceSave();
-  });
-  document.getElementById("quick3").addEventListener("click", ()=>{
-    addPriorityRow(); addPriorityRow(); addPriorityRow();
-    debounceSave();
-  });
+  document.getElementById("addPriority").addEventListener("click", ()=>{ addPriorityRow(); debounceSave(); });
+  document.getElementById("quick3").addEventListener("click", ()=>{ addPriorityRow(); addPriorityRow(); addPriorityRow(); debounceSave(); });
 
   function ensureSeededNewRecord(){
-    // Only seed if priorities and daily are truly empty (new record)
     const anyPriority = prioritiesBox.querySelector(".task");
-    if(!anyPriority){
-      addPriorityRow(); addPriorityRow(); addPriorityRow();
-    }
+    if(!anyPriority){ addPriorityRow(); addPriorityRow(); addPriorityRow(); }
     days.forEach((d,i)=>{
       const panel = document.getElementById("daypanel_" + i);
       const any = panel.querySelector(".task");
-      if(!any){
-        addDayTask(i,"");
-        addDayTask(i,"");
-      }
+      if(!any){ addDayTask(i,""); addDayTask(i,""); }
     });
   }
 
@@ -527,11 +699,7 @@
     setSelectedDay(map[jsDay] ?? 0);
   })();
 
-  document.getElementById("addTaskToday").addEventListener("click", ()=>{
-    addDayTask(selectedDayIndex,"");
-    debounceSave();
-  });
-
+  document.getElementById("addTaskToday").addEventListener("click", ()=>{ addDayTask(selectedDayIndex,""); debounceSave(); });
   document.getElementById("addStudyTemplate").addEventListener("click", ()=>{
     ["Check Brightspace + due dates","Finish highest-impact assignment","Submit + confirm submission"]
       .forEach(t=>addDayTask(selectedDayIndex, t, false));
@@ -550,7 +718,7 @@
     });
   });
 
-  // ---------- local cache (FULL DATA) ----------
+  // ---------- local cache ----------
   function cacheSave(data, meta){
     try{
       localStorage.setItem(cacheKey(), JSON.stringify(data));
@@ -558,23 +726,17 @@
       setLocalText(meta?.localSavedAt ? meta.localSavedAt : "saved");
     }catch(e){}
   }
-
   function cacheLoad(){
     try{
       const raw = localStorage.getItem(cacheKey());
       return raw ? JSON.parse(raw) : null;
-    }catch(e){
-      return null;
-    }
+    }catch(e){ return null; }
   }
-
   function cacheMeta(){
     try{
       const raw = localStorage.getItem(metaKey());
       return raw ? JSON.parse(raw) : null;
-    }catch(e){
-      return null;
-    }
+    }catch(e){ return null; }
   }
 
   // ---------- autosave gating ----------
@@ -589,12 +751,202 @@
     setStatus("typing...","Autosave on. Changes save automatically.");
   }
 
+  // ---------- Rewards UI + mechanics ----------
+  function renderRewards(){
+    const t = document.getElementById("tokenCount");
+    const s = document.getElementById("spinCount");
+    const l = document.getElementById("lastWin");
+    const st = document.getElementById("streakCount");
+    const fs = document.getElementById("freeSpinCount");
+
+    if(t) t.textContent = tokens;
+    if(s) s.textContent = spinsUsed;
+    if(l) l.textContent = lastWin || "—";
+    if(st) st.textContent = streak;
+    if(fs) fs.textContent = freeSpins;
+
+    const tf = document.getElementById("tokensField");
+    const sf = document.getElementById("spinsField");
+    const lf = document.getElementById("lastWinField");
+    const stf = document.getElementById("streakField");
+    const fsf = document.getElementById("freeSpinsField");
+    const pbrf = document.getElementById("pendingBigRewardField");
+    const pbrsf = document.getElementById("pendingBigRewardStatusField");
+
+    if(tf) tf.value = String(tokens);
+    if(sf) sf.value = String(spinsUsed);
+    if(lf) lf.value = String(lastWin);
+    if(stf) stf.value = String(streak);
+    if(fsf) fsf.value = String(freeSpins);
+    if(pbrf) pbrf.value = String(pendingBigReward || "");
+    if(pbrsf) pbrsf.value = String(pendingBigRewardStatus || "");
+
+    // Approval panel visibility
+    const panel = document.getElementById("approvePanel");
+    const text = document.getElementById("approveText");
+    if(panel && text){
+      if(pendingBigRewardStatus === "PENDING"){
+        panel.style.display = "block";
+        text.textContent = "Pending reward: " + pendingBigReward;
+      }else{
+        panel.style.display = "none";
+      }
+    }
+
+    // Free spin button
+    const freeBtn = document.getElementById("freeSpinBtn");
+    if(freeBtn) freeBtn.disabled = freeSpins <= 0;
+
+    updateStaffModeText();
+  }
+
+  function logReward(line){
+    const box = document.querySelector('[data-key="rewardsLog"]');
+    if(!box) return;
+    const stamp = nowStamp();
+    box.value = (box.value ? box.value.trimEnd() + "\n" : "") + `[${stamp}] ${line}\n`;
+  }
+
+  function sparkReels(){
+    ["reel1","reel2","reel3"].forEach(id=>{
+      const r = document.getElementById(id);
+      if(!r) return;
+      r.classList.remove("spark");
+      void r.offsetWidth;
+      r.classList.add("spark");
+    });
+  }
+  function shakeBox(){
+    const box = document.getElementById("slotBox");
+    if(!box) return;
+    box.classList.remove("shake");
+    void box.offsetWidth;
+    box.classList.add("shake");
+  }
+  function spawnConfetti(count=24){
+    const box = document.getElementById("slotBox");
+    if(!box) return;
+    for(let i=0;i<count;i++){
+      const p = document.createElement("i");
+      p.style.left = (Math.random()*100) + "%";
+      p.style.animationDelay = (Math.random()*120) + "ms";
+      p.style.transform = "rotate(" + (Math.random()*360) + "deg)";
+      p.style.background = "hsl(" + Math.floor(Math.random()*360) + ", 90%, 60%)";
+      box.appendChild(p);
+      setTimeout(()=>p.remove(), 1100);
+    }
+  }
+
+  const symbols = ["🍒","🍋","🔔","⭐","💎","7️⃣"];
+  function pickSymbol(){ return symbols[Math.floor(Math.random()*symbols.length)]; }
+
+  function setReels(a,b,c){
+    const r1 = document.getElementById("reel1");
+    const r2 = document.getElementById("reel2");
+    const r3 = document.getElementById("reel3");
+    if(r1) r1.textContent = a;
+    if(r2) r2.textContent = b;
+    if(r3) r3.textContent = c;
+  }
+
+  function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
+  async function spinAnimation(ms=900){
+    const start = Date.now();
+    while(Date.now() - start < ms){
+      setReels(pickSymbol(), pickSymbol(), pickSymbol());
+      sparkReels();
+      await sleep(60);
+    }
+  }
+
+  function rewardFromResult(a,b,c){
+    // Big reward always requires approval
+    if(a===b && b===c){
+      const jackpots = [
+        "JACKPOT: staff-approved big reward (choose from list)",
+        "JACKPOT: staff-approved snack pass +2 bonus tokens",
+        "JACKPOT: staff-approved “priority bump” +2 bonus tokens",
+        "JACKPOT: staff-approved “reschedule pass” +2 bonus tokens"
+      ];
+      return { type:"jackpot", text: jackpots[Math.floor(Math.random()*jackpots.length)] };
+    }
+    if(a===b || b===c || a===c){
+      const wins = [
+        "Win: +1 token back",
+        "Win: 3-minute reset break",
+        "Win: music break (1 song)",
+        "Win: pick your next task (your choice)"
+      ];
+      return { type:"win", text: wins[Math.floor(Math.random()*wins.length)] };
+    }
+    const misses = [
+      "No win — but momentum still counts. Knock out one small task.",
+      "No win — try again after 1 more DONE.",
+      "No win — quick check: what’s the next highest-impact thing?"
+    ];
+    return { type:"miss", text: misses[Math.floor(Math.random()*misses.length)] };
+  }
+
+  // Streak bonus: every 3 DONE actions => +1 free spin
+  function addStreakPoint(){
+    streak += 1;
+    if(streak >= 3){
+      streak = 0;
+      freeSpins += 1;
+      logReward("🔥 Streak bonus: +1 free spin (3 DONE).");
+      toast("Streak bonus! +1 free spin");
+      spawnConfetti(14);
+    }
+    renderRewards();
+  }
+
+  function showPendingApproval(rewardText){
+    pendingBigReward = rewardText;
+    pendingBigRewardStatus = "PENDING";
+    renderRewards();
+    toast("Pending staff approval");
+  }
+
+  function clearPending(){
+    pendingBigReward = "";
+    pendingBigRewardStatus = "";
+    const input = document.getElementById("staffCodeInput");
+    if(input) input.value = "";
+    renderRewards();
+  }
+
+  function approvePending(){
+    // Apply the "big" impact here:
+    // - always add +2 tokens on approval
+    tokens += 2;
+    pendingBigRewardStatus = "APPROVED";
+    logReward("✅ APPROVED by staff: " + pendingBigReward + " (+2 tokens applied)");
+    lastWin = "APPROVED: " + pendingBigReward + " (+2 tokens)";
+    spawnConfetti(28);
+    toast("Approved");
+    clearPending();
+    renderRewards();
+    debounceSave();
+  }
+
+  function denyPending(){
+    pendingBigRewardStatus = "DENIED";
+    logReward("⛔ DENIED by staff: " + pendingBigReward);
+    lastWin = "DENIED: " + pendingBigReward;
+    toast("Denied");
+    clearPending();
+    renderRewards();
+    debounceSave();
+  }
+
   // ---------- save/load ----------
   async function saveAll(force=false){
     if(!hasRequiredKey()){
       setStatus("idle","Set Student + Week to enable autosave.");
       return;
     }
+
+    renderRewards(); // sync hidden fields before saving
 
     const data = collectData();
     const h = hashData(data);
@@ -603,11 +955,9 @@
       return;
     }
 
-    // Always write local backup first
     const meta = { localSavedAt: nowStamp() };
     cacheSave(data, meta);
 
-    // Then try server
     try{
       setStatus("saving...","Syncing to shared version.");
       await fetch(webAppURL, {
@@ -616,8 +966,7 @@
         body: JSON.stringify(data)
       });
       lastSavedHash = h;
-      const syncedAt = nowStamp();
-      setSyncText(syncedAt);
+      setSyncText(nowStamp());
       setStatus("saved","Shared version updated.");
       toast("Saved");
     }catch(err){
@@ -632,7 +981,6 @@
       return;
     }
 
-    // If user has unsaved edits (local differs from lastSavedHash), warn on manual load
     const currentHash = hashData(collectData());
     const hasUnsaved = (lastSavedHash && currentHash !== lastSavedHash);
 
@@ -644,22 +992,19 @@
     setStatus("loading...","Pulling the shared version.");
     const sk = stableKey();
 
-    // server first
     try{
       const url = webAppURL + "?studentName=" + encodeURIComponent(sk.student) + "&weekOf=" + encodeURIComponent(sk.week);
       const res = await fetch(url, { method:"GET" });
       const obj = await res.json();
       if(obj && !obj.error){
         applyLoaded(obj);
-        const syncedAt = nowStamp();
-        setSyncText(syncedAt);
+        setSyncText(nowStamp());
         setStatus("loaded","Shared version loaded.");
         if(!opts.silent) toast("Loaded");
         return;
       }
     }catch(e){}
 
-    // fallback: local
     const cached = cacheLoad();
     if(cached){
       applyLoaded(cached);
@@ -681,7 +1026,6 @@
   function applyLoaded(obj){
     isApplyingLoad = true;
 
-    // Fill simple fields (keep studentName/weekOf as user-controlled, since those define the record)
     ["sport","counselor","ls","note"].forEach(id=>{
       if(document.getElementById(id)) document.getElementById(id).value = obj[id] || "";
     });
@@ -691,10 +1035,17 @@
     if(up) up.value = obj["upcoming"] ?? obj.upcoming ?? "";
     if(mi) mi.value = obj["missing"] ?? obj.missing ?? "";
 
-    // Rebuild priorities + daily from keys
+    // Restore rewards
+    tokens = Number(obj.tokens ?? obj["tokens"] ?? 0) || 0;
+    spinsUsed = Number(obj.spinsUsed ?? obj["spinsUsed"] ?? 0) || 0;
+    lastWin = obj.lastWinValue ?? obj["lastWinValue"] ?? "—";
+    streak = Number(obj.streak ?? obj["streak"] ?? 0) || 0;
+    freeSpins = Number(obj.freeSpins ?? obj["freeSpins"] ?? 0) || 0;
+    pendingBigReward = obj.pendingBigReward ?? obj["pendingBigReward"] ?? "";
+    pendingBigRewardStatus = obj.pendingBigRewardStatus ?? obj["pendingBigRewardStatus"] ?? "";
+
     clearAllTasks();
 
-    // Recreate priorities / daily tasks from saved keys
     Object.keys(obj).forEach(k=>{
       if(k.startsWith("p_") && k.endsWith("_text")){
         const base = k.replace("_text","");
@@ -715,37 +1066,30 @@
       }
     });
 
-    // If it’s a brand new record, keep it “alive” with starter blanks
     ensureSeededNewRecord();
 
-    // Update hashes + meters
     lastSavedHash = hashData(collectData());
     updateProgress();
+    renderRewards();
 
-    // Refresh local meta display if present
     const m = cacheMeta();
     if(m?.localSavedAt) setLocalText(m.localSavedAt);
 
     isApplyingLoad = false;
   }
 
-  // ---------- auto-refresh (shared feel) ----------
+  // ---------- auto-refresh ----------
   function startAutoRefresh(){
     stopAutoRefresh();
     refreshTimer = setInterval(()=>{
-      if(hasRequiredKey()){
-        // Silent load so it doesn't pop confirmations
-        loadWeek({silent:true});
-      }
-    }, 20000); // 20 seconds
+      if(hasRequiredKey()) loadWeek({silent:true});
+    }, 20000);
   }
-
   function stopAutoRefresh(){
     if(refreshTimer) clearInterval(refreshTimer);
     refreshTimer = null;
   }
 
-  // When student/week changes: show local availability + start refresh
   function onKeyChanged(){
     if(!hasRequiredKey()){
       stopAutoRefresh();
@@ -755,7 +1099,6 @@
       return;
     }
 
-    // Show if local backup exists for this record
     const cached = cacheLoad();
     const m = cacheMeta();
     if(cached){
@@ -765,10 +1108,8 @@
     }else{
       setLocalText("none yet");
       setStatus("ready","New record. Start typing—autosave is on.");
-      // Seed blanks so it doesn't feel empty
       ensureSeededNewRecord();
     }
-
     startAutoRefresh();
   }
 
@@ -778,19 +1119,12 @@
 
   document.getElementById("shareLink").addEventListener("click", async ()=>{
     const sk = stableKey();
-    if(!sk.student || !sk.week){
-      toast("Set Student + Week first");
-      return;
-    }
+    if(!sk.student || !sk.week){ toast("Set Student + Week first"); return; }
     const url = new URL(window.location.href);
     url.searchParams.set("student", sk.student);
     url.searchParams.set("week", sk.week);
-    try{
-      await navigator.clipboard.writeText(url.toString());
-      toast("Link copied");
-    }catch(e){
-      toast("Copy failed");
-    }
+    try{ await navigator.clipboard.writeText(url.toString()); toast("Link copied"); }
+    catch(e){ toast("Copy failed"); }
   });
 
   // ---------- copy summary ----------
@@ -828,12 +1162,14 @@
       out += "\n";
     });
 
-    try{
-      await navigator.clipboard.writeText(out);
-      toast("Summary copied");
-    }catch(e){
-      toast("Copy failed");
-    }
+    out += "Rewards\n";
+    out += "Tokens: " + tokens + " | Spins: " + spinsUsed + " | Streak: " + streak + "/3 | Free spins: " + freeSpins + "\n";
+    out += "Last: " + lastWin + "\n";
+    out += "Big reward: " + (pendingBigRewardStatus ? (pendingBigRewardStatus + " - " + pendingBigReward) : "—") + "\n";
+    out += "\nRewards Log\n" + (document.querySelector('[data-key="rewardsLog"]').value || "") + "\n";
+
+    try{ await navigator.clipboard.writeText(out); toast("Summary copied"); }
+    catch(e){ toast("Copy failed"); }
   });
 
   // ---------- reset ----------
@@ -841,17 +1177,161 @@
     if(confirm("Reset everything? This will reload the page.")) location.reload();
   });
 
-  // ---------- autosave triggers ----------
+  // ---------- rewards actions ----------
+  document.getElementById("claimTokenBtn").addEventListener("click", ()=>{
+    tokens += 1;
+    lastWin = "Manual token claimed";
+    renderRewards();
+    logReward("🪙 Manual token claimed (+1).");
+    debounceSave();
+    toast("+1 token");
+  });
+
+  document.getElementById("clearRewardsBtn").addEventListener("click", ()=>{
+    const box = document.querySelector('[data-key="rewardsLog"]');
+    if(box && confirm("Clear rewards log?")){
+      box.value = "";
+      debounceSave();
+      toast("Log cleared");
+    }
+  });
+
+  document.getElementById("requestCancelBtn").addEventListener("click", ()=>{
+    const when = (document.querySelector('[data-key="cancelApptWhen"]').value || "").trim();
+    const reason = (document.querySelector('[data-key="cancelApptReason"]').value || "").trim();
+    if(!when && !reason){ toast("Add a time or reason first"); return; }
+    const line = `📌 Appointment cancellation request saved. When: ${when || "—"} | Reason: ${reason || "—"}`;
+    lastWin = "Cancel request saved";
+    renderRewards();
+    logReward(line);
+    debounceSave();
+    toast("Request saved");
+  });
+
+  async function doSpin({useFreeSpin=false}){
+    if(useFreeSpin){
+      if(freeSpins <= 0){ toast("No free spins"); return; }
+      freeSpins -= 1;
+    }else{
+      if(tokens <= 0){ toast("No tokens yet — mark a task DONE."); return; }
+      tokens -= 1;
+    }
+
+    spinsUsed += 1;
+    renderRewards();
+    debounceSave();
+
+    const btn = document.getElementById("spinBtn");
+    const fbtn = document.getElementById("freeSpinBtn");
+    if(btn) { btn.disabled = true; btn.textContent = "Spinning…"; }
+    if(fbtn) fbtn.disabled = true;
+
+    shakeBox();
+    await spinAnimation(1050);
+
+    const a = pickSymbol(), b = pickSymbol(), c = pickSymbol();
+    setReels(a,b,c);
+
+    const outcome = rewardFromResult(a,b,c);
+
+    if(outcome.type === "jackpot"){
+      spawnConfetti(28);
+      const msg = outcome.text + " (" + a + b + c + ")";
+      lastWin = "PENDING: " + msg;
+      logReward("🎉 JACKPOT (PENDING): " + msg);
+      showPendingApproval(msg);
+      // No bonus tokens applied until staff approves
+    } else if(outcome.type === "win"){
+      tokens += 1; // immediate, small reward
+      lastWin = outcome.text + " (" + a + b + c + ")";
+      logReward("✅ " + lastWin);
+      spawnConfetti(12);
+      toast("Nice!");
+    } else {
+      lastWin = outcome.text + " (" + a + b + c + ")";
+      logReward("— " + lastWin);
+      toast("Keep going");
+    }
+
+    renderRewards();
+    debounceSave();
+
+    if(btn) { btn.disabled = false; btn.textContent = "Spin (1 token)"; }
+    if(fbtn) fbtn.disabled = (freeSpins <= 0);
+  }
+
+  document.getElementById("spinBtn").addEventListener("click", ()=>doSpin({useFreeSpin:false}));
+  document.getElementById("freeSpinBtn").addEventListener("click", ()=>doSpin({useFreeSpin:true}));
+
+  // ---------- staff approval ----------
+  document.getElementById("unlockStaffBtn").addEventListener("click", ()=>{
+    const input = document.getElementById("staffCodeInput");
+    const code = (input?.value || "").trim();
+    if(code === STAFF_CODE){
+      setStaffUnlocked(30);
+      toast("Staff mode unlocked");
+      if(input) input.value = "";
+    }else{
+      toast("Wrong code");
+    }
+  });
+
+  document.getElementById("approveBtn").addEventListener("click", ()=>{
+    if(pendingBigRewardStatus !== "PENDING"){ toast("No pending reward"); return; }
+    if(isStaffUnlocked()){
+      approvePending();
+      return;
+    }
+    const input = document.getElementById("staffCodeInput");
+    const code = (input?.value || "").trim();
+    if(code === STAFF_CODE){
+      approvePending();
+      if(input) input.value = "";
+    }else{
+      toast("Wrong code");
+    }
+  });
+
+  document.getElementById("denyBtn").addEventListener("click", ()=>{
+    if(pendingBigRewardStatus !== "PENDING"){ toast("No pending reward"); return; }
+    if(isStaffUnlocked()){
+      denyPending();
+      return;
+    }
+    const input = document.getElementById("staffCodeInput");
+    const code = (input?.value || "").trim();
+    if(code === STAFF_CODE){
+      denyPending();
+      if(input) input.value = "";
+    }else{
+      toast("Wrong code");
+    }
+  });
+
+  // ---------- autosave triggers + token earning + streak ----------
   document.addEventListener("input", (e)=>{
     updateProgress();
-    // Avoid autosave spam while key isn't set
     if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")) return;
     debounceSave();
   });
 
   document.addEventListener("change", (e)=>{
     updateProgress();
-    // Key fields: handle record setup + refresh
+
+    // Earn 1 token + streak point the first time a DONE checkbox is checked
+    if(e.target && e.target.type === "checkbox"){
+      const k = e.target.getAttribute("data-key");
+      if(k && k.endsWith("_done") && e.target.checked && !mintedTokenKeys.has(k)){
+        mintedTokenKeys.add(k);
+        tokens += 1;
+        addStreakPoint();
+        lastWin = "Token earned from DONE task";
+        renderRewards();
+        logReward(`✅ DONE task token (+1). Key: ${k}`);
+        toast("+1 token");
+      }
+    }
+
     if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")){
       onKeyChanged();
       return;
@@ -859,7 +1339,7 @@
     debounceSave();
   });
 
-  // ---------- URL prefill (wow factor for staff sharing) ----------
+  // ---------- URL prefill ----------
   (function prefillFromURL(){
     const url = new URL(window.location.href);
     const student = url.searchParams.get("student");
@@ -868,13 +1348,14 @@
     if(week) document.getElementById("weekOf").value = week;
     if(student || week){
       onKeyChanged();
-      // If both exist, try loading immediately
       if(student && week) loadWeek({silent:true});
     }
   })();
 
   // ---------- initialize ----------
   updateProgress();
+  renderRewards();
+  updateStaffModeText();
   setSyncText("—");
   setLocalText("—");
   setStatus("idle","Set Student + Week to enable autosave.");
