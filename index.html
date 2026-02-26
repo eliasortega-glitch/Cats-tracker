@@ -23,7 +23,6 @@
 
     --focus:rgba(12,35,75,.18);
   }
-
   *{ box-sizing:border-box; }
   body{
     margin:0;
@@ -34,30 +33,11 @@
   }
   .wrap{ max-width:980px; margin:0 auto; }
 
-  .header{
-    text-align:center;
-    margin:2px 0 10px;
-  }
-  .title{
-    margin:0;
-    font-size:20px;
-    font-weight:900;
-    color:var(--ua-blue);
-    letter-spacing:.2px;
-  }
-  .subtitle{
-    margin:4px 0 0;
-    font-size:12px;
-    color:var(--muted);
-  }
+  .header{ text-align:center; margin:2px 0 10px; }
+  .title{ margin:0; font-size:20px; font-weight:900; color:var(--ua-blue); letter-spacing:.2px; }
+  .subtitle{ margin:4px 0 0; font-size:12px; color:var(--muted); }
 
-  .bar{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    justify-content:center;
-    margin:10px 0 10px;
-  }
+  .bar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:10px 0 10px; }
 
   .btn{
     padding:8px 10px;
@@ -68,45 +48,18 @@
     font-size:13px;
     user-select:none;
   }
-  .btn.primary{
-    border-color:transparent;
-    background:rgba(12,35,75,.10);
-    color:var(--ua-blue);
-    font-weight:800;
-  }
-  .btn.danger{
-    border-color:transparent;
-    background:rgba(171,5,32,.10);
-    color:var(--ua-red);
-    font-weight:800;
-  }
+  .btn.primary{ border-color:transparent; background:rgba(12,35,75,.10); color:var(--ua-blue); font-weight:800; }
+  .btn.danger{ border-color:transparent; background:rgba(171,5,32,.10); color:var(--ua-red); font-weight:800; }
   .btn:active{ transform:translateY(1px); }
   .btn:disabled{ opacity:.55; cursor:not-allowed; }
 
-  .grid2{
-    display:grid;
-    grid-template-columns: 1.2fr .8fr;
-    gap:10px;
-    align-items:start;
-  }
-  @media(max-width:820px){
-    .grid2{ grid-template-columns:1fr; }
-  }
+  .grid2{ display:grid; grid-template-columns: 1.2fr .8fr; gap:10px; align-items:start; }
+  @media(max-width:820px){ .grid2{ grid-template-columns:1fr; } }
 
-  .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:var(--r);
-    box-shadow:var(--shadow);
-  }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); }
   .pad{ padding:12px; }
 
-  label{
-    display:block;
-    font-size:11px;
-    color:var(--muted);
-    margin:0 0 4px;
-  }
+  label{ display:block; font-size:11px; color:var(--muted); margin:0 0 4px; }
   input, select, textarea{
     width:100%;
     padding:9px 10px;
@@ -116,13 +69,9 @@
     font-size:14px;
     background:#fff;
   }
-  input:focus, select:focus, textarea:focus{
-    box-shadow:0 0 0 4px var(--focus);
-    border-color:transparent;
-  }
+  input:focus, select:focus, textarea:focus{ box-shadow:0 0 0 4px var(--focus); border-color:transparent; }
   textarea{ min-height:64px; resize:vertical; }
 
-  /* Settings panel */
   .settingsHdr{
     display:flex;
     align-items:center;
@@ -130,15 +79,9 @@
     gap:10px;
     flex-wrap:wrap;
   }
-  .settingsHdr .left{
-    display:flex;
-    align-items:center;
-    gap:10px;
-  }
-  .settingsHdr .name{
-    font-weight:900;
-    color:var(--ua-blue);
-  }
+  .settingsHdr .left{ display:flex; align-items:center; gap:10px; }
+  .settingsHdr .name{ font-weight:900; color:var(--ua-blue); }
+
   .pill{
     display:inline-flex;
     align-items:center;
@@ -155,20 +98,13 @@
   .pill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
   .pill.warn{ background:rgba(247,144,9,.14); border-color:transparent; color:#7a4b00; }
 
-  .settingsBody{
-    margin-top:10px;
-    display:none;
-  }
+  .settingsBody{ margin-top:10px; display:none; }
   .settingsBody.show{ display:block; }
 
-  .row{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-  }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
   .col{ flex:1; min-width:170px; }
 
-  /* Calendar (collapsible but functional) */
+  /* Calendar */
   .calWrap{ margin-top:10px; }
   .calHdr{
     display:flex;
@@ -181,10 +117,7 @@
     border-radius:14px;
     background:#fff;
   }
-  .calHdr .month{
-    font-weight:900;
-    color:var(--ua-blue);
-  }
+  .calHdr .month{ font-weight:900; color:var(--ua-blue); }
   .calBtns{ display:flex; gap:8px; }
 
   .calBody{
@@ -206,17 +139,8 @@
     border:0;
   }
 
-  .calGrid{
-    display:grid;
-    grid-template-columns:repeat(7,1fr);
-    gap:6px;
-  }
-  .dow{
-    text-align:center;
-    font-size:11px;
-    color:var(--muted);
-    padding:6px 0;
-  }
+  .calGrid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .dow{ text-align:center; font-size:11px; color:var(--muted); padding:6px 0; }
   .day{
     border:1px solid var(--line);
     border-radius:12px;
@@ -233,13 +157,7 @@
   .day.today{ outline:3px solid rgba(12,35,75,.16); }
 
   /* Week day picker */
-  .weekRow{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    justify-content:center;
-    margin-top:10px;
-  }
+  .weekRow{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:10px; }
   .wbtn{
     padding:7px 10px;
     border-radius:999px;
@@ -248,12 +166,7 @@
     cursor:pointer;
     font-size:13px;
   }
-  .wbtn.active{
-    background:rgba(12,35,75,.10);
-    border-color:transparent;
-    color:var(--ua-blue);
-    font-weight:900;
-  }
+  .wbtn.active{ background:rgba(12,35,75,.10); border-color:transparent; color:var(--ua-blue); font-weight:900; }
 
   /* Tasks */
   .taskHdr{
@@ -263,19 +176,10 @@
     gap:10px;
     flex-wrap:wrap;
   }
-  .taskHdr .left{
-    display:flex;
-    flex-direction:column;
-    gap:3px;
-  }
-  .taskHdr .dateLine{
-    font-weight:900;
-    color:var(--ua-blue);
-  }
-  .taskHdr .isoLine{
-    font-size:12px;
-    color:var(--muted);
-  }
+  .taskHdr .left{ display:flex; flex-direction:column; gap:3px; }
+  .taskHdr .dateLine{ font-weight:900; color:var(--ua-blue); }
+  .taskHdr .isoLine{ font-size:12px; color:var(--muted); }
+
   .taskList{ margin-top:10px; }
   .task{
     display:flex;
@@ -287,38 +191,746 @@
     background:#fff;
     margin:8px 0;
   }
-  .task input[type="checkbox"]{
-    width:auto;
-    margin-top:3px;
-    accent-color:var(--ua-blue);
+  .task input[type="checkbox"]{ width:auto; margin-top:3px; accent-color:var(--ua-blue); }
+  .task .text{ flex:1; }
+
+  .x{ cursor:pointer; color:var(--ua-red); font-weight:900; padding:0 6px; user-select:none; }
+
+  .hint{ font-size:12px; color:var(--muted); }
+
+  .smallBoxTitle{ font-weight:900; color:var(--ua-blue); margin:0 0 8px; }
+
+  /* Sticky status */
+  .sticky{
+    position:fixed; left:0; right:0; bottom:0;
+    background:rgba(246,248,251,.92);
+    backdrop-filter: blur(6px);
+    border-top:1px solid var(--line);
   }
-  .task .text{
-    flex:1;
-  }
-  .task .meta{
+  .sticky .inner{
+    max-width:980px;
+    margin:0 auto;
+    padding:10px 12px;
     display:flex;
-    gap:6px;
     align-items:center;
+    justify-content:space-between;
+    gap:10px;
     flex-wrap:wrap;
-    margin-top:6px;
   }
-  .tag{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    padding:4px 8px;
-    border-radius:999px;
-    font-size:11px;
-    border:1px solid var(--line);
-    color:var(--muted);
-    background:#fff;
-    white-space:nowrap;
+  .status{ font-size:12px; color:var(--muted); }
+  .status strong{ color:var(--text); }
+
+  /* Print */
+  @media print{
+    .bar, .sticky, .calBtns, #toggleSettings, #toggleCal, #shareBtn, #todayBtn, #printBtn, #loadBtn, #saveBtn, #resetBtn { display:none !important; }
+    body{ padding:0; background:#fff; }
+    .card{ box-shadow:none; }
   }
-  .tag.due{ border-color:transparent; background:rgba(12,35,75,.08); color:var(--ua-blue); }
-  .tag.over{ border-color:transparent; background:rgba(171,5,32,.10); color:var(--ua-red); }
-  .x{
-    cursor:pointer;
-    color:var(--ua-red);
-    font-weight:900;
-    padding:0 6px;
-    user-select:none
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1 class="title">CATS Weekly Tracker</h1>
+    <div class="subtitle">Simple weekly planning + check-offs</div>
+  </div>
+
+  <div class="bar">
+    <button class="btn" id="toggleSettings">Settings</button>
+    <button class="btn" id="todayBtn">Today</button>
+    <button class="btn" id="shareBtn">Share</button>
+    <button class="btn" id="printBtn">Print</button>
+    <button class="btn primary" id="loadBtn">Load</button>
+    <button class="btn" id="saveBtn">Save</button>
+    <button class="btn danger" id="resetBtn">Reset</button>
+  </div>
+
+  <!-- Settings -->
+  <div class="card pad">
+    <div class="settingsHdr">
+      <div class="left">
+        <div class="name">Settings</div>
+        <div class="pill blue" id="syncPill">Idle</div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="pill" id="progressPill">—</div>
+        <button class="btn" id="toggleCal">Calendar</button>
+      </div>
+    </div>
+
+    <div class="settingsBody" id="settingsBody">
+      <div class="row" style="margin-top:10px;">
+        <div class="col">
+          <label>Student</label>
+          <input id="studentName" type="text" placeholder="First Last" autocomplete="off" />
+        </div>
+        <div class="col">
+          <label>Sport</label>
+          <select id="sport">
+            <option value="">Select sport</option>
+            <option>Football</option>
+            <option>Men's Basketball</option>
+            <option>Women's Basketball</option>
+            <option>Soccer</option>
+            <option>Track & Field</option>
+            <option>Baseball</option>
+            <option>Softball</option>
+            <option>Volleyball</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Start date</label>
+          <input id="startDate" type="date" />
+        </div>
+      </div>
+
+      <div class="calWrap">
+        <div class="calHdr">
+          <div class="month" id="calMonth">—</div>
+          <div class="calBtns">
+            <button class="btn" id="prevMonth">Prev</button>
+            <button class="btn" id="nextMonth">Next</button>
+          </div>
+        </div>
+        <div class="calBody" id="calBody">
+          <div class="calGrid" id="calGrid"></div>
+        </div>
+
+        <div class="weekRow" id="weekRow"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:10px;">
+    <!-- Main -->
+    <div class="card pad">
+      <div class="taskHdr">
+        <div class="left">
+          <div class="dateLine" id="activeDayTitle">—</div>
+          <div class="isoLine" id="activeDayISO">—</div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn primary" id="addTaskBtn">Add task</button>
+          <button class="btn" id="studyHallBtn">Study Hall</button>
+        </div>
+      </div>
+
+      <div class="taskList" id="taskList"></div>
+
+      <div style="margin-top:10px;">
+        <div class="smallBoxTitle">Quick add (paste a Teamworks line and press Enter)</div>
+        <input id="quickAdd" type="text" placeholder="Example: MIS111 PAR 11 due 2/25 9am DONE JD" />
+        <div class="hint" style="margin-top:6px;">
+          Tip: If your line includes a day name (Monday/Tuesday/etc) or a date (2/25 or 2026-02-25), it will route automatically.
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button class="btn" id="copySummaryBtn">Copy summary</button>
+      </div>
+    </div>
+
+    <!-- Side -->
+    <div class="card pad">
+      <div class="smallBoxTitle">Upcoming (auto)</div>
+      <textarea id="upcomingBox" placeholder="Auto-generated from tasks with due dates"></textarea>
+
+      <div style="height:10px;"></div>
+
+      <div class="smallBoxTitle">Missing (auto)</div>
+      <textarea id="missingBox" placeholder="Auto-generated from tasks marked as missed / not done after due date"></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="sticky">
+  <div class="inner">
+    <div class="status" id="statusLine">Idle · set Student + Start date</div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <span class="pill" id="onlinePill">Online</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---------- State ----------
+  let weekStart = null;          // Date object (the start date picked)
+  let activeDate = null;         // Date object (selected day within the week)
+  let tasksByISO = {};           // { "YYYY-MM-DD": [{id,text,done}] }
+
+  // Settings collapse state
+  let settingsOpen = false;
+  let calCollapsed = false;
+
+  // ---------- Helpers ----------
+  const $ = (id)=>document.getElementById(id);
+
+  function pad2(n){ return String(n).padStart(2,"0"); }
+  function toISO(d){
+    return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+  }
+  function fromISO(s){
+    const [y,m,dd] = s.split("-").map(Number);
+    return new Date(y, m-1, dd);
+  }
+  function fmtLong(d){
+    return d.toLocaleDateString(undefined, { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+  }
+  function fmtMonth(d){
+    return d.toLocaleDateString(undefined, { month:"long", year:"numeric" });
+  }
+  function isSameDay(a,b){
+    return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+  function addDays(d, n){
+    const x = new Date(d);
+    x.setDate(x.getDate()+n);
+    return x;
+  }
+  function uid(){
+    return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  // ---------- Connectivity ----------
+  function updateOnline(){
+    $("onlinePill").textContent = navigator.onLine ? "Online" : "Offline";
+    $("onlinePill").className = "pill " + (navigator.onLine ? "good" : "warn");
+  }
+  window.addEventListener("online", updateOnline);
+  window.addEventListener("offline", updateOnline);
+  updateOnline();
+
+  // ---------- Storage (local only, simple + reliable) ----------
+  function recordKey(){
+    const student = ($("studentName").value || "").trim().toLowerCase();
+    const start = $("startDate").value || "";
+    if(!student || !start) return null;
+    return "cats_week_" + student + "_" + start;
+  }
+  function saveLocal(){
+    const k = recordKey();
+    if(!k) return;
+    const payload = {
+      studentName: $("studentName").value || "",
+      sport: $("sport").value || "",
+      startDate: $("startDate").value || "",
+      weekStartISO: weekStart ? toISO(weekStart) : "",
+      activeISO: activeDate ? toISO(activeDate) : "",
+      tasksByISO
+    };
+    localStorage.setItem(k, JSON.stringify(payload));
+    setStatus("Saved");
+  }
+  function loadLocal(){
+    const k = recordKey();
+    if(!k) return false;
+    const raw = localStorage.getItem(k);
+    if(!raw) return false;
+    try{
+      const obj = JSON.parse(raw);
+      $("studentName").value = obj.studentName || "";
+      $("sport").value = obj.sport || "";
+      $("startDate").value = obj.startDate || "";
+
+      weekStart = obj.weekStartISO ? fromISO(obj.weekStartISO) : (obj.startDate ? fromISO(obj.startDate) : null);
+      activeDate = obj.activeISO ? fromISO(obj.activeISO) : (weekStart ? new Date(weekStart) : null);
+      tasksByISO = obj.tasksByISO || {};
+
+      rebuildWeekButtons();
+      renderTasks();
+      renderCalendarMonth(); // keep selection visible
+      setStatus("Loaded");
+      return true;
+    }catch(e){
+      return false;
+    }
+  }
+
+  // ---------- Status ----------
+  function setStatus(text){
+    $("syncPill").textContent = text;
+    $("statusLine").textContent = text + " · " + (recordKey() ? "ready" : "set Student + Start date");
+  }
+
+  function updateProgressPill(){
+    // progress across whole week (7 days)
+    if(!weekStart){
+      $("progressPill").textContent = "—";
+      return;
+    }
+    let total=0, done=0;
+    for(let i=0;i<7;i++){
+      const iso = toISO(addDays(weekStart,i));
+      const arr = tasksByISO[iso] || [];
+      arr.forEach(t=>{ total++; if(t.done) done++; });
+    }
+    $("progressPill").textContent = total ? `${done}/${total}` : "0/0";
+    $("progressPill").className = "pill " + (total && done===total ? "good" : "blue");
+  }
+
+  // ---------- Week day buttons ----------
+  const weekNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  function rebuildWeekButtons(){
+    const row = $("weekRow");
+    row.innerHTML = "";
+    if(!weekStart) return;
+
+    for(let i=0;i<7;i++){
+      const d = addDays(weekStart,i);
+      const iso = toISO(d);
+      const b = document.createElement("button");
+      b.type="button";
+      b.className="wbtn";
+      b.textContent = weekNames[d.getDay()] + " " + (d.getMonth()+1) + "/" + d.getDate();
+      b.addEventListener("click", ()=>{
+        activeDate = d;
+        renderTasks();
+        highlightWeekButtons();
+      });
+      b.dataset.iso = iso;
+      row.appendChild(b);
+    }
+    highlightWeekButtons();
+  }
+  function highlightWeekButtons(){
+    const iso = activeDate ? toISO(activeDate) : "";
+    document.querySelectorAll(".wbtn").forEach(b=>{
+      b.classList.toggle("active", b.dataset.iso === iso);
+    });
+  }
+
+  // ---------- Tasks rendering ----------
+  function ensureDayList(iso){
+    if(!tasksByISO[iso]) tasksByISO[iso] = [];
+  }
+
+  function renderTasks(){
+    if(!weekStart){
+      $("activeDayTitle").textContent = "Select a start date";
+      $("activeDayISO").textContent = "—";
+      $("taskList").innerHTML = "";
+      updateProgressPill();
+      buildAutoUpcomingMissing();
+      return;
+    }
+    if(!activeDate) activeDate = new Date(weekStart);
+
+    const iso = toISO(activeDate);
+    $("activeDayTitle").textContent = fmtLong(activeDate);
+    $("activeDayISO").textContent = iso;
+
+    ensureDayList(iso);
+    const list = $("taskList");
+    list.innerHTML = "";
+
+    (tasksByISO[iso] || []).forEach(t=>{
+      const div = document.createElement("div");
+      div.className = "task";
+
+      const cb = document.createElement("input");
+      cb.type="checkbox";
+      cb.checked = !!t.done;
+      cb.addEventListener("change", ()=>{
+        t.done = cb.checked;
+        saveLocal();
+        updateProgressPill();
+        buildAutoUpcomingMissing();
+      });
+
+      const text = document.createElement("input");
+      text.type="text";
+      text.className="text";
+      text.value = t.text || "";
+      text.addEventListener("input", ()=>{
+        t.text = text.value;
+        saveLocal();
+        buildAutoUpcomingMissing();
+      });
+
+      const x = document.createElement("span");
+      x.className="x";
+      x.textContent="×";
+      x.title="Remove";
+      x.addEventListener("click", ()=>{
+        tasksByISO[iso] = (tasksByISO[iso]||[]).filter(z=>z.id!==t.id);
+        saveLocal();
+        renderTasks();
+        updateProgressPill();
+        buildAutoUpcomingMissing();
+      });
+
+      div.appendChild(cb);
+      div.appendChild(text);
+      div.appendChild(x);
+      list.appendChild(div);
+    });
+
+    updateProgressPill();
+    buildAutoUpcomingMissing();
+  }
+
+  function addTaskToISO(iso, text, done=false){
+    ensureDayList(iso);
+    tasksByISO[iso].push({ id:uid(), text: (text||"").trim(), done: !!done });
+  }
+
+  // Study Hall template (simple + useful)
+  function addStudyHall(){
+    if(!activeDate) return;
+    const iso = toISO(activeDate);
+    addTaskToISO(iso, "Study Hall: open LMS + check due dates", false);
+    addTaskToISO(iso, "Work on highest-impact assignment", false);
+    addTaskToISO(iso, "Submit + confirm submission", false);
+    saveLocal();
+    renderTasks();
+  }
+
+  // ---------- Quick add parsing (automatic routing) ----------
+  function parseDateFromLine(line){
+    // supports: 2026-02-25
+    const isoMatch = line.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+    if(isoMatch){
+      const y = Number(isoMatch[1]);
+      const m = Number(isoMatch[2]);
+      const d = Number(isoMatch[3]);
+      return new Date(y, m-1, d);
+    }
+    // supports: 2/25 or 02/25 (assumes current year)
+    const mdMatch = line.match(/\b(\d{1,2})\/(\d{1,2})\b/);
+    if(mdMatch){
+      const m = Number(mdMatch[1]);
+      const d = Number(mdMatch[2]);
+      const y = (weekStart ? weekStart.getFullYear() : new Date().getFullYear());
+      return new Date(y, m-1, d);
+    }
+    return null;
+  }
+
+  function parseDayNameFromLine(line){
+    const low = line.toLowerCase();
+    const names = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+    for(const n of names){
+      if(low.includes(n)) return n;
+    }
+    return null;
+  }
+
+  function isoForDayNameInWeek(dayName){
+    if(!weekStart) return null;
+    const target = dayName.toLowerCase();
+    for(let i=0;i<7;i++){
+      const d = addDays(weekStart,i);
+      const dn = d.toLocaleDateString(undefined,{weekday:"long"}).toLowerCase();
+      if(dn === target) return toISO(d);
+    }
+    return null;
+  }
+
+  function inferDoneFromLine(line){
+    return /\bDONE\b/i.test(line);
+  }
+
+  function quickAddCommit(){
+    const line = ($("quickAdd").value || "").trim();
+    if(!line) return;
+    if(!weekStart || !activeDate){
+      alert("Set Start date first.");
+      return;
+    }
+
+    const done = inferDoneFromLine(line);
+    let targetISO = null;
+
+    // route by explicit date if present
+    const d = parseDateFromLine(line);
+    if(d){
+      targetISO = toISO(d);
+    }else{
+      // route by day name if present
+      const dn = parseDayNameFromLine(line);
+      if(dn){
+        targetISO = isoForDayNameInWeek(dn);
+      }
+    }
+
+    // fallback: selected day
+    if(!targetISO) targetISO = toISO(activeDate);
+
+    addTaskToISO(targetISO, line, done);
+
+    // if it landed on another day, switch to it (feels “smart”)
+    activeDate = fromISO(targetISO);
+
+    $("quickAdd").value = "";
+    saveLocal();
+    rebuildWeekButtons();
+    renderTasks();
+    highlightWeekButtons();
+  }
+
+  // ---------- Auto upcoming/missing ----------
+  function buildAutoUpcomingMissing(){
+    // simple, based on:
+    // - tasks that include a date and are not done => upcoming
+    // - tasks that include "missed" or are past-due based on embedded date => missing
+    const up = [];
+    const miss = [];
+
+    const today = new Date();
+    const seenUp = new Set();
+    const seenMiss = new Set();
+
+    function pushUnique(arr, set, s){
+      const k = s.trim();
+      if(!k) return;
+      if(set.has(k)) return;
+      set.add(k);
+      arr.push(k);
+    }
+
+    Object.keys(tasksByISO).forEach(iso=>{
+      (tasksByISO[iso]||[]).forEach(t=>{
+        const text = (t.text||"").trim();
+        if(!text) return;
+
+        const embedded = parseDateFromLine(text);
+        const isMissedWord = /\bmiss(ed|ing)?\b/i.test(text);
+
+        if(isMissedWord && !t.done){
+          pushUnique(miss, seenMiss, text);
+          return;
+        }
+
+        if(embedded){
+          const endOfDay = new Date(embedded);
+          endOfDay.setHours(23,59,59,999);
+          if(endOfDay < today && !t.done){
+            pushUnique(miss, seenMiss, text);
+          }else if(endOfDay >= today && !t.done){
+            pushUnique(up, seenUp, text);
+          }
+        }
+      });
+    });
+
+    $("upcomingBox").value = up.join("\n");
+    $("missingBox").value = miss.join("\n");
+  }
+
+  // ---------- Calendar rendering ----------
+  let calView = new Date(); // month shown
+
+  function renderCalendarMonth(){
+    $("calMonth").textContent = fmtMonth(calView);
+    const grid = $("calGrid");
+    grid.innerHTML = "";
+
+    const dows = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    dows.forEach(x=>{
+      const el = document.createElement("div");
+      el.className = "dow";
+      el.textContent = x;
+      grid.appendChild(el);
+    });
+
+    const year = calView.getFullYear();
+    const month = calView.getMonth();
+
+    const first = new Date(year, month, 1);
+    const startDow = first.getDay();
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+
+    // leading blanks
+    for(let i=0;i<startDow;i++){
+      const el = document.createElement("div");
+      el.className = "day muted";
+      el.textContent = "—";
+      grid.appendChild(el);
+    }
+
+    const today = new Date();
+
+    for(let day=1; day<=daysInMonth; day++){
+      const dateObj = new Date(year, month, day);
+      const el = document.createElement("div");
+      el.className = "day";
+      el.textContent = String(day);
+
+      if(isSameDay(dateObj, today)) el.classList.add("today");
+
+      const selectedStart = $("startDate").value ? fromISO($("startDate").value) : null;
+      if(selectedStart && isSameDay(dateObj, selectedStart)) el.classList.add("sel");
+
+      el.addEventListener("click", ()=>{
+        // start week from clicked day (this is the behavior you want)
+        $("startDate").value = toISO(dateObj);
+        weekStart = new Date(dateObj);
+        activeDate = new Date(dateObj);
+        rebuildWeekButtons();
+        renderTasks();
+        renderCalendarMonth();
+        setStatus("Ready");
+        saveLocal();
+      });
+
+      grid.appendChild(el);
+    }
+  }
+
+  // ---------- Actions ----------
+  $("toggleSettings").addEventListener("click", ()=>{
+    settingsOpen = !settingsOpen;
+    $("settingsBody").classList.toggle("show", settingsOpen);
+  });
+
+  $("toggleCal").addEventListener("click", ()=>{
+    calCollapsed = !calCollapsed;
+    $("calBody").classList.toggle("collapsed", calCollapsed);
+    $("toggleCal").textContent = calCollapsed ? "Calendar" : "Calendar";
+  });
+
+  $("prevMonth").addEventListener("click", ()=>{
+    calView = new Date(calView.getFullYear(), calView.getMonth()-1, 1);
+    renderCalendarMonth();
+  });
+  $("nextMonth").addEventListener("click", ()=>{
+    calView = new Date(calView.getFullYear(), calView.getMonth()+1, 1);
+    renderCalendarMonth();
+  });
+
+  $("todayBtn").addEventListener("click", ()=>{
+    const t = new Date();
+    $("startDate").value = toISO(t);
+    weekStart = new Date(t);
+    activeDate = new Date(t);
+    calView = new Date(t.getFullYear(), t.getMonth(), 1);
+    rebuildWeekButtons();
+    renderTasks();
+    renderCalendarMonth();
+    saveLocal();
+    setStatus("Ready");
+  });
+
+  $("printBtn").addEventListener("click", ()=>window.print());
+
+  $("addTaskBtn").addEventListener("click", ()=>{
+    if(!activeDate){ alert("Set Start date first."); return; }
+    addTaskToISO(toISO(activeDate), "", false);
+    saveLocal();
+    renderTasks();
+  });
+
+  $("studyHallBtn").addEventListener("click", addStudyHall);
+
+  $("quickAdd").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){
+      e.preventDefault();
+      quickAddCommit();
+    }
+  });
+
+  $("copySummaryBtn").addEventListener("click", async ()=>{
+    const student = ($("studentName").value||"").trim();
+    const sport = $("sport").value||"";
+    const start = $("startDate").value||"";
+    let out = `Student: ${student}\nSport: ${sport}\nStart date: ${start}\n\n`;
+
+    if(weekStart){
+      for(let i=0;i<7;i++){
+        const d = addDays(weekStart,i);
+        const iso = toISO(d);
+        out += fmtLong(d) + " (" + iso + ")\n";
+        (tasksByISO[iso]||[]).forEach(t=>{
+          const mark = t.done ? "DONE" : "OPEN";
+          if((t.text||"").trim()) out += `${mark} - ${t.text.trim()}\n`;
+        });
+        out += "\n";
+      }
+    }
+
+    out += "Upcoming (auto)\n" + ($("upcomingBox").value||"") + "\n\n";
+    out += "Missing (auto)\n" + ($("missingBox").value||"") + "\n";
+
+    try{
+      await navigator.clipboard.writeText(out);
+      setStatus("Copied");
+    }catch(e){
+      alert("Copy failed (browser blocked clipboard).");
+    }
+  });
+
+  $("shareBtn").addEventListener("click", async ()=>{
+    const student = ($("studentName").value||"").trim();
+    const start = $("startDate").value||"";
+    const url = new URL(window.location.href);
+    if(student) url.searchParams.set("student", student);
+    if(start) url.searchParams.set("start", start);
+
+    try{
+      await navigator.clipboard.writeText(url.toString());
+      setStatus("Link copied");
+    }catch(e){
+      alert("Copy failed.");
+    }
+  });
+
+  $("saveBtn").addEventListener("click", ()=>{ saveLocal(); });
+
+  $("loadBtn").addEventListener("click", ()=>{
+    const ok = loadLocal();
+    if(!ok) setStatus("No saved record");
+  });
+
+  $("resetBtn").addEventListener("click", ()=>{
+    if(!confirm("Reset page? (Does not delete saved records unless you clear browser storage)")) return;
+    location.reload();
+  });
+
+  // ---------- Settings changes ----------
+  $("startDate").addEventListener("change", ()=>{
+    const v = $("startDate").value;
+    if(!v) return;
+    weekStart = fromISO(v);
+    activeDate = fromISO(v);
+    calView = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1);
+    rebuildWeekButtons();
+    renderTasks();
+    renderCalendarMonth();
+    saveLocal();
+    setStatus("Ready");
+  });
+  $("studentName").addEventListener("change", ()=>setStatus("Ready"));
+  $("sport").addEventListener("change", ()=>{ saveLocal(); setStatus("Ready"); });
+
+  // ---------- URL prefill ----------
+  (function prefill(){
+    const url = new URL(window.location.href);
+    const student = url.searchParams.get("student");
+    const start = url.searchParams.get("start");
+    if(student) $("studentName").value = student;
+    if(start) $("startDate").value = start;
+
+    if($("startDate").value){
+      weekStart = fromISO($("startDate").value);
+      activeDate = fromISO($("startDate").value);
+      calView = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1);
+    }else{
+      calView = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    }
+
+    renderCalendarMonth();
+    rebuildWeekButtons();
+    renderTasks();
+
+    // auto open settings on first load so the calendar is visible
+    settingsOpen = true;
+    $("settingsBody").classList.add("show");
+
+    // attempt local load if key exists
+    if(recordKey()) loadLocal();
+
+    setStatus("Idle");
+  })();
+</script>
+</body>
+</html>
