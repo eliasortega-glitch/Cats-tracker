@@ -1,52 +1,112 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>CATS Weekly Dashboard</title>
+<title>CATS Weekly Tracker</title>
 <style>
   :root{
-    /* UA-inspired palette */
     --ua-blue:#0C234B;
     --ua-red:#AB0520;
 
-    --bg:#f7f9fc;
-    --card:#fff;
-    --text:#111827;
+    --bg:#f6f8fb;
+    --card:#ffffff;
+    --text:#101828;
     --muted:#667085;
     --line:#e6eaf0;
 
-    --shadow:0 1px 6px rgba(0,0,0,.08);
-    --radius:14px;
+    --shadow:0 1px 8px rgba(16,24,40,.08);
+    --r:14px;
 
     --good:#12b76a;
     --warn:#f79009;
 
-    --focus:rgba(11,107,255,.18);
+    --focus:rgba(12,35,75,.18);
   }
 
   *{ box-sizing:border-box; }
   body{
     margin:0;
-    padding:12px 12px 110px;
+    padding:12px 12px 96px;
     font-family: Arial, sans-serif;
     background:var(--bg);
     color:var(--text);
   }
-
   .wrap{ max-width:980px; margin:0 auto; }
-  h1{ font-size:20px; margin:2px 0 4px; text-align:center; letter-spacing:.2px; color:var(--ua-blue); }
-  .sub{ font-size:12px; color:var(--muted); text-align:center; margin:0 0 8px; }
 
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .header{
+    text-align:center;
+    margin:2px 0 10px;
+  }
+  .title{
+    margin:0;
+    font-size:20px;
+    font-weight:900;
+    color:var(--ua-blue);
+    letter-spacing:.2px;
+  }
+  .subtitle{
+    margin:4px 0 0;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .bar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin:10px 0 10px;
+  }
+
+  .btn{
+    padding:8px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    font-size:13px;
+    user-select:none;
+  }
+  .btn.primary{
+    border-color:transparent;
+    background:rgba(12,35,75,.10);
+    color:var(--ua-blue);
+    font-weight:800;
+  }
+  .btn.danger{
+    border-color:transparent;
+    background:rgba(171,5,32,.10);
+    color:var(--ua-red);
+    font-weight:800;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+  .grid2{
+    display:grid;
+    grid-template-columns: 1.2fr .8fr;
+    gap:10px;
+    align-items:start;
+  }
+  @media(max-width:820px){
+    .grid2{ grid-template-columns:1fr; }
+  }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    box-shadow:var(--shadow);
+  }
   .pad{ padding:12px; }
 
-  .row{ display:flex; gap:10px; flex-wrap:wrap; }
-  .col{ flex:1; min-width:180px; }
-
-  label{ display:block; font-size:11px; color:var(--muted); margin:0 0 4px; }
-
+  label{
+    display:block;
+    font-size:11px;
+    color:var(--muted);
+    margin:0 0 4px;
+  }
   input, select, textarea{
     width:100%;
     padding:9px 10px;
@@ -56,1355 +116,209 @@
     font-size:14px;
     background:#fff;
   }
-  textarea{ min-height:62px; resize:vertical; }
-
   input:focus, select:focus, textarea:focus{
     box-shadow:0 0 0 4px var(--focus);
     border-color:transparent;
   }
+  textarea{ min-height:64px; resize:vertical; }
 
-  /* Top chips */
-  .chipbar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:6px 0 0; }
-  .chip{
-    display:inline-flex; align-items:center; gap:6px;
-    padding:6px 10px; border-radius:999px;
-    border:1px solid var(--line); background:#fff;
-    font-size:12px; color:#475467;
+  /* Settings panel */
+  .settingsHdr{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
   }
-  .dot{ width:8px; height:8px; border-radius:999px; display:inline-block; background:#98a2b3; }
-  .dot.green{ background:var(--good); }
-  .dot.red{ background:var(--ua-red); }
-  .dot.blue{ background:#2563eb; }
-
-  /* Layout */
-  .topbar{ display:flex; gap:10px; align-items:stretch; margin-top:10px; }
-  .top-left{ flex:1; }
-  .top-right{
-    width:300px; min-width:300px;
-    display:flex; flex-direction:column; justify-content:space-between;
-    padding:12px; border-radius:var(--radius); border:1px solid var(--line);
-    background:var(--card); box-shadow:var(--shadow);
+  .settingsHdr .left{
+    display:flex;
+    align-items:center;
     gap:10px;
   }
-
-  .meter{ display:flex; align-items:flex-start; gap:10px; }
-  .big{ font-size:20px; font-weight:800; color:var(--ua-blue); }
-  .small{ font-size:11px; color:var(--muted); }
-
+  .settingsHdr .name{
+    font-weight:900;
+    color:var(--ua-blue);
+  }
   .pill{
-    display:inline-flex; align-items:center; gap:6px;
-    padding:6px 10px; border-radius:999px;
-    border:1px solid var(--line); font-size:12px; color:var(--muted);
-    background:#fff; white-space:nowrap;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    font-size:12px;
+    color:var(--muted);
+    white-space:nowrap;
   }
   .pill.blue{ background:rgba(12,35,75,.08); border-color:transparent; color:var(--ua-blue); }
   .pill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
   .pill.warn{ background:rgba(247,144,9,.14); border-color:transparent; color:#7a4b00; }
 
-  .btnrow{ display:flex; gap:8px; flex-wrap:wrap; }
-  .btn{
-    padding:9px 10px;
-    border-radius:12px;
-    border:1px solid var(--line);
-    background:#fff;
-    cursor:pointer;
-    font-size:13px;
+  .settingsBody{
+    margin-top:10px;
+    display:none;
   }
-  .btn.primary{
-    background:rgba(12,35,75,.10);
-    border-color:transparent;
-    color:var(--ua-blue);
-    font-weight:700;
-  }
-  .btn.danger{
-    background:rgba(171,5,32,.10);
-    border-color:transparent;
-    color:var(--ua-red);
-    font-weight:700;
-  }
-  .btn:active{ transform:translateY(1px); }
-  .btn:disabled{ opacity:.55; cursor:not-allowed; }
+  .settingsBody.show{ display:block; }
 
-  /* Tabs */
-  .tabs{ display:flex; gap:8px; margin:10px 0; flex-wrap:wrap; justify-content:center; }
-  .tab{
-    padding:8px 10px;
-    border-radius:999px;
-    border:1px solid var(--line);
-    background:#fff;
-    font-size:13px;
-    cursor:pointer;
-    user-select:none;
+  .row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
   }
-  .tab.active{
-    border-color:transparent;
-    background:rgba(12,35,75,.10);
-    color:var(--ua-blue);
-    font-weight:700;
-  }
+  .col{ flex:1; min-width:170px; }
 
-  .section{ display:none; }
-  .section.active{ display:block; }
-
-  /* Tasks */
-  .task{
-    display:flex; gap:8px; align-items:flex-start; margin:8px 0;
-    padding:8px; border:1px solid var(--line); border-radius:12px; background:#fff;
-  }
-  .task input[type="checkbox"]{ width:auto; margin-top:3px; accent-color:var(--ua-blue); }
-  .task input[type="text"]{ flex:1; }
-  .x{ cursor:pointer; color:var(--ua-red); font-weight:900; padding:0 6px; user-select:none; }
-
-  /* Day switcher */
-  .daybar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:10px 0; }
-  .daybtn{
-    padding:7px 10px;
-    border-radius:999px;
-    border:1px solid var(--line);
-    background:#fff;
-    cursor:pointer;
-    font-size:13px;
-  }
-  .daybtn.active{
-    background:rgba(12,35,75,.10);
-    border-color:transparent;
-    color:var(--ua-blue);
-    font-weight:800;
-  }
-  .daypanel{ display:none; }
-  .daypanel.active{ display:block; }
-
-  /* Collapsible calendar (keeps FULL function) */
-  .monthWrap{ margin-top:10px; }
-  .monthHdr{
-    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
-    padding:10px 10px;
+  /* Calendar (collapsible but functional) */
+  .calWrap{ margin-top:10px; }
+  .calHdr{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+    padding:10px;
     border:1px solid var(--line);
     border-radius:14px;
     background:#fff;
-    box-shadow:var(--shadow);
   }
-  .monthHdr .title{ font-weight:800; color:var(--ua-blue); }
-  .mhBtns{ display:flex; gap:8px; }
-  .iconBtn{
-    padding:7px 10px;
-    border-radius:12px;
-    border:1px solid var(--line);
-    background:#fff;
-    cursor:pointer;
-    font-size:13px;
-  }
-  #toggleCalBtn{
-    border-color:transparent;
-    background:rgba(12,35,75,.06);
-    font-weight:800;
+  .calHdr .month{
+    font-weight:900;
     color:var(--ua-blue);
   }
-  #toggleCalBtn:focus{ box-shadow:0 0 0 4px var(--focus); }
+  .calBtns{ display:flex; gap:8px; }
 
-  #calBody{
+  .calBody{
     margin-top:8px;
     border:1px solid var(--line);
     border-radius:14px;
     background:#fff;
-    box-shadow:var(--shadow);
     padding:10px;
-    max-height:520px;
     overflow:hidden;
-    transition:max-height .22s ease, opacity .18s ease, padding .18s ease, margin .18s ease;
+    max-height:520px;
+    transition:max-height .2s ease, opacity .18s ease, padding .18s ease, margin .18s ease, border .18s ease;
     opacity:1;
   }
-  #calBody.collapsed{
+  .calBody.collapsed{
     max-height:0;
     opacity:0;
     padding:0;
     margin-top:0;
-    border:none;
-    box-shadow:none;
+    border:0;
   }
-  .grid{
+
+  .calGrid{
     display:grid;
     grid-template-columns:repeat(7,1fr);
     gap:6px;
   }
   .dow{
-    font-size:11px; color:var(--muted);
-    text-align:center; padding:6px 0;
+    text-align:center;
+    font-size:11px;
+    color:var(--muted);
+    padding:6px 0;
   }
-  .dayCell{
-    user-select:none;
+  .day{
     border:1px solid var(--line);
     border-radius:12px;
     padding:10px 0;
     text-align:center;
+    font-weight:900;
     cursor:pointer;
-    font-weight:800;
+    user-select:none;
     background:#fff;
   }
-  .dayCell:hover{ background:rgba(12,35,75,.05); }
-  .dayCell.muted{ color:#98a2b3; background:#fbfcfe; cursor:default; }
-  .dayCell.selected{
+  .day:hover{ background:rgba(12,35,75,.05); }
+  .day.muted{ color:#98a2b3; background:#fbfcfe; cursor:default; }
+  .day.sel{ background:rgba(171,5,32,.10); border-color:transparent; color:var(--ua-red); }
+  .day.today{ outline:3px solid rgba(12,35,75,.16); }
+
+  /* Week day picker */
+  .weekRow{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-top:10px;
+  }
+  .wbtn{
+    padding:7px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    font-size:13px;
+  }
+  .wbtn.active{
+    background:rgba(12,35,75,.10);
     border-color:transparent;
-    background:rgba(171,5,32,.10);
+    color:var(--ua-blue);
+    font-weight:900;
+  }
+
+  /* Tasks */
+  .taskHdr{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .taskHdr .left{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+  }
+  .taskHdr .dateLine{
+    font-weight:900;
+    color:var(--ua-blue);
+  }
+  .taskHdr .isoLine{
+    font-size:12px;
+    color:var(--muted);
+  }
+  .taskList{ margin-top:10px; }
+  .task{
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    padding:8px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:#fff;
+    margin:8px 0;
+  }
+  .task input[type="checkbox"]{
+    width:auto;
+    margin-top:3px;
+    accent-color:var(--ua-blue);
+  }
+  .task .text{
+    flex:1;
+  }
+  .task .meta{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-top:6px;
+  }
+  .tag{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 8px;
+    border-radius:999px;
+    font-size:11px;
+    border:1px solid var(--line);
+    color:var(--muted);
+    background:#fff;
+    white-space:nowrap;
+  }
+  .tag.due{ border-color:transparent; background:rgba(12,35,75,.08); color:var(--ua-blue); }
+  .tag.over{ border-color:transparent; background:rgba(171,5,32,.10); color:var(--ua-red); }
+  .x{
+    cursor:pointer;
     color:var(--ua-red);
-  }
-  .dayCell.today{
-    outline:3px solid rgba(12,35,75,.16);
-  }
-
-  /* Quick Note Banner */
-  .alertTop{
-    display:none;
-    position:sticky;
-    top:8px;
-    z-index:30;
-    margin:10px 0 0;
-  }
-  .alertBar{
-    display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
-    border:1px solid rgba(171,5,32,.20);
-    background:linear-gradient(180deg, rgba(171,5,32,.10), rgba(171,5,32,.06));
-    border-radius:14px;
-    box-shadow:0 10px 25px rgba(0,0,0,.07);
-    padding:10px 12px;
-  }
-  .alertLeft{ display:flex; gap:10px; align-items:flex-start; }
-  .alertIcon{
-    width:30px; height:30px; border-radius:999px;
-    background:rgba(171,5,32,.16);
-    display:flex; align-items:center; justify-content:center;
-    font-weight:900; color:var(--ua-red);
-    flex:0 0 auto;
-  }
-  .alertText{ min-width:220px; }
-  .alertTitle{ font-weight:900; color:var(--ua-red); font-size:13px; line-height:1.1; }
-  .alertMsg{
-    font-size:12px; color:#7a1f2b;
-    margin-top:2px;
-    white-space:pre-wrap;
-    word-break:break-word;
-  }
-
-  /* Sticky bottom bar */
-  .sticky{
-    position:fixed; left:0; right:0; bottom:0;
-    background:rgba(247,249,252,.92);
-    backdrop-filter: blur(6px);
-    border-top:1px solid var(--line);
-  }
-  .sticky .inner{
-    max-width:980px; margin:0 auto; padding:10px 12px;
-    display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
-  }
-  .status{ font-size:12px; color:var(--muted); }
-  .status strong{ color:var(--text); }
-  .status .meta{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
-
-  /* Toast */
-  .toast{
-    position:fixed; left:50%; transform:translateX(-50%);
-    bottom:98px;
-    background:#111827; color:#fff;
-    padding:10px 12px; border-radius:12px;
-    box-shadow:0 10px 25px rgba(0,0,0,.15);
-    font-size:13px; opacity:0; pointer-events:none;
-    transition:opacity .18s ease, transform .18s ease;
-    max-width:92vw;
-    z-index:50;
-  }
-  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
-
-  .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
-
-  @media(max-width:720px){
-    .topbar{ flex-direction:column; }
-    .top-right{ width:100%; min-width:unset; }
-    body{ padding-bottom:118px; }
-    .toast{ bottom:108px; }
-  }
-</style>
-</head>
-
-<body>
-<div class="wrap">
-  <h1>CATS Weekly Dashboard</h1>
-  <div class="sub">Pick a day or set Week Of. Load Week pulls the shared record.</div>
-
-  <div class="chipbar">
-    <div class="chip"><span class="dot" id="dotOnline"></span><span id="onlineText">Checking connection…</span></div>
-    <div class="chip"><span class="dot blue"></span><span id="syncText">Last synced: —</span></div>
-  </div>
-
-  <!-- Attention Banner -->
-  <div class="alertTop" id="alertTop">
-    <div class="alertBar">
-      <div class="alertLeft">
-        <div class="alertIcon">!</div>
-        <div class="alertText">
-          <div class="alertTitle">Quick Note</div>
-          <div class="alertMsg" id="alertMsg">—</div>
-        </div>
-      </div>
-      <div class="btnrow">
-        <button class="btn" id="jumpToQuickNote" type="button">Edit</button>
-        <button class="btn danger" id="clearQuickNoteTop" type="button">Clear</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Header -->
-  <div class="topbar">
-    <div class="top-left card pad">
-      <div class="row">
-        <div class="col">
-          <label>Student Name</label>
-          <input id="studentName" type="text" placeholder="First Last" autocomplete="off" />
-        </div>
-        <div class="col">
-          <label>Sport</label>
-          <select id="sport">
-            <option value="">Select sport</option>
-            <option>Football</option>
-            <option>Men's Basketball</option>
-            <option>Women's Basketball</option>
-            <option>Soccer</option>
-            <option>Track & Field</option>
-            <option>Baseball</option>
-            <option>Softball</option>
-            <option>Volleyball</option>
-          </select>
-        </div>
-        <div class="col">
-          <label>Week Of (start day)</label>
-          <input id="weekOf" type="date" />
-        </div>
-        <div class="col">
-          <label>Counselor</label>
-          <select id="counselor">
-            <option value="">Select counselor</option>
-            <option>Jennifer</option>
-            <option>Sarah</option>
-            <option>Andy Salgado</option>
-          </select>
-        </div>
-        <div class="col">
-          <label>Learning Specialist</label>
-          <select id="ls">
-            <option value="">Select LS</option>
-            <option>Elias Ortega</option>
-            <option>Other LS</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Collapsible Calendar (FUNCTIONAL) -->
-      <div class="monthWrap" aria-label="Calendar">
-        <div class="monthHdr">
-          <button class="iconBtn" id="toggleCalBtn" type="button" aria-expanded="true" style="display:flex; gap:8px; align-items:center;">
-            <span id="calChevron" aria-hidden="true">▾</span>
-            <span>Calendar</span>
-          </button>
-          <div class="title" id="monthTitle">—</div>
-          <div class="mhBtns" id="monthNavBtns">
-            <button class="iconBtn" id="prevMonthBtn" type="button">Prev</button>
-            <button class="iconBtn" id="nextMonthBtn" type="button">Next</button>
-          </div>
-        </div>
-
-        <div id="calBody">
-          <div class="grid" id="dowRow"></div>
-          <div class="grid" id="monthGrid"></div>
-        </div>
-
-        <div class="hint" style="margin-top:6px;">Tap a date to start the week from that day.</div>
-      </div>
-    </div>
-
-    <div class="top-right">
-      <div class="meter">
-        <div style="flex:1;">
-          <div class="small">Weekly Completion</div>
-          <div class="big"><span id="doneCount">0</span>/<span id="totalCount">0</span></div>
-          <div class="small"><span id="pct">0%</span> done</div>
-          <div class="small" id="localText" style="margin-top:6px;">Local backup: —</div>
-        </div>
-        <div class="pill blue" id="weekPill">Week: in progress</div>
-      </div>
-
-      <div class="btnrow" style="justify-content:flex-end;">
-        <button class="btn primary" id="loadWeek" type="button">Load Week</button>
-        <button class="btn" id="printSnapshot" type="button">Print Snapshot</button>
-        <button class="btn" id="copySummary" type="button">Copy</button>
-      </div>
-
-      <div class="hint" style="margin:0;">Load Week = shared record for Student + Week.</div>
-    </div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="tabs">
-    <div class="tab active" data-tab="daily">Daily Plan</div>
-    <div class="tab" data-tab="quick">Quick Add</div>
-    <div class="tab" data-tab="track">Upcoming / Missing</div>
-  </div>
-
-  <!-- Daily -->
-  <div class="section active" id="daily">
-    <div class="card pad">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-        <div style="font-weight:900; color:var(--ua-blue);">Daily Plan</div>
-        <div class="btnrow">
-          <button class="btn" id="addStudyTemplate" type="button">Study Hall Template</button>
-          <button class="btn primary" id="addTaskToday" type="button">+ Add Task</button>
-        </div>
-      </div>
-
-      <div class="daybar" id="daybar"></div>
-      <div id="dayPanels"></div>
-    </div>
-  </div>
-
-  <!-- Quick Add (AUTO-APPLY BACK) + Quick Note -->
-  <div class="section" id="quick">
-    <div class="row">
-      <div class="col card pad">
-        <div style="font-weight:900; color:var(--ua-blue);">Quick Add</div>
-        <div class="hint">Paste your weekly block. Then apply.</div>
-        <textarea data-key="quickAdd" id="quickAdd" placeholder="Paste here (ex: Monday: ... Wednesday: ... Upcoming: ... Missing: ...)"></textarea>
-        <div style="height:8px;"></div>
-        <div class="btnrow" style="justify-content:flex-end;">
-          <button class="btn" id="applyQuickAdd" type="button">Apply to Week</button>
-        </div>
-        <div class="hint" style="margin-top:8px;">Tip: Ctrl+Enter applies.</div>
-      </div>
-
-      <div class="col card pad" id="quickNoteCard">
-        <div style="font-weight:900; color:var(--ua-blue);">Quick Note</div>
-        <div class="hint">Shows at the top with a red alert.</div>
-        <textarea data-key="quickNote" id="quickNote" placeholder="Short + urgent."></textarea>
-        <div style="height:8px;"></div>
-        <div class="btnrow" style="justify-content:flex-end;">
-          <button class="btn danger" id="clearQuickNote" type="button">Clear</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Upcoming/Missing -->
-  <div class="section" id="track">
-    <div class="row">
-      <div class="col card pad">
-        <div style="font-weight:900; color:var(--ua-blue);">Upcoming</div>
-        <textarea data-key="upcoming" id="upcoming" placeholder="Deadlines coming soon"></textarea>
-      </div>
-      <div class="col card pad">
-        <div style="font-weight:900; color:var(--ua-blue);">Missing</div>
-        <textarea data-key="missing" id="missing" placeholder="Missing assignments"></textarea>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Sticky bar -->
-<div class="sticky">
-  <div class="inner">
-    <div class="status" id="status">
-      Status: <strong>idle</strong>
-      <span class="meta" id="statusMeta">Set Student + Week to enable autosave.</span>
-    </div>
-    <div class="btnrow">
-      <button class="btn" id="saveNow" type="button">Save Now</button>
-      <button class="btn danger" id="resetPage" type="button">Reset</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-  const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
-
-  // Day buttons will show real dates based on Week Of start date.
-  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const FULL_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-
-  let saveTimer = null;
-  let lastSavedHash = "";
-
-  let selectedDayIndex = 0;      // 0..6 = day within the selected week window
-  let weekStartISO = "";         // mirrors #weekOf (start day can be any day)
-  let isApplyingLoad = false;
-  let refreshTimer = null;
-
-  // Calendar state
-  let monthAnchor = new Date(); monthAnchor.setDate(1);
-  let selectedDateISO = "";
-  let calCollapsed = false;
-
-  // ---------- UI helpers ----------
-  function nowStamp(){ return new Date().toLocaleString(); }
-
-  function toast(msg){
-    const el = document.getElementById("toast");
-    el.textContent = msg;
-    el.classList.add("show");
-    clearTimeout(el._t);
-    el._t = setTimeout(()=>el.classList.remove("show"), 1600);
-  }
-
-  function setStatus(state, meta){
-    const el = document.getElementById("status");
-    el.innerHTML = "Status: <strong>" + state + "</strong>";
-    const metaEl = document.getElementById("statusMeta");
-    if(typeof meta === "string") metaEl.textContent = meta;
-  }
-
-  function setSyncText(text){ document.getElementById("syncText").textContent = "Last synced: " + text; }
-  function setLocalText(text){ document.getElementById("localText").textContent = "Local backup: " + text; }
-
-  // ---------- connection indicator ----------
-  function updateOnlineChip(){
-    const online = navigator.onLine;
-    const dot = document.getElementById("dotOnline");
-    const txt = document.getElementById("onlineText");
-    if(online){ dot.className = "dot green"; txt.textContent = "Online"; }
-    else{ dot.className = "dot red"; txt.textContent = "Offline"; }
-  }
-  window.addEventListener("online", ()=>{ updateOnlineChip(); toast("Back online"); });
-  window.addEventListener("offline", ()=>{ updateOnlineChip(); toast("Offline mode"); });
-  updateOnlineChip();
-
-  // ---------- dates ----------
-  function toISO(d){
-    const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const y = dt.getFullYear();
-    const m = String(dt.getMonth()+1).padStart(2,"0");
-    const da = String(dt.getDate()).padStart(2,"0");
-    return `${y}-${m}-${da}`;
-  }
-  function fromISO(iso){
-    const [y,m,d] = iso.split("-").map(n=>parseInt(n,10));
-    return new Date(y, m-1, d);
-  }
-  function addDaysISO(iso, delta){
-    const d = fromISO(iso);
-    d.setDate(d.getDate()+delta);
-    return toISO(d);
-  }
-  function niceDayLabel(iso){
-    const d = fromISO(iso);
-    const wd = DOW[d.getDay()];
-    const mo = d.toLocaleString(undefined,{month:"short"});
-    const day = d.getDate();
-    return `${wd} ${mo} ${day}`;
-  }
-
-  // ---------- record key ----------
-  function stableKey(){
-    const student = (document.getElementById("studentName").value || "").trim();
-    const week = document.getElementById("weekOf").value || "";
-    return { student, week, key: (student + "|" + week).toLowerCase() };
-  }
-  function hasRequiredKey(){
-    const sk = stableKey();
-    return !!(sk.student && sk.week);
-  }
-  function cacheKey(){ return "cats_week_data_" + stableKey().key; }
-  function metaKey(){ return "cats_week_meta_" + stableKey().key; }
-
-  // ---------- fields ----------
-  function allFields(){
-    return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls");
-  }
-
-  function collectData(){
-    const data = {};
-    allFields().forEach(el=>{
-      const key = el.getAttribute("data-key") || el.id;
-      data[key] = (el.type === "checkbox") ? el.checked : el.value;
-    });
-    const sk = stableKey();
-    data["recordKey"] = sk.key;
-    data["Student Name"] = sk.student;
-    data["Week Of"] = sk.week;
-    return data;
-  }
-  function hashData(obj){ return JSON.stringify(obj); }
-
-  // ---------- progress ----------
-  function updateProgress(){
-    const checks = document.querySelectorAll('input[type="checkbox"][data-key]');
-    let total = 0, done = 0;
-    checks.forEach(c=>{ total++; if(c.checked) done++; });
-
-    document.getElementById("totalCount").textContent = total;
-    document.getElementById("doneCount").textContent = done;
-
-    const pct = total ? Math.round((done/total)*100) : 0;
-    document.getElementById("pct").textContent = pct + "%";
-
-    const weekPill = document.getElementById("weekPill");
-    weekPill.classList.remove("good","warn","blue");
-    if(total > 0 && pct === 100){
-      weekPill.textContent = "Week: complete";
-      weekPill.classList.add("good");
-    }else if(total > 0 && pct >= 60){
-      weekPill.textContent = "Week: strong";
-      weekPill.classList.add("blue");
-    }else if(total > 0 && pct >= 25){
-      weekPill.textContent = "Week: building";
-      weekPill.classList.add("warn");
-    }else{
-      weekPill.textContent = "Week: in progress";
-      weekPill.classList.add("blue");
-    }
-  }
-
-  // ---------- ids / tasks ----------
-  function uid(){ return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-
-  // ---------- daily plan ----------
-  const daybar = document.getElementById("daybar");
-  const dayPanels = document.getElementById("dayPanels");
-
-  function addDayTask(dayIndex, text="", done=false){
-    const id = uid();
-    const panel = document.getElementById("daypanel_" + dayIndex);
-    const wrap = document.createElement("div");
-    wrap.className = "task";
-    wrap.innerHTML = `
-      <input type="checkbox" data-key="d${dayIndex}_${id}_done" aria-label="Task done">
-      <input type="text" data-key="d${dayIndex}_${id}_text" placeholder="Task" aria-label="Task text">
-      <span class="x" title="Remove" aria-label="Remove task" role="button">×</span>
-    `;
-    wrap.querySelector(`[data-key="d${dayIndex}_${id}_done"]`).checked = !!done;
-    wrap.querySelector(`[data-key="d${dayIndex}_${id}_text"]`).value = text || "";
-    wrap.querySelector(".x").addEventListener("click",(e)=>{
-      e.stopPropagation();
-      wrap.remove();
-      updateProgress();
-      debounceSave();
-    });
-    panel.appendChild(wrap);
-    updateProgress();
-  }
-
-  function clearDayTasks(dayIndex){
-    const panel = document.getElementById("daypanel_" + dayIndex);
-    if(panel) panel.innerHTML = "";
-  }
-
-  function anyTasksExist(){
-    return !!dayPanels.querySelector(".task");
-  }
-
-  function setSelectedDay(i){
-    selectedDayIndex = i;
-    document.querySelectorAll(".daybtn").forEach((b,idx)=>b.classList.toggle("active", idx===i));
-    document.querySelectorAll(".daypanel").forEach((p,idx)=>p.classList.toggle("active", idx===i));
-  }
-
-  function buildWeekUIFromStart(){
-    // Re-label day buttons as real dates based on weekStartISO
-    const start = weekStartISO || document.getElementById("weekOf").value || "";
-    if(!start) return;
-
-    for(let i=0;i<7;i++){
-      const iso = addDaysISO(start, i);
-      const btn = document.getElementById("daybtn_" + i);
-      if(btn) btn.textContent = niceDayLabel(iso);
-    }
-  }
-
-  function ensureWeekSeed(){
-    // ensure each day has at least one blank task
-    for(let i=0;i<7;i++){
-      const panel = document.getElementById("daypanel_" + i);
-      if(panel && !panel.querySelector(".task")){
-        addDayTask(i,"",false);
-      }
-    }
-  }
-
-  // Create day buttons/panels once
-  (function initDays(){
-    daybar.innerHTML = "";
-    dayPanels.innerHTML = "";
-
-    for(let i=0;i<7;i++){
-      const b = document.createElement("button");
-      b.className = "daybtn";
-      b.id = "daybtn_" + i;
-      b.type = "button";
-      b.textContent = "Day " + (i+1);
-      b.addEventListener("click", ()=>setSelectedDay(i));
-      daybar.appendChild(b);
-
-      const p = document.createElement("div");
-      p.className = "daypanel";
-      p.id = "daypanel_" + i;
-      dayPanels.appendChild(p);
-    }
-    setSelectedDay(0);
-  })();
-
-  document.getElementById("addTaskToday").addEventListener("click", ()=>{
-    addDayTask(selectedDayIndex,"");
-    debounceSave();
-  });
-
-  document.getElementById("addStudyTemplate").addEventListener("click", ()=>{
-    ["Check Brightspace + due dates","Finish highest-impact assignment","Submit + confirm submission"]
-      .forEach(t=>addDayTask(selectedDayIndex, t, false));
-    debounceSave();
-  });
-
-  // ---------- tabs ----------
-  document.querySelectorAll(".tab").forEach(t=>{
-    t.addEventListener("click", ()=>{
-      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-      t.classList.add("active");
-      const id = t.getAttribute("data-tab");
-      document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-      document.getElementById(id).classList.add("active");
-      window.scrollTo({top:0, behavior:"smooth"});
-    });
-  });
-
-  // ---------- local cache ----------
-  function cacheSave(data, meta){
-    try{
-      localStorage.setItem(cacheKey(), JSON.stringify(data));
-      localStorage.setItem(metaKey(), JSON.stringify(meta));
-      setLocalText(meta?.localSavedAt ? meta.localSavedAt : "saved");
-    }catch(e){}
-  }
-  function cacheLoad(){
-    try{
-      const raw = localStorage.getItem(cacheKey());
-      return raw ? JSON.parse(raw) : null;
-    }catch(e){ return null; }
-  }
-  function cacheMeta(){
-    try{
-      const raw = localStorage.getItem(metaKey());
-      return raw ? JSON.parse(raw) : null;
-    }catch(e){ return null; }
-  }
-
-  // ---------- autosave gating ----------
-  function debounceSave(){
-    if(isApplyingLoad) return;
-    if(!hasRequiredKey()){
-      setStatus("idle","Set Student + Week to enable autosave.");
-      return;
-    }
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(()=>saveAll(false), 700);
-    setStatus("typing...","Autosave on.");
-  }
-
-  // ---------- quick note banner ----------
-  function renderQuickNoteBanner(){
-    const txt = (document.getElementById("quickNote").value || "").trim();
-    const top = document.getElementById("alertTop");
-    const msg = document.getElementById("alertMsg");
-
-    if(txt){
-      msg.textContent = txt;
-      top.style.display = "block";
-    }else{
-      top.style.display = "none";
-      msg.textContent = "—";
-    }
-  }
-
-  document.getElementById("clearQuickNote").addEventListener("click", ()=>{
-    document.getElementById("quickNote").value = "";
-    renderQuickNoteBanner();
-    debounceSave();
-    toast("Quick Note cleared");
-  });
-
-  document.getElementById("clearQuickNoteTop").addEventListener("click", ()=>{
-    document.getElementById("quickNote").value = "";
-    renderQuickNoteBanner();
-    debounceSave();
-    toast("Quick Note cleared");
-  });
-
-  document.getElementById("jumpToQuickNote").addEventListener("click", ()=>{
-    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-    document.querySelector('.tab[data-tab="quick"]').classList.add("active");
-    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-    document.getElementById("quick").classList.add("active");
-    document.getElementById("quickNote").focus({preventScroll:true});
-    document.getElementById("quickNoteCard").scrollIntoView({behavior:"smooth", block:"center"});
-  });
-
-  // ---------- collapsible calendar ----------
-  function setCalendarCollapsed(isCollapsed){
-    calCollapsed = !!isCollapsed;
-    const body = document.getElementById("calBody");
-    const chev = document.getElementById("calChevron");
-    const btn = document.getElementById("toggleCalBtn");
-    const nav = document.getElementById("monthNavBtns");
-
-    if(calCollapsed){
-      body.classList.add("collapsed");
-      chev.textContent = "▸";
-      btn.setAttribute("aria-expanded","false");
-      if(nav) nav.style.display = "none";
-    }else{
-      body.classList.remove("collapsed");
-      chev.textContent = "▾";
-      btn.setAttribute("aria-expanded","true");
-      if(nav) nav.style.display = "flex";
-    }
-  }
-  document.getElementById("toggleCalBtn").addEventListener("click", ()=>{
-    setCalendarCollapsed(!calCollapsed);
-  });
-
-  // ---------- calendar render (click sets Week Of + selects that day + keeps load functionality) ----------
-  function formatMonthTitle(d){
-    return d.toLocaleString(undefined, { month:"long", year:"numeric" });
-  }
-
-  function renderMonthCalendar(){
-    document.getElementById("monthTitle").textContent = formatMonthTitle(monthAnchor);
-
-    const dowRow = document.getElementById("dowRow");
-    dowRow.innerHTML = "";
-    DOW.forEach(d=>{
-      const el = document.createElement("div");
-      el.className = "dow";
-      el.textContent = d;
-      dowRow.appendChild(el);
-    });
-
-    const grid = document.getElementById("monthGrid");
-    grid.innerHTML = "";
-
-    const first = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1);
-    const startDay = first.getDay(); // 0..6
-    const daysInMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()+1, 0).getDate();
-
-    // padding
-    const prevMonthDays = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 0).getDate();
-    for(let i=0;i<startDay;i++){
-      const dayNum = prevMonthDays - (startDay-1-i);
-      const cell = document.createElement("div");
-      cell.className = "dayCell muted";
-      cell.textContent = dayNum;
-      grid.appendChild(cell);
-    }
-
-    const todayISO = toISO(new Date());
-
-    for(let d=1; d<=daysInMonth; d++){
-      const dt = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), d);
-      const cellISO = toISO(dt);
-
-      const cell = document.createElement("div");
-      cell.className = "dayCell";
-      cell.textContent = d;
-
-      if(cellISO === todayISO) cell.classList.add("today");
-      if(selectedDateISO && cellISO === selectedDateISO) cell.classList.add("selected");
-
-      cell.addEventListener("click", ()=>{
-        // FULL function:
-        // 1) set weekOf = clicked date (week starts from ANY day)
-        // 2) update week labels + selected day index
-        // 3) ensure week tasks exist (and template if empty)
-        selectedDateISO = cellISO;
-        document.getElementById("weekOf").value = cellISO;
-        onKeyChanged({collapseCalendar:true, seedIfNew:true});
-      });
-
-      grid.appendChild(cell);
-    }
-
-    // complete row
-    const totalCells = startDay + daysInMonth;
-    const remaining = (7 - (totalCells % 7)) % 7;
-    for(let i=1;i<=remaining;i++){
-      const cell = document.createElement("div");
-      cell.className = "dayCell muted";
-      cell.textContent = i;
-      grid.appendChild(cell);
-    }
-  }
-
-  document.getElementById("prevMonthBtn").addEventListener("click", ()=>{
-    monthAnchor = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()-1, 1);
-    renderMonthCalendar();
-  });
-  document.getElementById("nextMonthBtn").addEventListener("click", ()=>{
-    monthAnchor = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()+1, 1);
-    renderMonthCalendar();
-  });
-
-  // ---------- QUICK ADD (AUTO-APPLY) ----------
-  function normalizeDayName(s){
-    const t = (s||"").trim().toLowerCase();
-    for(const dn of FULL_DAYS){
-      if(dn.toLowerCase() === t) return dn;
-    }
-    // allow "Mon" "Tue"...
-    const map = {mon:"Monday", tue:"Tuesday", tues:"Tuesday", wed:"Wednesday", thu:"Thursday", thur:"Thursday", thurs:"Thursday", fri:"Friday", sat:"Saturday", sun:"Sunday"};
-    return map[t] || "";
-  }
-
-  function splitTasks(chunk){
-    // split by commas OR semicolons, keep phrases intact
-    return chunk
-      .split(/[,;]+/g)
-      .map(x=>x.trim())
-      .filter(Boolean);
-  }
-
-  function cleanDoneMarkers(text){
-    // remove "DONE XX" or "DONE -XX" etc, keep task text
-    let done = false;
-    let t = (text||"").trim();
-    if(/\bDONE\b/i.test(t)){
-      done = true;
-      // remove DONE + trailing initials patterns
-      t = t.replace(/\bDONE\b\s*[-–]?\s*[A-Z]{1,4}\b/gi, "").trim();
-      t = t.replace(/\bDONE\b/gi, "").trim();
-    }
-    return { text:t, done };
-  }
-
-  function parseQuickAddBlock(raw){
-    const out = {
-      days: { Monday:[], Tuesday:[], Wednesday:[], Thursday:[], Friday:[], Saturday:[], Sunday:[] },
-      upcoming: "",
-      missing: ""
-    };
-
-    const lines = (raw||"")
-      .replace(/\r/g,"")
-      .split("\n")
-      .map(l=>l.trim())
-      .filter(l=>l.length>0);
-
-    // We support:
-    // "Monday: a, b, c"
-    // "Upcoming: ..."
-    // "Missing: ..."
-    // Also allow day lines without colon by detecting leading day name.
-    for(const line of lines){
-      const m = line.match(/^([A-Za-z]+)\s*:\s*(.*)$/);
-      if(m){
-        const key = m[1].trim();
-        const rest = m[2].trim();
-
-        const dn = normalizeDayName(key);
-        if(dn){
-          const tasks = splitTasks(rest);
-          tasks.forEach(t=>{
-            const cd = cleanDoneMarkers(t);
-            if(cd.text || cd.done) out.days[dn].push({text:cd.text, done:cd.done});
-          });
-          continue;
-        }
-
-        if(key.toLowerCase() === "upcoming"){
-          out.upcoming += (out.upcoming ? "\n" : "") + rest;
-          continue;
-        }
-        if(key.toLowerCase() === "missing"){
-          out.missing += (out.missing ? "\n" : "") + rest;
-          continue;
-        }
-
-        // If it's "Monday: ..." embedded in a longer label, ignore.
-      }
-
-      // If line begins with a day name even without colon (rare)
-      const dm = line.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/i);
-      if(dm && line.includes(":")){
-        // already caught above, but safe.
-      }
-    }
-
-    return out;
-  }
-
-  function dayIndexWithinWeekByName(dayName){
-    // weekStartISO is arbitrary; our 7 slots are day 0..6
-    // But QuickAdd uses named weekdays. We map them into our 7-day window
-    // by finding which slot in the window matches that weekday.
-    if(!weekStartISO) return null;
-    const target = normalizeDayName(dayName);
-    if(!target) return null;
-
-    for(let i=0;i<7;i++){
-      const iso = addDaysISO(weekStartISO, i);
-      const d = fromISO(iso);
-      const name = FULL_DAYS[d.getDay()];
-      if(name === target) return i;
-    }
-    return null;
-  }
-
-  function applyParsedToWeek(parsed){
-    if(!weekStartISO){
-      toast("Set Week Of first");
-      return;
-    }
-
-    // confirm overwrite if week already has real content
-    if(anyTasksExist()){
-      // check if there is any non-empty text
-      let hasText = false;
-      dayPanels.querySelectorAll('input[type="text"][data-key]').forEach(inp=>{
-        if((inp.value||"").trim()){ hasText = true; }
-      });
-      if(hasText){
-        const ok = confirm("Replace current week tasks with Quick Add?");
-        if(!ok) return;
-      }
-    }
-
-    // clear all day tasks
-    for(let i=0;i<7;i++) clearDayTasks(i);
-
-    // fill each named day into matching slot in the 7-day window
-    Object.keys(parsed.days).forEach(dayName=>{
-      const idx = dayIndexWithinWeekByName(dayName);
-      if(idx === null) return;
-
-      const tasks = parsed.days[dayName] || [];
-      if(tasks.length === 0){
-        addDayTask(idx,"",false);
-        return;
-      }
-      tasks.forEach(t=>{
-        addDayTask(idx, t.text, t.done);
-      });
-    });
-
-    // ensure every slot has at least one blank so it never looks broken
-    ensureWeekSeed();
-
-    // upcoming/missing
-    if((parsed.upcoming||"").trim()){
-      const u = document.getElementById("upcoming");
-      u.value = (u.value ? (u.value.trimEnd() + "\n") : "") + parsed.upcoming;
-    }
-    if((parsed.missing||"").trim()){
-      const m = document.getElementById("missing");
-      m.value = (m.value ? (m.value.trimEnd() + "\n") : "") + parsed.missing;
-    }
-
-    updateProgress();
-    debounceSave();
-    toast("Applied");
-  }
-
-  document.getElementById("applyQuickAdd").addEventListener("click", ()=>{
-    if(!hasRequiredKey()){
-      toast("Set Student + Week first");
-      return;
-    }
-    const raw = document.getElementById("quickAdd").value || "";
-    const parsed = parseQuickAddBlock(raw);
-    applyParsedToWeek(parsed);
-  });
-
-  document.getElementById("quickAdd").addEventListener("keydown", (e)=>{
-    if((e.ctrlKey || e.metaKey) && e.key === "Enter"){
-      e.preventDefault();
-      document.getElementById("applyQuickAdd").click();
-    }
-  });
-
-  // ---------- save/load ----------
-  async function saveAll(force=false){
-    if(!hasRequiredKey()){
-      setStatus("idle","Set Student + Week to enable autosave.");
-      return;
-    }
-
-    const data = collectData();
-    const h = hashData(data);
-    if(!force && h === lastSavedHash){
-      setStatus("saved","Up to date.");
-      return;
-    }
-
-    cacheSave(data, { localSavedAt: nowStamp() });
-
-    try{
-      setStatus("saving...","Syncing to shared version.");
-      await fetch(webAppURL, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(data)
-      });
-      lastSavedHash = h;
-      setSyncText(nowStamp());
-      setStatus("saved","Shared version updated.");
-      toast("Saved");
-    }catch(err){
-      setStatus("offline (saved locally)","Your work is saved on this device.");
-      toast("Saved locally");
-    }
-  }
-
-  async function loadWeek(opts={silent:false}){
-    if(!hasRequiredKey()){
-      setStatus("idle","Set Student + Week to enable autosave.");
-      return;
-    }
-
-    setStatus("loading...","Pulling the shared version.");
-    const sk = stableKey();
-
-    try{
-      const url = webAppURL + "?studentName=" + encodeURIComponent(sk.student) + "&weekOf=" + encodeURIComponent(sk.week);
-      const res = await fetch(url, { method:"GET" });
-      const obj = await res.json();
-      if(obj && !obj.error){
-        applyLoaded(obj);
-        setSyncText(nowStamp());
-        setStatus("loaded","Shared version loaded.");
-        if(!opts.silent) toast("Loaded");
-        return;
-      }
-    }catch(e){}
-
-    const cached = cacheLoad();
-    if(cached){
-      applyLoaded(cached);
-      const m = cacheMeta();
-      setLocalText(m?.localSavedAt ? m.localSavedAt : "available");
-      setStatus("loaded (local)","Using local backup.");
-      if(!opts.silent) toast("Loaded (local)");
-    }else{
-      setStatus("no saved record found","Check spelling/date.");
-      if(!opts.silent) toast("No record found");
-    }
-  }
-
-  function clearAllTasks(){
-    dayPanels.querySelectorAll(".daypanel").forEach(p=>p.innerHTML="");
-  }
-
-  function applyLoaded(obj){
-    isApplyingLoad = true;
-
-    // simple fields
-    ["sport","counselor","ls"].forEach(id=>{
-      if(document.getElementById(id)) document.getElementById(id).value = obj[id] || "";
-    });
-
-    // text areas
-    const q = document.getElementById("quickAdd");
-    const n = document.getElementById("quickNote");
-    const up = document.getElementById("upcoming");
-    const mi = document.getElementById("missing");
-    if(q) q.value = obj["quickAdd"] ?? obj.quickAdd ?? "";
-    if(n) n.value = obj["quickNote"] ?? obj.quickNote ?? "";
-    if(up) up.value = obj["upcoming"] ?? obj.upcoming ?? "";
-    if(mi) mi.value = obj["missing"] ?? obj.missing ?? "";
-
-    renderQuickNoteBanner();
-
-    clearAllTasks();
-
-    // rebuild daily tasks
-    Object.keys(obj).forEach(k=>{
-      const m = k.match(/^d(\d+)_(.+)_text$/);
-      if(m){
-        const dayIndex = parseInt(m[1],10);
-        const id = m[2];
-        const text = obj[k] || "";
-        const doneKey = `d${dayIndex}_${id}_done`;
-        const done = (obj[doneKey] === true || obj[doneKey] === "true");
-        if(text || done) addDayTask(dayIndex, text, done);
-      }
-    });
-
-    ensureWeekSeed();
-
-    lastSavedHash = hashData(collectData());
-    updateProgress();
-
-    const mm = cacheMeta();
-    if(mm?.localSavedAt) setLocalText(mm.localSavedAt);
-
-    isApplyingLoad = false;
-  }
-
-  // ---------- auto-refresh ----------
-  function startAutoRefresh(){
-    stopAutoRefresh();
-    refreshTimer = setInterval(()=>{ if(hasRequiredKey()) loadWeek({silent:true}); }, 20000);
-  }
-  function stopAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer = null; }
-
-  // ---------- key changes (THIS is what keeps calendar + start-day week fully working) ----------
-  function onKeyChanged(opts={collapseCalendar:false, seedIfNew:false}){
-    const wk = document.getElementById("weekOf").value || "";
-    if(!wk){
-      setStatus("idle","Set Student + Week to enable autosave.");
-      return;
-    }
-
-    weekStartISO = wk;
-    selectedDateISO = wk;
-
-    // month anchor for calendar and rerender (keeps selection highlight)
-    const d = fromISO(wk);
-    monthAnchor = new Date(d.getFullYear(), d.getMonth(), 1);
-    renderMonthCalendar();
-
-    // selected day index should match the chosen start date (day 0)
-    setSelectedDay(0);
-
-    // update day labels to show real dates
-    buildWeekUIFromStart();
-
-    // ensure week isn't empty on screen
-    if(opts.seedIfNew) ensureWeekSeed();
-
-    // record readiness / autosave gating
-    if(!hasRequiredKey()){
-      stopAutoRefresh();
-      setStatus("idle","Set Student + Week to enable autosave.");
-      setLocalText("—"); setSyncText("—");
-      return;
-    }
-
-    const cached = cacheLoad();
-    const m = cacheMeta();
-    if(cached){
-      setLocalText(m?.localSavedAt ? m.localSavedAt : "available");
-      setStatus("ready","Local backup found.");
-    }else{
-      setLocalText("none yet");
-      setStatus("ready","New record.");
-    }
-
-    startAutoRefresh();
-
-    if(opts.collapseCalendar) setCalendarCollapsed(true);
-    updateProgress();
-    renderQuickNoteBanner();
-    debounceSave();
-  }
-
-  // ---------- buttons ----------
-  document.getElementById("loadWeek").addEventListener("click", ()=>loadWeek({silent:false}));
-  document.getElementById("saveNow").addEventListener("click", ()=>saveAll(true));
-
-  document.getElementById("copySummary").addEventListener("click", async ()=>{
-    if(hasRequiredKey()) await saveAll(true);
-
-    const student = (document.getElementById("studentName").value || "").trim();
-    const week = document.getElementById("weekOf").value || "";
-
-    let out = "";
-    out += "Student: " + student + "\n";
-    out += "Week Of: " + week + "\n";
-    out += "Sport: " + (document.getElementById("sport").value || "") + "\n";
-    out += "Counselor: " + (document.getElementById("counselor").value || "") + "\n";
-    out += "LS: " + (document.getElementById("ls").value || "") + "\n\n";
-
-    const qn = (document.getElementById("quickNote").value || "").trim();
-    if(qn) out += "Quick Note: " + qn + "\n\n";
-
-    out += "Quick Add\n" + (document.getElementById("quickAdd").value || "") + "\n\n";
-
-    for(let i=0;i<7;i++){
-      const iso = week ? addDaysISO(week, i) : "";
-      out += (iso ? niceDayLabel(iso) : ("Day " + (i+1))) + "\n";
-      const panel = document.getElementById("daypanel_" + i);
-      panel.querySelectorAll(".task").forEach(t=>{
-        const text = t.querySelector('input[type="text"]').value || "";
-        const done = t.querySelector('input[type="checkbox"]').checked ? "DONE" : "OPEN";
-        if(text) out += done + " - " + text + "\n";
-      });
-      out += "\n";
-    }
-
-    out += "Upcoming\n" + (document.getElementById("upcoming").value || "") + "\n\n";
-    out += "Missing\n" + (document.getElementById("missing").value || "") + "\n";
-
-    try{ await navigator.clipboard.writeText(out); toast("Copied"); }
-    catch(e){ toast("Copy failed"); }
-  });
-
-  document.getElementById("printSnapshot").addEventListener("click", ()=>window.print());
-
-  document.getElementById("resetPage").addEventListener("click", ()=>{
-    if(confirm("Reset everything? This will reload the page.")) location.reload();
-  });
-
-  // ---------- autosave triggers ----------
-  document.addEventListener("input", (e)=>{
-    updateProgress();
-
-    if(e.target && e.target.id === "quickNote"){
-      renderQuickNoteBanner();
-    }
-
-    // don't autosave while typing name/week until change event
-    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")) return;
-
-    debounceSave();
-  });
-
-  document.addEventListener("change", (e)=>{
-    updateProgress();
-
-    if(e.target && e.target.id === "quickNote"){
-      renderQuickNoteBanner();
-    }
-
-    // week change is the real reset point
-    if(e.target && e.target.id === "weekOf"){
-      onKeyChanged({collapseCalendar:false, seedIfNew:true});
-      return;
-    }
-
-    // student change affects record key
-    if(e.target && e.target.id === "studentName"){
-      if(document.getElementById("weekOf").value){
-        onKeyChanged({collapseCalendar:false, seedIfNew:true});
-      }
-      return;
-    }
-
-    debounceSave();
-  });
-
-  // ---------- prefill from URL ----------
-  (function prefillFromURL(){
-    const url = new URL(window.location.href);
-    const student = url.searchParams.get("student");
-    const week = url.searchParams.get("week");
-    if(student) document.getElementById("studentName").value = student;
-    if(week) document.getElementById("weekOf").value = week;
-    if(student && week){
-      onKeyChanged({collapseCalendar:true, seedIfNew:true});
-      loadWeek({silent:true});
-    }
-  })();
-
-  // ---------- init ----------
-  setSyncText("—");
-  setLocalText("—");
-  setStatus("idle","Set Student + Week to enable autosave.");
-  renderQuickNoteBanner();
-  renderMonthCalendar();
-  // default collapsed? keep open by default
-</script>
-</body>
-</html>
-```
+    font-weight:900;
+    padding:0 6px;
+    user-select:none
