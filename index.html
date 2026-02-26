@@ -2,575 +2,510 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>CATS Weekly Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CATS Weekly Dashboard</title>
 <style>
   :root{
-    /* UA-inspired */
-    --ua-red:#AB0520;
+    /* UA-inspired palette */
     --ua-blue:#0C234B;
+    --ua-red:#AB0520;
 
-    --bg:#F7F9FC;
-    --card:#FFFFFF;
+    --bg:#f7f9fc;
+    --card:#fff;
     --text:#111827;
-    --muted:#6B7280;
-    --line:#E5E7EB;
+    --muted:#667085;
+    --line:#e6eaf0;
 
-    --good:#12B76A;
-    --warn:#F79009;
-    --bad:#F04438;
+    --shadow:0 1px 6px rgba(0,0,0,.08);
+    --radius:14px;
 
-    --shadow:0 1px 10px rgba(12,35,75,.08);
-    --r:16px;
+    --good:#12b76a;
+    --warn:#f79009;
 
-    --focus: rgba(12,35,75,.16);
+    --focus:rgba(11,107,255,.18);
   }
 
   *{ box-sizing:border-box; }
   body{
     margin:0;
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    padding: 12px 12px 92px;
+    padding:12px 12px 110px;
+    font-family: Arial, sans-serif;
+    background:var(--bg);
+    color:var(--text);
   }
 
-  .wrap{ max-width: 980px; margin: 0 auto; }
+  .wrap{ max-width:980px; margin:0 auto; }
+  h1{ font-size:20px; margin:2px 0 4px; text-align:center; letter-spacing:.2px; color:var(--ua-blue); }
+  .sub{ font-size:12px; color:var(--muted); text-align:center; margin:0 0 8px; }
 
-  /* Header */
-  .top{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    margin-bottom:10px;
-  }
-  .brand{ display:flex; align-items:center; gap:10px; }
-  .mark{
-    width:38px; height:38px; border-radius:12px;
-    background: linear-gradient(135deg, var(--ua-red), var(--ua-blue));
-    box-shadow: var(--shadow);
-  }
-  h1{ font-size:16px; margin:0; letter-spacing:.2px; }
-  .sub{ font-size:12px; color:var(--muted); margin:2px 0 0; }
-
-  .hdrActions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-  .btn{
-    padding:10px 12px;
-    border-radius:12px;
-    border:1px solid var(--line);
-    background:#fff;
-    cursor:pointer;
-    font-size:13px;
-  }
-  .btn:active{ transform: translateY(1px); }
-  .btn.primary{
-    border-color: transparent;
-    color:#fff;
-    background: linear-gradient(135deg, var(--ua-red), rgba(171,5,32,.85));
-  }
-  .btn.blue{
-    border-color: transparent;
-    color:#fff;
-    background: linear-gradient(135deg, var(--ua-blue), rgba(12,35,75,.86));
-  }
-
-  /* Cards */
-  .card{
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: var(--r);
-    box-shadow: var(--shadow);
-  }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
   .pad{ padding:12px; }
+
   .row{ display:flex; gap:10px; flex-wrap:wrap; }
-  .col{ flex:1; min-width: 200px; }
+  .col{ flex:1; min-width:180px; }
+
   label{ display:block; font-size:11px; color:var(--muted); margin:0 0 4px; }
+
   input, select, textarea{
     width:100%;
-    padding:10px 10px;
+    padding:9px 10px;
     border:1px solid var(--line);
     border-radius:12px;
     outline:none;
     font-size:14px;
     background:#fff;
-    color:var(--text);
   }
+  textarea{ min-height:62px; resize:vertical; }
+
   input:focus, select:focus, textarea:focus{
-    box-shadow: 0 0 0 4px var(--focus);
-    border-color: rgba(12,35,75,.25);
-  }
-  textarea{ min-height: 72px; resize: vertical; }
-
-  /* Progress + strip */
-  .calTop{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-top:10px;
+    box-shadow:0 0 0 4px var(--focus);
+    border-color:transparent;
   }
 
-  .flag{
-    padding:6px 10px; border-radius:999px;
-    font-size:12px; border:1px solid var(--line);
-    background:#fff; color:var(--muted);
-    white-space:nowrap;
-  }
-  .flag.good{ background: rgba(18,183,106,.10); border-color:transparent; color:#067647; }
-  .flag.warn{ background: rgba(247,144,9,.12); border-color:transparent; color:#7A4B00; }
-  .flag.bad{ background: rgba(240,68,56,.12); border-color:transparent; color:#8F1D14; }
-
-  .kpi{ font-size:12px; color:var(--muted); white-space:nowrap; }
-
-  .bar{
-    width:100%; height:10px; border-radius:999px;
-    background:#EEF2FF;
-    overflow:hidden; border:1px solid rgba(12,35,75,.10);
-  }
-  .fill{
-    height:100%;
-    width:0%;
-    border-radius:999px;
-    background: linear-gradient(90deg, var(--ua-blue), var(--ua-red));
-    transition: width .2s ease;
-  }
-
-  .calStrip{
-    display:flex; gap:8px;
-    overflow:auto;
-    padding:8px 2px 2px;
-    scroll-snap-type:x mandatory;
-  }
-  .dayCard{
-    flex: 0 0 auto;
-    min-width: 118px;
-    border:1px solid var(--line);
-    border-radius: 14px;
-    background:#fff;
-    padding:10px;
-    cursor:pointer;
-    scroll-snap-align:start;
-    user-select:none;
-    transition: transform .08s ease, border-color .08s ease;
-  }
-  .dayCard:hover{ transform: translateY(-1px); }
-  .dayCard.active{
-    border-color: rgba(12,35,75,.18);
-    box-shadow: 0 10px 25px rgba(12,35,75,.10);
-    background: linear-gradient(180deg, rgba(12,35,75,.06), #fff);
-  }
-  .dow{ font-size:12px; color: var(--muted); }
-  .date{ font-size:14px; font-weight:750; margin-top:2px; }
-  .mini{
-    font-size:11px; margin-top:6px; color:var(--muted);
-    display:flex; justify-content:space-between; gap:6px;
-  }
-  .mini strong{ color:var(--text); }
-
-  /* Quick Add */
-  .quickAdd{
-    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-    margin-top:10px;
-  }
-  .quickAdd input{ flex:1; min-width: 240px; }
+  /* Top chips */
+  .chipbar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:6px 0 0; }
   .chip{
-    display:inline-flex; align-items:center;
-    gap:6px;
-    padding:6px 10px;
-    border-radius:999px;
-    border:1px solid var(--line);
-    background:#fff;
-    font-size:12px;
-    color:var(--muted);
-    white-space:nowrap;
+    display:inline-flex; align-items:center; gap:6px;
+    padding:6px 10px; border-radius:999px;
+    border:1px solid var(--line); background:#fff;
+    font-size:12px; color:#475467;
+  }
+  .dot{ width:8px; height:8px; border-radius:999px; display:inline-block; background:#98a2b3; }
+  .dot.green{ background:var(--good); }
+  .dot.red{ background:var(--ua-red); }
+  .dot.blue{ background:#2563eb; }
+
+  /* Layout */
+  .topbar{ display:flex; gap:10px; align-items:stretch; margin-top:10px; }
+  .top-left{ flex:1; }
+  .top-right{
+    width:300px; min-width:300px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:12px; border-radius:var(--radius); border:1px solid var(--line);
+    background:var(--card); box-shadow:var(--shadow);
+    gap:10px;
   }
 
-  /* Month calendar (embedded) */
-  .monthWrap{
-    margin-top:10px;
-    border:1px solid var(--line);
-    border-radius: 14px;
-    background: #fff;
-    overflow:hidden;
+  .meter{ display:flex; align-items:flex-start; gap:10px; }
+  .big{ font-size:20px; font-weight:800; color:var(--ua-blue); }
+  .small{ font-size:11px; color:var(--muted); }
+
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:6px 10px; border-radius:999px;
+    border:1px solid var(--line); font-size:12px; color:var(--muted);
+    background:#fff; white-space:nowrap;
   }
-  .monthHdr{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:10px 12px;
-    background: linear-gradient(135deg, rgba(12,35,75,.06), rgba(171,5,32,.04));
-    border-bottom:1px solid var(--line);
-  }
-  .monthHdr .title{
-    font-size:13px; font-weight:750; color:var(--ua-blue);
-    letter-spacing:.2px;
-  }
-  .monthHdr .mhBtns{ display:flex; gap:8px; }
-  .iconBtn{
-    padding:8px 10px;
+  .pill.blue{ background:rgba(12,35,75,.08); border-color:transparent; color:var(--ua-blue); }
+  .pill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
+  .pill.warn{ background:rgba(247,144,9,.14); border-color:transparent; color:#7a4b00; }
+
+  .btnrow{ display:flex; gap:8px; flex-wrap:wrap; }
+  .btn{
+    padding:9px 10px;
     border-radius:12px;
     border:1px solid var(--line);
     background:#fff;
     cursor:pointer;
-    font-size:12px;
+    font-size:13px;
   }
-  .grid{
-    display:grid;
-    grid-template-columns: repeat(7, 1fr);
+  .btn.primary{
+    background:rgba(12,35,75,.10);
+    border-color:transparent;
+    color:var(--ua-blue);
+    font-weight:700;
   }
-  .dowCell{
-    padding:8px 0;
-    font-size:11px;
-    color:var(--muted);
-    text-align:center;
-    border-bottom:1px solid var(--line);
+  .btn.danger{
+    background:rgba(171,5,32,.10);
+    border-color:transparent;
+    color:var(--ua-red);
+    font-weight:700;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+  /* Tabs */
+  .tabs{ display:flex; gap:8px; margin:10px 0; flex-wrap:wrap; justify-content:center; }
+  .tab{
+    padding:8px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
     background:#fff;
-  }
-  .dayCell{
-    height:42px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    border-bottom:1px solid var(--line);
-    border-right:1px solid var(--line);
     font-size:13px;
     cursor:pointer;
     user-select:none;
-    background:#fff;
   }
-  .dayCell:nth-child(7n){ border-right:0; }
-  .dayCell.muted{ color:#B0B7C3; cursor:default; background:#FAFBFD; }
-  .dayCell.today{
-    box-shadow: inset 0 0 0 2px rgba(12,35,75,.20);
-    font-weight:750;
+  .tab.active{
+    border-color:transparent;
+    background:rgba(12,35,75,.10);
+    color:var(--ua-blue);
+    font-weight:700;
   }
-  .dayCell.selected{
-    background: linear-gradient(135deg, rgba(171,5,32,.14), rgba(12,35,75,.10));
-    font-weight:800;
-  }
+
+  .section{ display:none; }
+  .section.active{ display:block; }
 
   /* Tasks */
-  .tasksHead{
-    display:flex; justify-content:space-between; align-items:center;
-    margin-top:10px;
-    gap:10px;
-    flex-wrap:wrap;
+  .task{
+    display:flex; gap:8px; align-items:flex-start; margin:8px 0;
+    padding:8px; border:1px solid var(--line); border-radius:12px; background:#fff;
   }
-  .tasksHead .left{
-    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-  }
-  .tasksHead .title{
-    font-size:13px; font-weight:800; color:var(--ua-blue);
-  }
-  .tasksHead .sub2{
-    font-size:12px; color:var(--muted);
-  }
+  .task input[type="checkbox"]{ width:auto; margin-top:3px; accent-color:var(--ua-blue); }
+  .task input[type="text"]{ flex:1; }
+  .x{ cursor:pointer; color:var(--ua-red); font-weight:900; padding:0 6px; user-select:none; }
 
-  .taskRow{
-    display:flex;
-    gap:8px;
-    align-items:flex-start;
-    padding:10px;
+  .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
+
+  /* Day switcher */
+  .daybar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:10px 0; }
+  .daybtn{
+    padding:7px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    font-size:13px;
+  }
+  .daybtn.active{
+    background:rgba(12,35,75,.10);
+    border-color:transparent;
+    color:var(--ua-blue);
+    font-weight:700;
+  }
+  .daypanel{ display:none; }
+  .daypanel.active{ display:block; }
+
+  /* Collapsible calendar */
+  .monthWrap{ margin-top:10px; }
+  .monthHdr{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    padding:10px 10px;
     border:1px solid var(--line);
     border-radius:14px;
     background:#fff;
-    margin-top:8px;
+    box-shadow:var(--shadow);
   }
-  .taskRow input[type="checkbox"]{ width:auto; margin-top:3px; }
-  .taskMain{ flex:1; display:flex; flex-direction:column; gap:6px; }
-  .taskTop{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .taskTop input[type="text"]{ flex:1; min-width: 200px; }
-  .miniTag{
-    font-size:11px;
-    padding:5px 8px;
-    border-radius:999px;
+  .monthHdr .title{ font-weight:800; color:var(--ua-blue); }
+  .mhBtns{ display:flex; gap:8px; }
+  .iconBtn{
+    padding:7px 10px;
+    border-radius:12px;
     border:1px solid var(--line);
     background:#fff;
-    color:var(--muted);
-    white-space:nowrap;
-  }
-  .miniTag.urgent{ border-color: rgba(240,68,56,.25); background: rgba(240,68,56,.08); color:#8F1D14; }
-  .miniTag.info{ border-color: rgba(12,35,75,.18); background: rgba(12,35,75,.06); color: var(--ua-blue); }
-  .miniTag.done{ border-color: rgba(18,183,106,.20); background: rgba(18,183,106,.08); color:#067647; }
-  .miniTag.miss{ border-color: rgba(247,144,9,.25); background: rgba(247,144,9,.10); color:#7A4B00; }
-
-  .taskMeta{
-    display:flex; gap:8px; flex-wrap:wrap; align-items:center;
-  }
-  .smallInput{
-    width:auto;
-    min-width: 120px;
-    padding:8px 10px;
-    font-size:13px;
-    border-radius:12px;
-  }
-  .tinyInput{
-    width:72px;
-    padding:8px 10px;
-    font-size:13px;
-    border-radius:12px;
-    text-transform: uppercase;
-  }
-  .moreBtn{
-    border:1px solid var(--line);
-    background:#fff;
-    border-radius:12px;
-    padding:8px 10px;
     cursor:pointer;
-    font-size:12px;
-    color:var(--muted);
-    white-space:nowrap;
+    font-size:13px;
   }
-  .x{
-    cursor:pointer; user-select:none;
-    font-weight:900; color:#B42318;
-    padding:0 6px;
-    font-size:18px;
-    line-height: 22px;
+  #toggleCalBtn{
+    border-color:transparent;
+    background:rgba(12,35,75,.06);
+    font-weight:800;
+    color:var(--ua-blue);
   }
-  .details{
-    display:none;
-    margin-top:8px;
-    padding-top:8px;
-    border-top:1px dashed rgba(107,114,128,.35);
-  }
-  .details.show{ display:block; }
-  .details .row{ margin-top:8px; }
+  #toggleCalBtn:focus{ box-shadow:0 0 0 4px var(--focus); }
 
-  /* Panels */
-  .panel{
-    position: fixed;
-    inset: 0;
-    background: rgba(17,24,39,.35);
-    display:none;
-    align-items:flex-end;
-    justify-content:center;
-    padding: 14px;
-    z-index: 50;
-  }
-  .panel.show{ display:flex; }
-  .drawer{
-    width: 100%;
-    max-width: 980px;
-    background:#fff;
-    border-radius: 18px;
+  #calBody{
+    margin-top:8px;
     border:1px solid var(--line);
-    box-shadow: 0 30px 80px rgba(0,0,0,.25);
+    border-radius:14px;
+    background:#fff;
+    box-shadow:var(--shadow);
+    padding:10px;
+    max-height:520px;
     overflow:hidden;
+    transition:max-height .22s ease, opacity .18s ease;
+    opacity:1;
   }
-  .drawerHdr{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:12px;
-    background: linear-gradient(135deg, rgba(12,35,75,.06), rgba(171,5,32,.04));
-    border-bottom:1px solid var(--line);
-  }
-  .drawerHdr .t{ font-weight:850; color: var(--ua-blue); }
-  .drawerHdr .close{
-    border:1px solid var(--line);
-    background:#fff;
-    border-radius:12px;
-    padding:8px 10px;
-    cursor:pointer;
-    font-size:12px;
-  }
-
-  /* Toast */
-  .toast{
-    position:fixed;
-    left:50%;
-    transform: translateX(-50%);
-    bottom: 84px;
-    background: #111827;
-    color:#fff;
-    padding:10px 12px;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,.18);
-    font-size:13px;
+  #calBody.collapsed{
+    max-height:0;
     opacity:0;
-    pointer-events:none;
-    transition: opacity .16s ease, transform .16s ease;
-    max-width: 92vw;
-    z-index: 60;
+    padding:0;
+    border:none;
+    box-shadow:none;
+    margin-top:0;
   }
-  .toast.show{ opacity:1; transform: translateX(-50%) translateY(-4px); }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:6px;
+  }
+  .dow{
+    font-size:11px; color:var(--muted);
+    text-align:center; padding:6px 0;
+  }
+  .dayCell{
+    user-select:none;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px 0;
+    text-align:center;
+    cursor:pointer;
+    font-weight:700;
+    background:#fff;
+  }
+  .dayCell:hover{ background:rgba(12,35,75,.05); }
+  .dayCell.muted{ color:#98a2b3; background:#fbfcfe; }
+  .dayCell.selected{
+    border-color:transparent;
+    background:rgba(171,5,32,.10);
+    color:var(--ua-red);
+  }
+  .dayCell.today{
+    outline:3px solid rgba(12,35,75,.16);
+  }
 
-  /* Sticky */
+  /* Quick Note Banner (attention) */
+  .alertTop{
+    display:none;
+    position:sticky;
+    top:8px;
+    z-index:30;
+    margin:10px 0 0;
+  }
+  .alertBar{
+    display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    border:1px solid rgba(171,5,32,.20);
+    background:linear-gradient(180deg, rgba(171,5,32,.10), rgba(171,5,32,.06));
+    border-radius:14px;
+    box-shadow:0 10px 25px rgba(0,0,0,.07);
+    padding:10px 12px;
+  }
+  .alertLeft{ display:flex; gap:10px; align-items:flex-start; }
+  .alertIcon{
+    width:30px; height:30px; border-radius:999px;
+    background:rgba(171,5,32,.16);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:900; color:var(--ua-red);
+    flex:0 0 auto;
+  }
+  .alertText{ min-width:220px; }
+  .alertTitle{ font-weight:900; color:var(--ua-red); font-size:13px; line-height:1.1; }
+  .alertMsg{
+    font-size:12px; color:#7a1f2b;
+    margin-top:2px;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+
+  /* Sticky bottom bar */
   .sticky{
     position:fixed; left:0; right:0; bottom:0;
-    background: rgba(247,249,252,.92);
-    backdrop-filter: blur(8px);
-    border-top: 1px solid var(--line);
-    z-index: 40;
+    background:rgba(247,249,252,.92);
+    backdrop-filter: blur(6px);
+    border-top:1px solid var(--line);
   }
   .sticky .inner{
-    max-width:980px; margin:0 auto;
-    padding:10px 12px;
-    display:flex; align-items:center; justify-content:space-between;
-    gap:10px; flex-wrap:wrap;
+    max-width:980px; margin:0 auto; padding:10px 12px;
+    display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
   }
   .status{ font-size:12px; color:var(--muted); }
   .status strong{ color:var(--text); }
+  .status .meta{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
 
-  /* Print snapshot */
-  @media print{
-    body{ padding:0; background:#fff; }
-    .sticky, .hdrActions, #settingsBtn, #shareBtn, #printBtn, #loadTodayBtn { display:none !important; }
-    .card{ box-shadow:none !important; }
-    .wrap{ max-width:100%; }
-    .monthWrap{ display:none !important; } /* keeps print clean */
+  /* Toast */
+  .toast{
+    position:fixed; left:50%; transform:translateX(-50%);
+    bottom:98px;
+    background:#111827; color:#fff;
+    padding:10px 12px; border-radius:12px;
+    box-shadow:0 10px 25px rgba(0,0,0,.15);
+    font-size:13px; opacity:0; pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
+    max-width:92vw;
+    z-index:50;
   }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
 
   @media(max-width:720px){
-    .dayCard{ min-width: 108px; }
-    .tinyInput{ width:68px; }
+    .topbar{ flex-direction:column; }
+    .top-right{ width:100%; min-width:unset; }
+    body{ padding-bottom:118px; }
+    .toast{ bottom:108px; }
   }
 </style>
 </head>
 
 <body>
 <div class="wrap">
+  <h1>CATS Weekly Dashboard</h1>
+  <div class="sub">Set Student + Week (or pick a day). It autosaves and syncs to the shared version.</div>
 
-  <div class="top">
-    <div class="brand">
-      <div class="mark" aria-hidden="true"></div>
-      <div>
-        <h1>CATS Weekly Tracker</h1>
-        <div class="sub" id="subText">Simple weekly planning + check-offs</div>
+  <div class="chipbar">
+    <div class="chip"><span class="dot" id="dotOnline"></span><span id="onlineText">Checking connection…</span></div>
+    <div class="chip"><span class="dot blue"></span><span id="syncText">Last synced: —</span></div>
+  </div>
+
+  <!-- Attention Banner -->
+  <div class="alertTop" id="alertTop">
+    <div class="alertBar">
+      <div class="alertLeft">
+        <div class="alertIcon">!</div>
+        <div class="alertText">
+          <div class="alertTitle">Quick Note</div>
+          <div class="alertMsg" id="alertMsg">—</div>
+        </div>
       </div>
-    </div>
-
-    <div class="hdrActions">
-      <button class="btn" id="settingsBtn" type="button">Settings</button>
-      <button class="btn blue" id="loadTodayBtn" type="button">Today</button>
-      <button class="btn" id="shareBtn" type="button">Share</button>
-      <button class="btn" id="printBtn" type="button">Print</button>
+      <div class="btnrow">
+        <button class="btn" id="jumpToQuickNote" type="button">Edit</button>
+        <button class="btn danger" id="clearQuickNoteTop" type="button">Clear</button>
+      </div>
     </div>
   </div>
 
-  <div class="card pad">
-    <div class="row">
-      <div class="col">
-        <label>Student</label>
-        <input id="studentName" type="text" placeholder="First Last" autocomplete="off" />
-      </div>
-      <div class="col">
-        <label>Sport</label>
-        <select id="sport"></select>
-      </div>
-      <div class="col">
-        <label>Start date</label>
-        <input id="startDate" type="date" />
-      </div>
-    </div>
-
-    <!-- Embedded calendar under Start date -->
-    <div class="monthWrap" id="monthWrap" aria-label="Calendar">
-      <div class="monthHdr">
-        <div class="title" id="monthTitle">—</div>
-        <div class="mhBtns">
-          <button class="iconBtn" id="prevMonthBtn" type="button">Prev</button>
-          <button class="iconBtn" id="nextMonthBtn" type="button">Next</button>
-        </div>
-      </div>
-      <div class="grid" id="dowRow"></div>
-      <div class="grid" id="monthGrid"></div>
-    </div>
-
-    <div class="calTop">
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <div class="flag" id="flagPill">—</div>
-        <div class="kpi" id="kpiText">0/0</div>
-      </div>
-      <div style="flex:1; min-width:200px;">
-        <div class="bar" aria-label="Progress">
-          <div class="fill" id="fillBar"></div>
-        </div>
-      </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn primary" id="addTaskBtn" type="button">Add task</button>
-        <button class="btn" id="studyHallBtn" type="button">Study Hall</button>
-      </div>
-    </div>
-
-    <div class="calStrip" id="calStrip" aria-label="7-day strip"></div>
-
-    <!-- Quick add -->
-    <div class="quickAdd">
-      <input id="quickAddInput" type="text" placeholder="Quick add (paste a Teamworks line and press Enter)" />
-      <span class="chip" id="quickHint">Example: MIS111 PAR 11 due 2/25 9am DONE JD</span>
-    </div>
-
-    <!-- Tasks -->
-    <div class="tasksHead">
-      <div class="left">
-        <div class="title" id="dayTitle">—</div>
-        <div class="sub2" id="daySub">—</div>
-      </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn" id="copySummaryBtn" type="button">Copy summary</button>
-      </div>
-    </div>
-    <div id="tasksArea"></div>
-
-    <!-- Auto lists -->
-    <div class="row" style="margin-top:10px;">
-      <div class="col">
-        <label>Upcoming (auto)</label>
-        <textarea id="upcomingAuto" readonly></textarea>
-      </div>
-      <div class="col">
-        <label>Missing (auto)</label>
-        <textarea id="missingAuto" readonly></textarea>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<!-- Settings Drawer -->
-<div class="panel" id="settingsPanel" aria-hidden="true">
-  <div class="drawer" role="dialog" aria-label="Settings">
-    <div class="drawerHdr">
-      <div class="t">Settings</div>
-      <button class="close" id="closeSettingsBtn" type="button">Close</button>
-    </div>
-    <div class="pad">
+  <!-- Header / Meta + Meter -->
+  <div class="topbar">
+    <div class="top-left card pad">
       <div class="row">
         <div class="col">
+          <label>Student Name</label>
+          <input id="studentName" type="text" placeholder="First Last" autocomplete="off" />
+        </div>
+        <div class="col">
+          <label>Sport</label>
+          <select id="sport">
+            <option value="">Select sport</option>
+            <option>Baseball</option>
+            <option>Men's Basketball</option>
+            <option>Women's Basketball</option>
+            <option>Beach Volleyball</option>
+            <option>Cross Country</option>
+            <option>Football</option>
+            <option>Men's Golf</option>
+            <option>Women's Golf</option>
+            <option>Gymnastics</option>
+            <option>Soccer</option>
+            <option>Softball</option>
+            <option>Men's Swimming & Diving</option>
+            <option>Women's Swimming & Diving</option>
+            <option>Men's Tennis</option>
+            <option>Women's Tennis</option>
+            <option>Track & Field</option>
+            <option>Triathlon</option>
+            <option>Volleyball</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Week Of</label>
+          <input id="weekOf" type="date" />
+        </div>
+        <div class="col">
+          <label>Counselor</label>
+          <select id="counselor">
+            <option value="">Select counselor</option>
+            <option>Jennifer</option>
+            <option>Sarah</option>
+            <option>Andy Salgado</option>
+          </select>
+        </div>
+        <div class="col">
           <label>Learning Specialist</label>
-          <select id="ls"></select>
-        </div>
-        <div class="col">
-          <label>Academic Counselor</label>
-          <select id="counselor"></select>
-        </div>
-      </div>
-
-      <div style="margin-top:10px;">
-        <label>Staff note</label>
-        <textarea id="note"></textarea>
-      </div>
-
-      <div class="row" style="margin-top:10px;">
-        <div class="col">
-          <label>Learning Specialists (one per line)</label>
-          <textarea id="lsList"></textarea>
-        </div>
-        <div class="col">
-          <label>Academic Counselors (one per line)</label>
-          <textarea id="counselorList"></textarea>
+          <select id="ls">
+            <option value="">Select LS</option>
+            <option>Elias Ortega</option>
+            <option>Other LS</option>
+          </select>
         </div>
       </div>
 
-      <div class="row" style="margin-top:10px;">
-        <div class="col">
-          <label>Sports (one per line)</label>
-          <textarea id="sportList"></textarea>
+      <!-- Collapsible Calendar -->
+      <div class="monthWrap" id="monthWrap" aria-label="Calendar">
+        <div class="monthHdr">
+          <button class="iconBtn" id="toggleCalBtn" type="button" aria-expanded="true" style="display:flex; gap:8px; align-items:center;">
+            <span id="calChevron" aria-hidden="true">▾</span>
+            <span>Calendar</span>
+          </button>
+
+          <div class="title" id="monthTitle">—</div>
+
+          <div class="mhBtns" id="monthNavBtns">
+            <button class="iconBtn" id="prevMonthBtn" type="button">Prev</button>
+            <button class="iconBtn" id="nextMonthBtn" type="button">Next</button>
+          </div>
         </div>
-        <div class="col" style="min-width:260px;">
-          <label>&nbsp;</label>
-          <button class="btn blue" id="saveListsBtn" type="button">Save lists</button>
+
+        <div id="calBody">
+          <div class="grid" id="dowRow"></div>
+          <div class="grid" id="monthGrid"></div>
         </div>
+      </div>
+    </div>
+
+    <div class="top-right">
+      <div class="meter">
+        <div style="flex:1;">
+          <div class="small">Weekly Completion</div>
+          <div class="big"><span id="doneCount">0</span>/<span id="totalCount">0</span></div>
+          <div class="small"><span id="pct">0%</span> done</div>
+          <div class="small" id="localText" style="margin-top:6px;">Local backup: —</div>
+        </div>
+        <div class="pill blue" id="weekPill">Week: in progress</div>
+      </div>
+
+      <div class="btnrow" style="justify-content:flex-end;">
+        <button class="btn primary" id="loadWeek" type="button">Load Week</button>
+        <button class="btn" id="printSnapshot" type="button">Print Snapshot</button>
+        <button class="btn" id="copySummary" type="button">Copy</button>
+      </div>
+
+      <div class="hint" style="margin:0;">
+        Tip: Pick any day on the calendar to start the week from that date.
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="daily">Daily Plan</div>
+    <div class="tab" data-tab="notes">Quick Add</div>
+    <div class="tab" data-tab="track">Upcoming / Missing</div>
+  </div>
+
+  <!-- Daily -->
+  <div class="section active" id="daily">
+    <div class="card pad">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <div style="font-weight:900; color:var(--ua-blue);">Daily Plan</div>
+        <div class="btnrow">
+          <button class="btn" id="addStudyTemplate" type="button">Study Hall Template</button>
+          <button class="btn primary" id="addTaskToday" type="button">+ Add Task</button>
+        </div>
+      </div>
+
+      <div class="daybar" id="daybar"></div>
+      <div id="dayPanels"></div>
+    </div>
+  </div>
+
+  <!-- Quick Add (stays as-is + add Quick Note same style) -->
+  <div class="section" id="notes">
+    <div class="row">
+      <div class="col card pad">
+        <div style="font-weight:900; color:var(--ua-blue);">Quick Add</div>
+        <div class="hint">Drop the most important items for the week. Keep it short.</div>
+        <textarea data-key="quickAdd" id="quickAdd" placeholder="Ex: MIS SAR due Thu • BE quiz window Wed 11am"></textarea>
+      </div>
+
+      <div class="col card pad" id="quickNoteCard">
+        <div style="font-weight:900; color:var(--ua-blue);">Quick Note</div>
+        <div class="hint">If it matters right now, put it here. It will show at the top.</div>
+        <textarea data-key="quickNote" id="quickNote" placeholder="Ex: Needs help structuring MIS ABP project. Time-sensitive."></textarea>
+        <div style="height:8px;"></div>
+        <div class="btnrow" style="justify-content:flex-end;">
+          <button class="btn danger" id="clearQuickNote" type="button">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upcoming/Missing -->
+  <div class="section" id="track">
+    <div class="row">
+      <div class="col card pad">
+        <div style="font-weight:900; color:var(--ua-blue);">Upcoming</div>
+        <textarea data-key="upcoming" placeholder="Deadlines coming soon"></textarea>
+      </div>
+      <div class="col card pad">
+        <div style="font-weight:900; color:var(--ua-blue);">Missing</div>
+        <textarea data-key="missing" placeholder="Missing assignments"></textarea>
       </div>
     </div>
   </div>
@@ -580,12 +515,12 @@
 <div class="sticky">
   <div class="inner">
     <div class="status" id="status">
-      <strong>Idle</strong> · set Student + Start date
+      Status: <strong>idle</strong>
+      <span class="meta" id="statusMeta">Set Student + Week to enable autosave.</span>
     </div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="btn" id="loadBtn" type="button">Load</button>
-      <button class="btn" id="saveNowBtn" type="button">Save</button>
-      <button class="btn" id="resetBtn" type="button">Reset</button>
+    <div class="btnrow">
+      <button class="btn" id="saveNow" type="button">Save Now</button>
+      <button class="btn danger" id="resetPage" type="button">Reset</button>
     </div>
   </div>
 </div>
@@ -593,1169 +528,678 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ================================
-   CONFIG
-================================== */
-const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
+  const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
+  const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
-/* ================================
-   DEFAULT LISTS
-================================== */
-const DEFAULTS = {
-  ls: ["Elias Ortega","Other LS"],
-  counselors: ["Jennifer","Sarah","Andy Salgado"],
-  sports: [
-    "Baseball","Men's Basketball","Women's Basketball","Beach Volleyball","Cross Country",
-    "Football","Men's Golf","Women's Golf","Gymnastics","Soccer","Softball",
-    "Men's Swimming & Diving","Women's Swimming & Diving","Men's Tennis","Women's Tennis",
-    "Track & Field","Triathlon","Volleyball"
-  ]
-};
+  let saveTimer = null;
+  let lastSavedHash = "";
+  let selectedDayIndex = 0;
+  let refreshTimer = null;
+  let isApplyingLoad = false;
 
-/* ================================
-   STATE
-================================== */
-let selectedDateISO = "";     // yyyy-mm-dd inside 7-day strip
-let weekDates = [];           // 7 ISO dates starting from startDate
-let saveTimer = null;
-let isApplyingLoad = false;
-let lastSavedHash = "";
+  // Calendar state
+  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  let monthAnchor = new Date();
+  monthAnchor.setDate(1);
+  let selectedDateISO = ""; // week start date (any day)
+  let calCollapsed = false;
 
-/* Month calendar state */
-let calYear = new Date().getFullYear();
-let calMonth = new Date().getMonth(); // 0-11
+  // ---------- UI helpers ----------
+  function nowStamp(){ return new Date().toLocaleString(); }
 
-/* ================================
-   HELPERS
-================================== */
-function toast(msg){
-  const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.classList.add("show");
-  clearTimeout(el._t);
-  el._t = setTimeout(()=>el.classList.remove("show"), 1400);
-}
-function setStatus(title, detail){
-  const el = document.getElementById("status");
-  el.innerHTML = `<strong>${title}</strong>` + (detail ? ` · ${detail}` : "");
-}
-function nowStamp(){ return new Date().toLocaleString(); }
-
-function iso(d){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const da = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${da}`;
-}
-function parseISO(s){
-  const [y,m,d] = s.split("-").map(Number);
-  return new Date(y, m-1, d);
-}
-function fmtDow(date){
-  return date.toLocaleDateString(undefined, { weekday:"short" });
-}
-function fmtMD(date){
-  return date.toLocaleDateString(undefined, { month:"short", day:"numeric" });
-}
-function fmtLong(date){
-  return date.toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" });
-}
-function uid(){
-  return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-}
-
-/* ================================
-   LISTS (editable)
-================================== */
-function listStoreKey(name){ return `cats_lists_${name}`; }
-
-function loadLists(){
-  const ls = JSON.parse(localStorage.getItem(listStoreKey("ls")) || "null") || DEFAULTS.ls;
-  const counselors = JSON.parse(localStorage.getItem(listStoreKey("counselors")) || "null") || DEFAULTS.counselors;
-  const sports = JSON.parse(localStorage.getItem(listStoreKey("sports")) || "null") || DEFAULTS.sports;
-  return { ls, counselors, sports };
-}
-function saveListsToStorage(lists){
-  localStorage.setItem(listStoreKey("ls"), JSON.stringify(lists.ls));
-  localStorage.setItem(listStoreKey("counselors"), JSON.stringify(lists.counselors));
-  localStorage.setItem(listStoreKey("sports"), JSON.stringify(lists.sports));
-}
-function fillSelect(selectEl, items, placeholder){
-  selectEl.innerHTML = "";
-  const opt0 = document.createElement("option");
-  opt0.value = "";
-  opt0.textContent = placeholder || "Select";
-  selectEl.appendChild(opt0);
-  items.forEach(v=>{
-    const o=document.createElement("option");
-    o.value=v; o.textContent=v;
-    selectEl.appendChild(o);
-  });
-}
-function initListEditor(){
-  const lists = loadLists();
-  document.getElementById("lsList").value = lists.ls.join("\n");
-  document.getElementById("counselorList").value = lists.counselors.join("\n");
-  document.getElementById("sportList").value = lists.sports.join("\n");
-
-  fillSelect(document.getElementById("ls"), lists.ls, "Select LS");
-  fillSelect(document.getElementById("counselor"), lists.counselors, "Select counselor");
-  fillSelect(document.getElementById("sport"), lists.sports, "Select sport");
-}
-
-/* ================================
-   RECORD KEY + LOCAL CACHE
-================================== */
-function stableKey(){
-  const student = (document.getElementById("studentName").value || "").trim();
-  const start = document.getElementById("startDate").value || "";
-  return { student, start, key: (student + "|" + start).toLowerCase() };
-}
-function hasRequiredKey(){
-  const sk = stableKey();
-  return !!(sk.student && sk.start);
-}
-function cacheKey(){ return "cats_week_data_" + stableKey().key; }
-
-function cacheSave(data){
-  try{ localStorage.setItem(cacheKey(), JSON.stringify(data)); }catch(e){}
-}
-function cacheLoad(){
-  try{
-    const raw = localStorage.getItem(cacheKey());
-    return raw ? JSON.parse(raw) : null;
-  }catch(e){ return null; }
-}
-
-/* ================================
-   WEEK (7 days from start)
-================================== */
-function buildWeekFrom(startISO){
-  const d0 = parseISO(startISO);
-  const dates = [];
-  for(let i=0;i<7;i++){
-    const d = new Date(d0);
-    d.setDate(d0.getDate()+i);
-    dates.push(iso(d));
-  }
-  return dates;
-}
-function ensureWeek(){
-  const startISO = document.getElementById("startDate").value;
-  if(!startISO) return;
-
-  weekDates = buildWeekFrom(startISO);
-  if(!selectedDateISO || !weekDates.includes(selectedDateISO)){
-    selectedDateISO = weekDates[0];
+  function toast(msg){
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(el._t);
+    el._t = setTimeout(()=>el.classList.remove("show"), 1600);
   }
 
-  renderStrip();
-  renderTasksForSelectedDay();
-  updateDayHeader();
-  updateProgressAndAutos();
-}
+  function setStatus(state, meta){
+    const el = document.getElementById("status");
+    el.innerHTML = "Status: <strong>" + state + "</strong>";
+    const metaEl = document.getElementById("statusMeta");
+    if(typeof meta === "string") metaEl.textContent = meta;
+  }
 
-/* ================================
-   TASKS (DOM as truth)
-   Keys:
-   task_{dateISO}_{id}_text
-   task_{dateISO}_{id}_done
-   task_{dateISO}_{id}_course
-   task_{dateISO}_{id}_type
-   task_{dateISO}_{id}_due
-   task_{dateISO}_{id}_by
-   task_{dateISO}_{id}_missing
-   task_{dateISO}_{id}_note
-================================== */
-function tasksArea(){ return document.getElementById("tasksArea"); }
-function getAllTaskRows(){ return Array.from(document.querySelectorAll(".taskRow")); }
+  function setSyncText(text){ document.getElementById("syncText").textContent = "Last synced: " + text; }
+  function setLocalText(text){ document.getElementById("localText").textContent = "Local backup: " + text; }
 
-function addTaskRow(dateISO, seed={}){
-  const id = seed.id || uid();
-  const row = document.createElement("div");
-  row.className = "taskRow";
-  row.dataset.date = dateISO;
-  row.dataset.tid = id;
+  // ---------- connection indicator ----------
+  function updateOnlineChip(){
+    const online = navigator.onLine;
+    const dot = document.getElementById("dotOnline");
+    const txt = document.getElementById("onlineText");
+    if(online){ dot.className = "dot green"; txt.textContent = "Online"; }
+    else{ dot.className = "dot red"; txt.textContent = "Offline"; }
+  }
+  window.addEventListener("online", ()=>{ updateOnlineChip(); toast("Back online"); });
+  window.addEventListener("offline", ()=>{ updateOnlineChip(); toast("Offline mode"); });
+  updateOnlineChip();
 
-  const text = seed.text || "";
-  const done = !!seed.done;
-  const course = seed.course || "";
-  const type = seed.type || "";
-  const due = seed.due || "";
-  const by = seed.by || "";
-  const missing = !!seed.missing;
-  const note = seed.note || "";
+  // ---------- record key ----------
+  function stableKey(){
+    const student = (document.getElementById("studentName").value || "").trim();
+    const week = document.getElementById("weekOf").value || "";
+    return { student, week, key: (student + "|" + week).toLowerCase() };
+  }
+  function hasRequiredKey(){
+    const sk = stableKey();
+    return !!(sk.student && sk.week);
+  }
+  function cacheKey(){ return "cats_week_data_" + stableKey().key; }
+  function metaKey(){ return "cats_week_meta_" + stableKey().key; }
 
-  row.innerHTML = `
-    <input type="checkbox" data-key="task_${dateISO}_${id}_done" aria-label="Done">
-    <div class="taskMain">
-      <div class="taskTop">
-        <input type="text" data-key="task_${dateISO}_${id}_text" placeholder="Task" aria-label="Task">
-        <span class="miniTag info" data-role="courseTag" style="display:${course ? "inline-flex":"none"};">${escapeHtml(course)}</span>
-        <span class="miniTag miss" data-role="missingTag" style="display:none;">Missing</span>
-        <span class="miniTag urgent" data-role="dueTag" style="display:none;"></span>
-        <span class="miniTag done" data-role="doneTag" style="display:none;">Done</span>
-      </div>
+  // ---------- fields ----------
+  function allFields(){
+    return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls");
+  }
 
-      <div class="taskMeta">
-        <button class="moreBtn" type="button" data-role="moreBtn">Details</button>
-      </div>
+  function collectData(){
+    const data = {};
+    allFields().forEach(el=>{
+      const key = el.getAttribute("data-key") || el.id;
+      data[key] = (el.type === "checkbox") ? el.checked : el.value;
+    });
+    const sk = stableKey();
+    data["recordKey"] = sk.key;
+    data["Student Name"] = sk.student;
+    data["Week Of"] = sk.week;
+    return data;
+  }
 
-      <div class="details" data-role="details">
-        <div class="row">
-          <div class="col">
-            <label>Course</label>
-            <input class="smallInput" type="text" data-key="task_${dateISO}_${id}_course" placeholder="MIS111" />
-          </div>
-          <div class="col">
-            <label>Type</label>
-            <select class="smallInput" data-key="task_${dateISO}_${id}_type">
-              <option value="">—</option>
-              <option value="Due">Due</option>
-              <option value="In-class">In-class</option>
-              <option value="Opens">Opens</option>
-              <option value="Note">Note</option>
-            </select>
-          </div>
-          <div class="col">
-            <label>Date/time</label>
-            <input class="smallInput" type="text" data-key="task_${dateISO}_${id}_due" placeholder="2/25 9am" />
-          </div>
-        </div>
+  function hashData(obj){ return JSON.stringify(obj); }
 
-        <div class="row">
-          <div class="col">
-            <label>Done by</label>
-            <input class="tinyInput" type="text" maxlength="3" data-key="task_${dateISO}_${id}_by" placeholder="JD" />
-          </div>
-          <div class="col">
-            <label>Missing</label>
-            <select class="smallInput" data-key="task_${dateISO}_${id}_missing">
-              <option value="false">No</option>
-              <option value="true">Yes</option>
-            </select>
-          </div>
-          <div class="col">
-            <label>Note</label>
-            <input class="smallInput" type="text" data-key="task_${dateISO}_${id}_note" placeholder="" />
-          </div>
-        </div>
-      </div>
-    </div>
-    <span class="x" role="button" aria-label="Remove">×</span>
-  `;
+  // ---------- progress ----------
+  function updateProgress(){
+    const checks = document.querySelectorAll('input[type="checkbox"][data-key]');
+    let total = 0, done = 0;
+    checks.forEach(c=>{ total++; if(c.checked) done++; });
 
-  // Set values
-  row.querySelector(`[data-key="task_${dateISO}_${id}_text"]`).value = text;
-  row.querySelector(`[data-key="task_${dateISO}_${id}_done"]`).checked = done;
-  row.querySelector(`[data-key="task_${dateISO}_${id}_course"]`).value = course;
-  row.querySelector(`[data-key="task_${dateISO}_${id}_type"]`).value = type;
-  row.querySelector(`[data-key="task_${dateISO}_${id}_due"]`).value = due;
-  row.querySelector(`[data-key="task_${dateISO}_${id}_by"]`).value = by.toUpperCase();
-  row.querySelector(`[data-key="task_${dateISO}_${id}_missing"]`).value = missing ? "true" : "false";
-  row.querySelector(`[data-key="task_${dateISO}_${id}_note"]`).value = note;
+    document.getElementById("totalCount").textContent = total;
+    document.getElementById("doneCount").textContent = done;
 
-  // Details toggle
-  const moreBtn = row.querySelector(`[data-role="moreBtn"]`);
-  const details = row.querySelector(`[data-role="details"]`);
-  moreBtn.addEventListener("click", ()=>{
-    details.classList.toggle("show");
-    moreBtn.textContent = details.classList.contains("show") ? "Hide" : "Details";
+    const pct = total ? Math.round((done/total)*100) : 0;
+    document.getElementById("pct").textContent = pct + "%";
+
+    const weekPill = document.getElementById("weekPill");
+    weekPill.classList.remove("good","warn","blue");
+    if(total > 0 && pct === 100){
+      weekPill.textContent = "Week: complete";
+      weekPill.classList.add("good");
+    }else if(total > 0 && pct >= 60){
+      weekPill.textContent = "Week: strong";
+      weekPill.classList.add("blue");
+    }else if(total > 0 && pct >= 25){
+      weekPill.textContent = "Week: building";
+      weekPill.classList.add("warn");
+    }else{
+      weekPill.textContent = "Week: in progress";
+      weekPill.classList.add("blue");
+    }
+  }
+
+  // ---------- ids / tasks ----------
+  function uid(){ return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  // ---------- daily plan ----------
+  const daybar = document.getElementById("daybar");
+  const dayPanels = document.getElementById("dayPanels");
+
+  function addDayTask(dayIndex, text="", done=false){
+    const id = uid();
+    const panel = document.getElementById("daypanel_" + dayIndex);
+    const wrap = document.createElement("div");
+    wrap.className = "task";
+    wrap.innerHTML = `
+      <input type="checkbox" data-key="d${dayIndex}_${id}_done" aria-label="Task done">
+      <input type="text" data-key="d${dayIndex}_${id}_text" placeholder="Task" aria-label="Task text">
+      <span class="x" title="Remove" aria-label="Remove task" role="button">×</span>
+    `;
+    wrap.querySelector(`[data-key="d${dayIndex}_${id}_done"]`).checked = !!done;
+    wrap.querySelector(`[data-key="d${dayIndex}_${id}_text"]`).value = text || "";
+    wrap.querySelector(".x").addEventListener("click",(e)=>{
+      e.stopPropagation();
+      wrap.remove();
+      updateProgress();
+      debounceSave();
+    });
+    panel.appendChild(wrap);
+    updateProgress();
+  }
+
+  function setSelectedDay(i){
+    selectedDayIndex = i;
+    document.querySelectorAll(".daybtn").forEach((b,idx)=>b.classList.toggle("active", idx===i));
+    document.querySelectorAll(".daypanel").forEach((p,idx)=>p.classList.toggle("active", idx===i));
+  }
+
+  days.forEach((d,i)=>{
+    const b = document.createElement("button");
+    b.className = "daybtn";
+    b.type = "button";
+    b.textContent = d.slice(0,3);
+    b.addEventListener("click", ()=>setSelectedDay(i));
+    daybar.appendChild(b);
+
+    const p = document.createElement("div");
+    p.className = "daypanel";
+    p.id = "daypanel_" + i;
+    dayPanels.appendChild(p);
   });
 
-  // Remove
-  row.querySelector(".x").addEventListener("click", ()=>{
-    row.remove();
-    renderStrip();
-    updateProgressAndAutos();
+  (function pickToday(){
+    const jsDay = new Date().getDay(); // Sun=0
+    const map = {1:0,2:1,3:2,4:3,5:4,6:5,0:6};
+    setSelectedDay(map[jsDay] ?? 0);
+  })();
+
+  document.getElementById("addTaskToday").addEventListener("click", ()=>{
+    addDayTask(selectedDayIndex,"");
     debounceSave();
   });
 
-  // Update tags based on values
-  wireRowUI(row);
-
-  tasksArea().appendChild(row);
-}
-
-function wireRowUI(row){
-  const dateISO = row.dataset.date;
-  const id = row.dataset.tid;
-
-  const doneEl = row.querySelector(`[data-key="task_${dateISO}_${id}_done"]`);
-  const txtEl  = row.querySelector(`[data-key="task_${dateISO}_${id}_text"]`);
-  const courseEl = row.querySelector(`[data-key="task_${dateISO}_${id}_course"]`);
-  const typeEl = row.querySelector(`[data-key="task_${dateISO}_${id}_type"]`);
-  const dueEl = row.querySelector(`[data-key="task_${dateISO}_${id}_due"]`);
-  const byEl = row.querySelector(`[data-key="task_${dateISO}_${id}_by"]`);
-  const missingEl = row.querySelector(`[data-key="task_${dateISO}_${id}_missing"]`);
-  const noteEl = row.querySelector(`[data-key="task_${dateISO}_${id}_note"]`);
-
-  const courseTag = row.querySelector(`[data-role="courseTag"]`);
-  const dueTag = row.querySelector(`[data-role="dueTag"]`);
-  const doneTag = row.querySelector(`[data-role="doneTag"]`);
-  const missingTag = row.querySelector(`[data-role="missingTag"]`);
-
-  function refreshTags(){
-    const course = (courseEl.value || "").trim();
-    const type = (typeEl.value || "").trim();
-    const due = (dueEl.value || "").trim();
-    const done = !!doneEl.checked;
-    const missing = (missingEl.value === "true");
-
-    // course tag
-    if(course){
-      courseTag.style.display = "inline-flex";
-      courseTag.textContent = course.toUpperCase();
-    }else{
-      courseTag.style.display = "none";
-    }
-
-    // missing tag
-    missingTag.style.display = missing ? "inline-flex" : "none";
-
-    // done tag
-    doneTag.style.display = done ? "inline-flex" : "none";
-
-    // due tag
-    if(type || due){
-      dueTag.style.display = "inline-flex";
-      const left = type ? type : "Date";
-      const right = due ? due : "—";
-      dueTag.textContent = `${left}: ${right}`;
-    }else{
-      dueTag.style.display = "none";
-      dueTag.textContent = "";
-    }
-  }
-
-  // When done is checked, auto uppercase initials
-  doneEl.addEventListener("change", ()=>{
-    byEl.value = (byEl.value || "").toUpperCase();
-    refreshTags();
+  document.getElementById("addStudyTemplate").addEventListener("click", ()=>{
+    ["Check Brightspace + due dates","Finish highest-impact assignment","Submit + confirm submission"]
+      .forEach(t=>addDayTask(selectedDayIndex, t, false));
+    debounceSave();
   });
 
-  [txtEl, courseEl, typeEl, dueEl, byEl, missingEl, noteEl].forEach(el=>{
-    el.addEventListener("input", ()=>{
-      if(el === byEl) el.value = (el.value || "").toUpperCase().slice(0,3);
-      refreshTags();
+  // ---------- tabs ----------
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.addEventListener("click", ()=>{
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      t.classList.add("active");
+      const id = t.getAttribute("data-tab");
+      document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+      window.scrollTo({top:0, behavior:"smooth"});
     });
-    el.addEventListener("change", refreshTags);
   });
 
-  refreshTags();
-}
-
-function renderTasksForSelectedDay(){
-  getAllTaskRows().forEach(r=>{
-    r.style.display = (r.dataset.date === selectedDateISO) ? "flex" : "none";
-  });
-}
-
-function seedWeekTemplateIfEmpty(){
-  // If there are zero tasks for this record, seed 1 blank per day (simple starter template)
-  const any = getAllTaskRows().length > 0;
-  if(any || weekDates.length !== 7) return;
-
-  weekDates.forEach(d=>{
-    addTaskRow(d, { text:"", done:false });
-  });
-
-  renderTasksForSelectedDay();
-  renderStrip();
-  updateProgressAndAutos();
-}
-
-/* ================================
-   STRIP
-================================== */
-function countForDate(dateISO){
-  const rows = getAllTaskRows().filter(r => r.dataset.date === dateISO);
-  const total = rows.length;
-  const done = rows.filter(r => r.querySelector('input[type="checkbox"]').checked).length;
-  return { total, done };
-}
-
-function renderStrip(){
-  const strip = document.getElementById("calStrip");
-  strip.innerHTML = "";
-  weekDates.forEach(dateISO=>{
-    const d = parseISO(dateISO);
-    const { total, done } = countForDate(dateISO);
-
-    const card = document.createElement("div");
-    card.className = "dayCard" + (dateISO === selectedDateISO ? " active" : "");
-    card.innerHTML = `
-      <div class="dow">${fmtDow(d)}</div>
-      <div class="date">${fmtMD(d)}</div>
-      <div class="mini"><span>Done</span><strong>${done}/${total}</strong></div>
-    `;
-    card.addEventListener("click", ()=>{
-      selectedDateISO = dateISO;
-      renderStrip();
-      renderTasksForSelectedDay();
-      updateDayHeader();
-      updateProgressAndAutos();
-      debounceSave();
-      // update month selection highlight
-      syncMonthSelected();
-    });
-    strip.appendChild(card);
-  });
-}
-
-/* ================================
-   DAY HEADER + PROGRESS + AUTO LISTS
-================================== */
-function updateDayHeader(){
-  if(!selectedDateISO){
-    document.getElementById("dayTitle").textContent = "—";
-    document.getElementById("daySub").textContent = "—";
-    return;
+  // ---------- local cache ----------
+  function cacheSave(data, meta){
+    try{
+      localStorage.setItem(cacheKey(), JSON.stringify(data));
+      localStorage.setItem(metaKey(), JSON.stringify(meta));
+      setLocalText(meta?.localSavedAt ? meta.localSavedAt : "saved");
+    }catch(e){}
   }
-  const d = parseISO(selectedDateISO);
-  document.getElementById("dayTitle").textContent = fmtLong(d);
-  document.getElementById("daySub").textContent = selectedDateISO;
-}
-
-function updateProgressAndAutos(){
-  const rows = getAllTaskRows();
-  const checks = rows.map(r => r.querySelector('input[type="checkbox"]'));
-  const total = checks.length;
-  const done = checks.filter(c => c.checked).length;
-  const pct = total ? Math.round((done/total)*100) : 0;
-
-  document.getElementById("kpiText").textContent = `${done}/${total}`;
-  document.getElementById("fillBar").style.width = pct + "%";
-
-  const pill = document.getElementById("flagPill");
-  pill.className = "flag";
-  if(total === 0){
-    pill.textContent = "—";
-  } else if(pct >= 70){
-    pill.textContent = "On track";
-    pill.classList.add("good");
-  } else if(pct >= 35){
-    pill.textContent = "Watch";
-    pill.classList.add("warn");
-  } else {
-    pill.textContent = "Urgent";
-    pill.classList.add("bad");
+  function cacheLoad(){
+    try{
+      const raw = localStorage.getItem(cacheKey());
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+  function cacheMeta(){
+    try{
+      const raw = localStorage.getItem(metaKey());
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
   }
 
-  // Auto Upcoming + Missing
-  buildAutoLists();
-}
-
-function buildAutoLists(){
-  const upcoming = [];
-  const missing = [];
-
-  // Interpret "due" as an optional date/time string; if it includes a date, we sort lightly
-  const rows = getAllTaskRows();
-
-  rows.forEach(r=>{
-    const dateISO = r.dataset.date;
-    const id = r.dataset.tid;
-
-    const text = (r.querySelector(`[data-key="task_${dateISO}_${id}_text"]`).value || "").trim();
-    const course = (r.querySelector(`[data-key="task_${dateISO}_${id}_course"]`).value || "").trim();
-    const type = (r.querySelector(`[data-key="task_${dateISO}_${id}_type"]`).value || "").trim();
-    const due = (r.querySelector(`[data-key="task_${dateISO}_${id}_due"]`).value || "").trim();
-    const done = r.querySelector(`[data-key="task_${dateISO}_${id}_done"]`).checked;
-    const miss = (r.querySelector(`[data-key="task_${dateISO}_${id}_missing"]`).value === "true");
-
-    const lineCore = [
-      course ? course.toUpperCase() : "",
-      text ? text : ""
-    ].filter(Boolean).join(" — ");
-
-    const when = [];
-    if(type) when.push(type);
-    if(due) when.push(due);
-    const whenStr = when.length ? ` (${when.join(": ").replace("Opens:","Opens").replace("Due:","Due")})` : "";
-
-    // Missing list: flagged missing and not done
-    if(miss && !done && lineCore){
-      missing.push(`${dateISO} — ${lineCore}${whenStr}`);
-    }
-
-    // Upcoming list: not done and is after selectedDateISO within a 14-day horizon from startDate
-    // (kept simple and predictable)
-    if(lineCore && !done){
-      const startISO = document.getElementById("startDate").value || "";
-      if(startISO){
-        const startD = parseISO(startISO);
-        const horizon = new Date(startD); horizon.setDate(startD.getDate()+13);
-        const taskD = parseISO(dateISO);
-        if(taskD > parseISO(selectedDateISO || startISO) && taskD <= horizon){
-          upcoming.push(`${dateISO} — ${lineCore}${whenStr}`);
-        }
-      }
-    }
-  });
-
-  document.getElementById("upcomingAuto").value = upcoming.join("\n");
-  document.getElementById("missingAuto").value = missing.join("\n");
-}
-
-/* ================================
-   DATA COLLECT / APPLY
-================================== */
-function allFields(){
-  return document.querySelectorAll(
-    "[data-key], #studentName, #sport, #startDate, #ls, #counselor, #note"
-  );
-}
-
-function collectData(){
-  const data = {};
-  allFields().forEach(el=>{
-    const key = el.getAttribute("data-key") || el.id;
-    data[key] = (el.type === "checkbox") ? el.checked : el.value;
-  });
-
-  const sk = stableKey();
-  data["recordKey"] = sk.key;
-  data["Student Name"] = sk.student;
-  data["Start Date"] = sk.start;
-  data["selectedDateISO"] = selectedDateISO || "";
-  data["weekDates"] = JSON.stringify(weekDates || []);
-  data["savedAt"] = nowStamp();
-
-  return data;
-}
-
-function clearAllTasks(){
-  tasksArea().innerHTML = "";
-}
-
-function applyLoaded(obj){
-  isApplyingLoad = true;
-
-  document.getElementById("sport").value = obj.sport || "";
-  document.getElementById("ls").value = obj.ls || "";
-  document.getElementById("counselor").value = obj.counselor || "";
-  document.getElementById("note").value = obj.note || "";
-
-  // Restore week/selected
-  try{
-    const w = JSON.parse(obj.weekDates || "[]");
-    if(Array.isArray(w) && w.length === 7) weekDates = w;
-  }catch(e){}
-  selectedDateISO = obj.selectedDateISO || (weekDates[0] || "");
-
-  clearAllTasks();
-
-  // Rebuild from keys
-  const seen = new Set();
-  Object.keys(obj).forEach(k=>{
-    const m = k.match(/^task_(\d{4}-\d{2}-\d{2})_(.+)_text$/);
-    if(m){
-      const dateISO = m[1];
-      const id = m[2];
-      if(seen.has(dateISO+"|"+id)) return;
-      seen.add(dateISO+"|"+id);
-
-      addTaskRow(dateISO, {
-        id,
-        text: obj[`task_${dateISO}_${id}_text`] || "",
-        done: (obj[`task_${dateISO}_${id}_done`] === true || obj[`task_${dateISO}_${id}_done`] === "true"),
-        course: obj[`task_${dateISO}_${id}_course`] || "",
-        type: obj[`task_${dateISO}_${id}_type`] || "",
-        due: obj[`task_${dateISO}_${id}_due`] || "",
-        by: obj[`task_${dateISO}_${id}_by`] || "",
-        missing: (String(obj[`task_${dateISO}_${id}_missing`] || "false") === "true"),
-        note: obj[`task_${dateISO}_${id}_note`] || ""
-      });
-    }
-  });
-
-  // If start date is set but weekDates missing, rebuild
-  const startISO = document.getElementById("startDate").value;
-  if((!weekDates || weekDates.length !== 7) && startISO){
-    weekDates = buildWeekFrom(startISO);
-  }
-  if(!weekDates.includes(selectedDateISO)) selectedDateISO = weekDates[0] || selectedDateISO;
-
-  renderStrip();
-  renderTasksForSelectedDay();
-  updateDayHeader();
-  updateProgressAndAutos();
-
-  lastSavedHash = JSON.stringify(collectData());
-
-  // sync month calendar to start date month
-  syncCalendarToStart();
-  syncMonthSelected();
-
-  isApplyingLoad = false;
-}
-
-/* ================================
-   SAVE / LOAD
-================================== */
-function debounceSave(){
-  if(isApplyingLoad) return;
-  if(!hasRequiredKey()){
-    setStatus("Idle","set Student + Start date");
-    return;
-  }
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>saveAll(false), 650);
-  setStatus("Typing","autosave");
-}
-
-async function saveAll(force=false){
-  if(!hasRequiredKey()){
-    setStatus("Idle","set Student + Start date");
-    return;
-  }
-
-  const data = collectData();
-  const h = JSON.stringify(data);
-  if(!force && h === lastSavedHash){
-    setStatus("Saved","up to date");
-    return;
-  }
-
-  // local first
-  cacheSave(data);
-
-  // server
-  try{
-    setStatus("Saving","syncing");
-    await fetch(webAppURL, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify(data)
-    });
-    lastSavedHash = h;
-    setStatus("Saved", nowStamp());
-  }catch(err){
-    setStatus("Offline","saved locally");
-  }
-}
-
-async function loadRecord(silent=false){
-  if(!hasRequiredKey()){
-    setStatus("Idle","set Student + Start date");
-    if(!silent) toast("Set Student + Start date");
-    return;
-  }
-
-  setStatus("Loading","shared");
-  const sk = stableKey();
-
-  // server first
-  try{
-    const url = webAppURL + "?studentName=" + encodeURIComponent(sk.student) + "&weekOf=" + encodeURIComponent(sk.start);
-    const res = await fetch(url, { method:"GET" });
-    const obj = await res.json();
-    if(obj && !obj.error){
-      applyLoaded(obj);
-      setStatus("Loaded", nowStamp());
-      if(!silent) toast("Loaded");
+  // ---------- autosave gating ----------
+  function debounceSave(){
+    if(isApplyingLoad) return;
+    if(!hasRequiredKey()){
+      setStatus("idle","Set Student + Week to enable autosave.");
       return;
     }
-  }catch(e){}
-
-  // local fallback
-  const cached = cacheLoad();
-  if(cached){
-    applyLoaded(cached);
-    setStatus("Loaded (local)", nowStamp());
-    if(!silent) toast("Loaded (local)");
-  }else{
-    setStatus("Not found","");
-    if(!silent) toast("No record found");
-  }
-}
-
-/* ================================
-   QUICK ADD PARSER (simple + forgiving)
-   Accepts lines like:
-   MIS111 PAR 11 due 2/25 9am DONE JD
-   BE Module 6 quiz due (2/23) DONE JR
-================================== */
-function parseQuickAdd(line){
-  const raw = (line || "").trim();
-  if(!raw) return null;
-
-  const out = {
-    course: "",
-    text: raw,
-    type: "",
-    due: "",
-    done: false,
-    by: "",
-    missing: false,
-    note: ""
-  };
-
-  // DONE initials
-  const doneMatch = raw.match(/\bDONE\b\s*([A-Za-z]{1,3})?/i);
-  if(doneMatch){
-    out.done = true;
-    out.by = (doneMatch[1] || "").toUpperCase();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(()=>saveAll(false), 700);
+    setStatus("typing...","Autosave on.");
   }
 
-  // Missing flag
-  if(/\bmissing\b/i.test(raw) || /\bmissed\b/i.test(raw)){
-    out.missing = true;
+  // ---------- calendar helpers ----------
+  function toISO(d){
+    const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth()+1).padStart(2,"0");
+    const da = String(dt.getDate()).padStart(2,"0");
+    return `${y}-${m}-${da}`;
+  }
+  function fromISO(iso){
+    const [y,m,d] = iso.split("-").map(n=>parseInt(n,10));
+    return new Date(y, m-1, d);
+  }
+  function formatMonthTitle(d){
+    return d.toLocaleString(undefined, { month:"long", year:"numeric" });
   }
 
-  // Course: first token like MIS111 / BE170 / RELI367 etc.
-  const courseMatch = raw.match(/^([A-Za-z]{2,6}\s?\d{2,4})\b/);
-  if(courseMatch){
-    out.course = courseMatch[1].replace(/\s+/g,"").toUpperCase();
-  } else {
-    // Sometimes "BE Module 6..." (course = BE)
-    const shortCourse = raw.match(/^([A-Za-z]{2,4})\b/);
-    if(shortCourse && shortCourse[1].length <= 4){
-      out.course = shortCourse[1].toUpperCase();
+  function setCalendarCollapsed(isCollapsed){
+    calCollapsed = !!isCollapsed;
+    const body = document.getElementById("calBody");
+    const chev = document.getElementById("calChevron");
+    const btn = document.getElementById("toggleCalBtn");
+    const nav = document.getElementById("monthNavBtns");
+
+    if(calCollapsed){
+      body.classList.add("collapsed");
+      chev.textContent = "▸";
+      btn.setAttribute("aria-expanded","false");
+      if(nav) nav.style.display = "none";
+    }else{
+      body.classList.remove("collapsed");
+      chev.textContent = "▾";
+      btn.setAttribute("aria-expanded","true");
+      if(nav) nav.style.display = "flex";
     }
   }
 
-  // Type keywords
-  if(/\bin class\b/i.test(raw) || /\bicq\b/i.test(raw)) out.type = "In-class";
-  if(/\bopens\b/i.test(raw)) out.type = out.type || "Opens";
-  if(/\bdue\b/i.test(raw)) out.type = out.type || "Due";
-  if(/\bnote\b/i.test(raw)) out.type = out.type || "Note";
-
-  // Due/time chunk: look for parenthetical date or "due 2/25 9am"
-  const parenDate = raw.match(/\(([^)]*?\d{1,2}\/\d{1,2}[^)]*)\)/);
-  if(parenDate) out.due = parenDate[1].trim();
-
-  const duePhrase = raw.match(/\bdue\b[:\s]*([^\n]*?)(\bDONE\b|\bOPEN\b|$)/i);
-  if(!out.due && duePhrase){
-    const frag = duePhrase[1].trim();
-    // keep it short
-    out.due = frag.replace(/[,\-–—]+$/,"").trim();
-  }
-
-  // Clean text: remove trailing DONE initials and remove due parenthesis for the task title
-  let clean = raw
-    .replace(/\bDONE\b\s*[A-Za-z]{0,3}\b/i, "")
-    .replace(/\bOPEN\b/i, "")
-    .replace(/\(.*?\)/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-  // If it begins with course token, keep the rest as task text
-  if(out.course){
-    const re = new RegExp("^" + out.course.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*", "i");
-    clean = clean.replace(re, "").trim();
-  }
-
-  // If we still have "due ..." inside title, strip it
-  clean = clean.replace(/\bdue\b.*$/i, "").trim();
-
-  out.text = clean || raw;
-  return out;
-}
-
-/* ================================
-   MONTH CALENDAR (embedded)
-================================== */
-function buildDowHeader(){
-  const dows = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const row = document.getElementById("dowRow");
-  row.innerHTML = "";
-  dows.forEach(d=>{
-    const c = document.createElement("div");
-    c.className = "dowCell";
-    c.textContent = d;
-    row.appendChild(c);
+  document.getElementById("toggleCalBtn").addEventListener("click", ()=>{
+    setCalendarCollapsed(!calCollapsed);
   });
-}
 
-function renderMonthCalendar(){
-  const grid = document.getElementById("monthGrid");
-  grid.innerHTML = "";
+  function renderMonthCalendar(){
+    document.getElementById("monthTitle").textContent = formatMonthTitle(monthAnchor);
 
-  const first = new Date(calYear, calMonth, 1);
-  const last = new Date(calYear, calMonth+1, 0);
-  const startDay = first.getDay(); // 0 Sun
-  const daysInMonth = last.getDate();
+    // DOW row
+    const dowRow = document.getElementById("dowRow");
+    dowRow.innerHTML = "";
+    DOW.forEach(d=>{
+      const el = document.createElement("div");
+      el.className = "dow";
+      el.textContent = d;
+      dowRow.appendChild(el);
+    });
 
-  const title = first.toLocaleDateString(undefined, { month:"long", year:"numeric" });
-  document.getElementById("monthTitle").textContent = title;
+    // Month grid
+    const grid = document.getElementById("monthGrid");
+    grid.innerHTML = "";
 
-  const todayISO = iso(new Date());
-  const startISO = document.getElementById("startDate").value || "";
+    const first = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1);
+    const startDay = first.getDay(); // 0..6
+    const daysInMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()+1, 0).getDate();
 
-  // Leading blanks
-  for(let i=0;i<startDay;i++){
-    const c = document.createElement("div");
-    c.className = "dayCell muted";
-    c.textContent = "";
-    grid.appendChild(c);
+    // prior month padding
+    const prevMonthDays = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 0).getDate();
+    for(let i=0;i<startDay;i++){
+      const dayNum = prevMonthDays - (startDay-1-i);
+      const cell = document.createElement("div");
+      cell.className = "dayCell muted";
+      cell.textContent = dayNum;
+      grid.appendChild(cell);
+    }
+
+    const todayISO = toISO(new Date());
+
+    for(let d=1; d<=daysInMonth; d++){
+      const dt = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), d);
+      const cellISO = toISO(dt);
+
+      const cell = document.createElement("div");
+      cell.className = "dayCell";
+      cell.textContent = d;
+
+      if(cellISO === todayISO) cell.classList.add("today");
+      if(selectedDateISO && cellISO === selectedDateISO) cell.classList.add("selected");
+
+      cell.addEventListener("click", ()=>{
+        // week starts from clicked date (any day)
+        selectedDateISO = cellISO;
+        document.getElementById("weekOf").value = cellISO;
+
+        // Set the active day panel to the clicked day-of-week
+        const jsDay = dt.getDay(); // Sun=0
+        const map = {1:0,2:1,3:2,4:3,5:4,6:5,0:6};
+        setSelectedDay(map[jsDay] ?? 0);
+
+        ensureWeek();
+        seedWeekTemplateIfEmpty();
+
+        onKeyChanged();
+        renderMonthCalendar();
+
+        // auto-collapse after pick
+        setCalendarCollapsed(true);
+
+        toast("Week set");
+      });
+
+      grid.appendChild(cell);
+    }
+
+    // next month padding to complete grid
+    const totalCells = startDay + daysInMonth;
+    const remaining = (7 - (totalCells % 7)) % 7;
+    for(let i=1;i<=remaining;i++){
+      const cell = document.createElement("div");
+      cell.className = "dayCell muted";
+      cell.textContent = i;
+      grid.appendChild(cell);
+    }
   }
 
-  for(let d=1; d<=daysInMonth; d++){
-    const cellDate = new Date(calYear, calMonth, d);
-    const cellISO = iso(cellDate);
+  document.getElementById("prevMonthBtn").addEventListener("click", ()=>{
+    monthAnchor = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()-1, 1);
+    renderMonthCalendar();
+  });
+  document.getElementById("nextMonthBtn").addEventListener("click", ()=>{
+    monthAnchor = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()+1, 1);
+    renderMonthCalendar();
+  });
 
-    const c = document.createElement("div");
-    c.className = "dayCell";
-    c.textContent = String(d);
+  // ---------- week template ----------
+  function ensureWeek(){
+    // creates at least 1 blank task per day if empty
+    for(let i=0;i<7;i++){
+      const panel = document.getElementById("daypanel_" + i);
+      if(panel && !panel.querySelector(".task")){
+        addDayTask(i,"", false);
+      }
+    }
+  }
 
-    if(cellISO === todayISO) c.classList.add("today");
-    if(startISO && cellISO === startISO) c.classList.add("selected");
+  function seedWeekTemplateIfEmpty(){
+    // simple starter feel — only if completely empty across the week
+    const anyTask = dayPanels.querySelector(".task");
+    if(anyTask) return;
 
-    c.addEventListener("click", ()=>{
-      // clicking a day sets Start Date and rebuilds week from that day
-      document.getElementById("startDate").value = cellISO;
-      selectedDateISO = cellISO;
+    // add a light starter across selected day only (not noisy)
+    addDayTask(selectedDayIndex, "Check Brightspace + due dates", false);
+    addDayTask(selectedDayIndex, "Finish highest-impact assignment", false);
+    addDayTask(selectedDayIndex, "Submit + confirm submission", false);
+  }
 
+  // ---------- Quick Note attention ----------
+  function renderQuickNoteBanner(){
+    const txt = (document.getElementById("quickNote").value || "").trim();
+    const top = document.getElementById("alertTop");
+    const msg = document.getElementById("alertMsg");
+
+    if(txt){
+      msg.textContent = txt;
+      top.style.display = "block";
+    }else{
+      top.style.display = "none";
+      msg.textContent = "—";
+    }
+  }
+
+  document.getElementById("clearQuickNote").addEventListener("click", ()=>{
+    document.getElementById("quickNote").value = "";
+    renderQuickNoteBanner();
+    debounceSave();
+    toast("Quick Note cleared");
+  });
+
+  document.getElementById("clearQuickNoteTop").addEventListener("click", ()=>{
+    document.getElementById("quickNote").value = "";
+    renderQuickNoteBanner();
+    debounceSave();
+    toast("Quick Note cleared");
+  });
+
+  document.getElementById("jumpToQuickNote").addEventListener("click", ()=>{
+    // Switch to Quick Add tab and focus quick note
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelector('.tab[data-tab="notes"]').classList.add("active");
+    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+    document.getElementById("notes").classList.add("active");
+    document.getElementById("quickNote").focus({preventScroll:true});
+    document.getElementById("quickNoteCard").scrollIntoView({behavior:"smooth", block:"center"});
+  });
+
+  // ---------- save/load ----------
+  async function saveAll(force=false){
+    if(!hasRequiredKey()){
+      setStatus("idle","Set Student + Week to enable autosave.");
+      return;
+    }
+
+    const data = collectData();
+    const h = hashData(data);
+    if(!force && h === lastSavedHash){
+      setStatus("saved","Up to date.");
+      return;
+    }
+
+    cacheSave(data, { localSavedAt: nowStamp() });
+
+    try{
+      setStatus("saving...","Syncing to shared version.");
+      await fetch(webAppURL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(data)
+      });
+      lastSavedHash = h;
+      setSyncText(nowStamp());
+      setStatus("saved","Shared version updated.");
+      toast("Saved");
+    }catch(err){
+      setStatus("offline (saved locally)","Your work is saved on this device.");
+      toast("Saved locally");
+    }
+  }
+
+  async function loadWeek(opts={silent:false}){
+    if(!hasRequiredKey()){
+      setStatus("idle","Set Student + Week to enable autosave.");
+      return;
+    }
+
+    setStatus("loading...","Pulling the shared version.");
+    const sk = stableKey();
+
+    try{
+      const url = webAppURL + "?studentName=" + encodeURIComponent(sk.student) + "&weekOf=" + encodeURIComponent(sk.week);
+      const res = await fetch(url, { method:"GET" });
+      const obj = await res.json();
+      if(obj && !obj.error){
+        applyLoaded(obj);
+        setSyncText(nowStamp());
+        setStatus("loaded","Shared version loaded.");
+        if(!opts.silent) toast("Loaded");
+        return;
+      }
+    }catch(e){}
+
+    const cached = cacheLoad();
+    if(cached){
+      applyLoaded(cached);
+      const m = cacheMeta();
+      setLocalText(m?.localSavedAt ? m.localSavedAt : "available");
+      setStatus("loaded (local)","Using local backup.");
+      if(!opts.silent) toast("Loaded (local)");
+    }else{
+      setStatus("no saved record found","Check spelling/date.");
+      if(!opts.silent) toast("No record found");
+    }
+  }
+
+  function clearAllTasks(){
+    dayPanels.querySelectorAll(".daypanel").forEach(p=>p.innerHTML="");
+  }
+
+  function applyLoaded(obj){
+    isApplyingLoad = true;
+
+    // simple fields
+    ["sport","counselor","ls"].forEach(id=>{
+      if(document.getElementById(id)) document.getElementById(id).value = obj[id] || "";
+    });
+
+    // text areas
+    const q = document.querySelector('[data-key="quickAdd"]');
+    const n = document.querySelector('[data-key="quickNote"]');
+    const up = document.querySelector('[data-key="upcoming"]');
+    const mi = document.querySelector('[data-key="missing"]');
+    if(q) q.value = obj["quickAdd"] ?? obj.quickAdd ?? "";
+    if(n) n.value = obj["quickNote"] ?? obj.quickNote ?? "";
+    if(up) up.value = obj["upcoming"] ?? obj.upcoming ?? "";
+    if(mi) mi.value = obj["missing"] ?? obj.missing ?? "";
+
+    renderQuickNoteBanner();
+
+    clearAllTasks();
+
+    // rebuild daily tasks
+    Object.keys(obj).forEach(k=>{
+      const m = k.match(/^d(\d+)_(.+)_text$/);
+      if(m){
+        const dayIndex = parseInt(m[1],10);
+        const id = m[2];
+        const text = obj[k] || "";
+        const doneKey = `d${dayIndex}_${id}_done`;
+        const done = (obj[doneKey] === true || obj[doneKey] === "true");
+        if(text || done) addDayTask(dayIndex, text, done);
+      }
+    });
+
+    ensureWeek();
+
+    lastSavedHash = hashData(collectData());
+    updateProgress();
+
+    const m = cacheMeta();
+    if(m?.localSavedAt) setLocalText(m.localSavedAt);
+
+    isApplyingLoad = false;
+  }
+
+  // ---------- auto-refresh ----------
+  function startAutoRefresh(){
+    stopAutoRefresh();
+    refreshTimer = setInterval(()=>{ if(hasRequiredKey()) loadWeek({silent:true}); }, 20000);
+  }
+  function stopAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer = null; }
+
+  function onKeyChanged(){
+    if(!hasRequiredKey()){
+      stopAutoRefresh();
+      setStatus("idle","Set Student + Week to enable autosave.");
+      setLocalText("—"); setSyncText("—");
+      return;
+    }
+
+    // update calendar selection to match weekOf
+    const wk = document.getElementById("weekOf").value;
+    if(wk){
+      selectedDateISO = wk;
+      const d = fromISO(wk);
+      monthAnchor = new Date(d.getFullYear(), d.getMonth(), 1);
+      renderMonthCalendar();
+
+      // set selected day panel to that date’s dow
+      const jsDay = d.getDay();
+      const map = {1:0,2:1,3:2,4:3,5:4,6:5,0:6};
+      setSelectedDay(map[jsDay] ?? 0);
+    }
+
+    const cached = cacheLoad();
+    const m = cacheMeta();
+    if(cached){
+      setLocalText(m?.localSavedAt ? m.localSavedAt : "available");
+      setStatus("ready","Local backup found.");
+    }else{
+      setLocalText("none yet");
+      setStatus("ready","New record.");
       ensureWeek();
       seedWeekTemplateIfEmpty();
+    }
 
-      onKeyChanged(); // sets up record + autosave path
-      syncMonthSelected();
-      toast("Week set");
+    startAutoRefresh();
+  }
+
+  // ---------- buttons ----------
+  document.getElementById("loadWeek").addEventListener("click", ()=>loadWeek({silent:false}));
+  document.getElementById("saveNow").addEventListener("click", ()=>saveAll(true));
+
+  document.getElementById("copySummary").addEventListener("click", async ()=>{
+    if(hasRequiredKey()) await saveAll(true);
+
+    const student = (document.getElementById("studentName").value || "").trim();
+    const week = document.getElementById("weekOf").value || "";
+
+    let out = "";
+    out += "Student: " + student + "\n";
+    out += "Week Of: " + week + "\n";
+    out += "Sport: " + (document.getElementById("sport").value || "") + "\n";
+    out += "Counselor: " + (document.getElementById("counselor").value || "") + "\n";
+    out += "LS: " + (document.getElementById("ls").value || "") + "\n\n";
+
+    const qn = (document.getElementById("quickNote").value || "").trim();
+    if(qn) out += "Quick Note: " + qn + "\n\n";
+
+    out += "Quick Add\n" + (document.getElementById("quickAdd").value || "") + "\n\n";
+
+    days.forEach((d,di)=>{
+      out += d + "\n";
+      const panel = document.getElementById("daypanel_" + di);
+      panel.querySelectorAll(".task").forEach(t=>{
+        const text = t.querySelector('input[type="text"]').value || "";
+        const done = t.querySelector('input[type="checkbox"]').checked ? "DONE" : "OPEN";
+        if(text) out += done + " - " + text + "\n";
+      });
+      out += "\n";
     });
 
-    grid.appendChild(c);
-  }
+    out += "Upcoming\n" + (document.querySelector('[data-key="upcoming"]').value || "") + "\n\n";
+    out += "Missing\n" + (document.querySelector('[data-key="missing"]').value || "") + "\n";
 
-  // Trailing blanks to fill grid rows nicely
-  const totalCells = startDay + daysInMonth;
-  const remainder = totalCells % 7;
-  if(remainder !== 0){
-    const blanks = 7 - remainder;
-    for(let i=0;i<blanks;i++){
-      const c = document.createElement("div");
-      c.className = "dayCell muted";
-      c.textContent = "";
-      grid.appendChild(c);
-    }
-  }
-}
-
-function syncCalendarToStart(){
-  const startISO = document.getElementById("startDate").value;
-  if(!startISO) return;
-  const d = parseISO(startISO);
-  calYear = d.getFullYear();
-  calMonth = d.getMonth();
-  renderMonthCalendar();
-}
-
-function syncMonthSelected(){
-  // update the selected highlight (startDate) after changes
-  renderMonthCalendar();
-}
-
-/* ================================
-   BUTTONS / UI
-================================== */
-document.getElementById("printBtn").addEventListener("click", ()=>window.print());
-
-document.getElementById("loadTodayBtn").addEventListener("click", ()=>{
-  const today = iso(new Date());
-  document.getElementById("startDate").value = today;
-  selectedDateISO = today;
-
-  syncCalendarToStart();
-  ensureWeek();
-  seedWeekTemplateIfEmpty();
-  onKeyChanged();
-  toast("Today");
-});
-
-document.getElementById("addTaskBtn").addEventListener("click", ()=>{
-  if(!selectedDateISO){ toast("Pick a day"); return; }
-  addTaskRow(selectedDateISO, { text:"", done:false });
-  wireRowUI(getAllTaskRows().at(-1));
-  renderTasksForSelectedDay();
-  renderStrip();
-  updateProgressAndAutos();
-  debounceSave();
-});
-
-document.getElementById("studyHallBtn").addEventListener("click", ()=>{
-  if(!selectedDateISO){ toast("Pick a day"); return; }
-  ["Open LMS + check due dates","Work 25 minutes (no phone)","Submit + confirm submission"]
-    .forEach(t=>addTaskRow(selectedDateISO, { text:t, done:false }));
-  // wire new rows
-  getAllTaskRows().slice(-3).forEach(r=>wireRowUI(r));
-  renderTasksForSelectedDay();
-  renderStrip();
-  updateProgressAndAutos();
-  debounceSave();
-  toast("Added");
-});
-
-document.getElementById("saveNowBtn").addEventListener("click", ()=>saveAll(true));
-document.getElementById("loadBtn").addEventListener("click", ()=>loadRecord(false));
-
-document.getElementById("resetBtn").addEventListener("click", ()=>{
-  if(confirm("Reset page?")) location.reload();
-});
-
-document.getElementById("shareBtn").addEventListener("click", async ()=>{
-  const sk = stableKey();
-  if(!sk.student || !sk.start){ toast("Set Student + Start date"); return; }
-  const url = new URL(window.location.href);
-  url.searchParams.set("student", sk.student);
-  url.searchParams.set("start", sk.start);
-  url.searchParams.set("day", selectedDateISO || "");
-  try{
-    await navigator.clipboard.writeText(url.toString());
-    toast("Copied");
-  }catch(e){
-    toast("Copy failed");
-  }
-});
-
-document.getElementById("copySummaryBtn").addEventListener("click", async ()=>{
-  // Save first if possible
-  if(hasRequiredKey()) await saveAll(true);
-
-  const student = (document.getElementById("studentName").value || "").trim();
-  const sport = document.getElementById("sport").value || "";
-  const startISO = document.getElementById("startDate").value || "";
-  const ls = document.getElementById("ls").value || "";
-  const counselor = document.getElementById("counselor").value || "";
-  const note = (document.getElementById("note").value || "").trim();
-
-  let out = "";
-  out += `${student}\n`;
-  if(sport) out += `${sport}\n`;
-  if(startISO) out += `Start: ${startISO}\n`;
-  if(counselor) out += `Counselor: ${counselor}\n`;
-  if(ls) out += `LS: ${ls}\n`;
-  if(note) out += `\nNote: ${note}\n`;
-
-  out += `\nWeek\n`;
-  weekDates.forEach(dateISO=>{
-    const d = parseISO(dateISO);
-    out += `${fmtDow(d)} ${fmtMD(d)} (${dateISO})\n`;
-    const rows = getAllTaskRows().filter(r=>r.dataset.date === dateISO);
-    rows.forEach(r=>{
-      const id = r.dataset.tid;
-      const text = (r.querySelector(`[data-key="task_${dateISO}_${id}_text"]`).value || "").trim();
-      const course = (r.querySelector(`[data-key="task_${dateISO}_${id}_course"]`).value || "").trim();
-      const type = (r.querySelector(`[data-key="task_${dateISO}_${id}_type"]`).value || "").trim();
-      const due = (r.querySelector(`[data-key="task_${dateISO}_${id}_due"]`).value || "").trim();
-      const done = r.querySelector(`[data-key="task_${dateISO}_${id}_done"]`).checked;
-      const by = (r.querySelector(`[data-key="task_${dateISO}_${id}_by"]`).value || "").trim();
-      const miss = (r.querySelector(`[data-key="task_${dateISO}_${id}_missing"]`).value === "true");
-      const tag = done ? `DONE${by ? " "+by.toUpperCase() : ""}` : (miss ? "MISSING" : "OPEN");
-      const head = [course ? course.toUpperCase() : "", text].filter(Boolean).join(" — ");
-      const when = [type, due].filter(Boolean).join(": ");
-      out += `- ${tag} ${head}${when ? " ("+when+")" : ""}\n`;
-    });
-    out += `\n`;
+    try{ await navigator.clipboard.writeText(out); toast("Copied"); }
+    catch(e){ toast("Copy failed"); }
   });
 
-  out += `Upcoming\n${document.getElementById("upcomingAuto").value || ""}\n\n`;
-  out += `Missing\n${document.getElementById("missingAuto").value || ""}\n`;
-
-  try{
-    await navigator.clipboard.writeText(out);
-    toast("Copied");
-  }catch(e){
-    toast("Copy failed");
-  }
-});
-
-/* ================================
-   SETTINGS DRAWER
-================================== */
-const settingsPanel = document.getElementById("settingsPanel");
-document.getElementById("settingsBtn").addEventListener("click", ()=>{
-  settingsPanel.classList.add("show");
-  settingsPanel.setAttribute("aria-hidden","false");
-});
-document.getElementById("closeSettingsBtn").addEventListener("click", ()=>{
-  settingsPanel.classList.remove("show");
-  settingsPanel.setAttribute("aria-hidden","true");
-});
-settingsPanel.addEventListener("click", (e)=>{
-  if(e.target === settingsPanel){
-    settingsPanel.classList.remove("show");
-    settingsPanel.setAttribute("aria-hidden","true");
-  }
-});
-
-document.getElementById("saveListsBtn").addEventListener("click", ()=>{
-  const ls = document.getElementById("lsList").value.split("\n").map(s=>s.trim()).filter(Boolean);
-  const counselors = document.getElementById("counselorList").value.split("\n").map(s=>s.trim()).filter(Boolean);
-  const sports = document.getElementById("sportList").value.split("\n").map(s=>s.trim()).filter(Boolean);
-
-  const lists = {
-    ls: ls.length ? ls : DEFAULTS.ls,
-    counselors: counselors.length ? counselors : DEFAULTS.counselors,
-    sports: sports.length ? sports : DEFAULTS.sports
-  };
-  saveListsToStorage(lists);
-  initListEditor();
-  toast("Saved");
-});
-
-/* ================================
-   QUICK ADD EVENTS
-================================== */
-document.getElementById("quickAddInput").addEventListener("keydown", (e)=>{
-  if(e.key !== "Enter") return;
-  e.preventDefault();
-
-  const line = e.target.value;
-  const parsed = parseQuickAdd(line);
-  if(!parsed){ return; }
-
-  if(!selectedDateISO){
-    toast("Pick a day");
-    return;
-  }
-
-  addTaskRow(selectedDateISO, {
-    text: parsed.text,
-    done: parsed.done,
-    course: parsed.course,
-    type: parsed.type,
-    due: parsed.due,
-    by: parsed.by,
-    missing: parsed.missing
+  // Print Snapshot
+  document.getElementById("printSnapshot").addEventListener("click", ()=>{
+    window.print();
   });
 
-  wireRowUI(getAllTaskRows().at(-1));
-  e.target.value = "";
-  renderTasksForSelectedDay();
-  renderStrip();
-  updateProgressAndAutos();
-  debounceSave();
-  toast("Added");
-});
+  // ---------- reset ----------
+  document.getElementById("resetPage").addEventListener("click", ()=>{
+    if(confirm("Reset everything? This will reload the page.")) location.reload();
+  });
 
-/* ================================
-   INPUT / CHANGE HANDLERS
-================================== */
-document.addEventListener("input", (e)=>{
-  if(isApplyingLoad) return;
+  // ---------- autosave triggers ----------
+  document.addEventListener("input", (e)=>{
+    updateProgress();
+    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")) return;
 
-  // ignore key fields until set
-  if(e.target && (e.target.id === "studentName" || e.target.id === "startDate")) return;
-
-  renderStrip();
-  updateProgressAndAutos();
-  debounceSave();
-});
-
-document.addEventListener("change", (e)=>{
-  if(isApplyingLoad) return;
-
-  if(e.target && (e.target.id === "studentName" || e.target.id === "startDate")){
-    if(e.target.id === "startDate"){
-      selectedDateISO = document.getElementById("startDate").value || "";
-      syncCalendarToStart();
+    if(e.target && e.target.id === "quickNote"){
+      renderQuickNoteBanner();
     }
-    onKeyChanged();
-    return;
-  }
 
-  renderStrip();
-  updateProgressAndAutos();
-  debounceSave();
-});
+    debounceSave();
+  });
 
-/* ================================
-   KEY CHANGES (Student + Start)
-================================== */
-function onKeyChanged(){
-  if(!hasRequiredKey()){
-    setStatus("Idle","set Student + Start date");
-    return;
-  }
+  document.addEventListener("change", (e)=>{
+    updateProgress();
 
-  ensureWeek();
+    if(e.target && (e.target.id === "quickNote")){
+      renderQuickNoteBanner();
+    }
 
-  // show local if exists
-  const cached = cacheLoad();
-  if(cached){
-    applyLoaded(cached);
-    setStatus("Ready","local");
-  }else{
-    // new record: seed template and save path starts
-    seedWeekTemplateIfEmpty();
-    setStatus("Ready","new");
-  }
+    // Key fields: handle record setup + refresh
+    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")){
+      onKeyChanged();
+      return;
+    }
 
-  // silent server load
-  loadRecord(true);
-}
+    debounceSave();
+  });
 
-/* ================================
-   URL PREFILL
-================================== */
-(function prefillFromURL(){
-  initListEditor();
-  buildDowHeader();
+  // ---------- URL prefill ----------
+  (function prefillFromURL(){
+    const url = new URL(window.location.href);
+    const student = url.searchParams.get("student");
+    const week = url.searchParams.get("week");
+    if(student) document.getElementById("studentName").value = student;
+    if(week) document.getElementById("weekOf").value = week;
+    if(student || week){
+      onKeyChanged();
+      if(student && week) loadWeek({silent:true});
+    }
+  })();
 
-  const url = new URL(window.location.href);
-  const student = url.searchParams.get("student");
-  const start = url.searchParams.get("start");
-  const day = url.searchParams.get("day");
-
-  if(student) document.getElementById("studentName").value = student;
-  if(start) document.getElementById("startDate").value = start;
-
-  // default start date = today (helps first-time use)
-  if(!document.getElementById("startDate").value){
-    document.getElementById("startDate").value = iso(new Date());
-  }
-
-  // sync calendar state to start date
-  syncCalendarToStart();
-
-  // build week
-  ensureWeek();
-
-  // day selection from URL if in range
-  if(day && weekDates.includes(day)){
-    selectedDateISO = day;
-  }else{
-    selectedDateISO = weekDates[0] || document.getElementById("startDate").value;
-  }
-
-  renderStrip();
-  renderTasksForSelectedDay();
-  updateDayHeader();
-  updateProgressAndAutos();
-  syncMonthSelected();
-
-  if(student && document.getElementById("startDate").value){
-    onKeyChanged();
-  }else{
-    setStatus("Idle","set Student + Start date");
-  }
-})();
-
-/* ================================
-   MONTH NAV BUTTONS
-================================== */
-document.getElementById("prevMonthBtn").addEventListener("click", ()=>{
-  calMonth--;
-  if(calMonth < 0){ calMonth = 11; calYear--; }
+  // ---------- initialize ----------
+  updateProgress();
+  setSyncText("—");
+  setLocalText("—");
+  setStatus("idle","Set Student + Week to enable autosave.");
   renderMonthCalendar();
-});
-document.getElementById("nextMonthBtn").addEventListener("click", ()=>{
-  calMonth++;
-  if(calMonth > 11){ calMonth = 0; calYear++; }
-  renderMonthCalendar();
-});
-
-/* ================================
-   RENDER MONTH NOW
-================================== */
-function escapeHtml(str){
-  return String(str).replace(/[&<>"']/g, s => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  }[s]));
-}
-renderMonthCalendar();
+  renderQuickNoteBanner();
 </script>
 </body>
 </html>
