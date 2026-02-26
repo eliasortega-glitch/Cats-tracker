@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,8 +155,6 @@
   .task input[type="text"]{ flex:1; }
   .x{ cursor:pointer; color:var(--ua-red); font-weight:900; padding:0 6px; user-select:none; }
 
-  .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
-
   /* Day switcher */
   .daybar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:10px 0; }
   .daybtn{
@@ -170,12 +169,12 @@
     background:rgba(12,35,75,.10);
     border-color:transparent;
     color:var(--ua-blue);
-    font-weight:700;
+    font-weight:800;
   }
   .daypanel{ display:none; }
   .daypanel.active{ display:block; }
 
-  /* Collapsible calendar */
+  /* Collapsible calendar (keeps FULL function) */
   .monthWrap{ margin-top:10px; }
   .monthHdr{
     display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
@@ -212,16 +211,16 @@
     padding:10px;
     max-height:520px;
     overflow:hidden;
-    transition:max-height .22s ease, opacity .18s ease;
+    transition:max-height .22s ease, opacity .18s ease, padding .18s ease, margin .18s ease;
     opacity:1;
   }
   #calBody.collapsed{
     max-height:0;
     opacity:0;
     padding:0;
+    margin-top:0;
     border:none;
     box-shadow:none;
-    margin-top:0;
   }
   .grid{
     display:grid;
@@ -239,11 +238,11 @@
     padding:10px 0;
     text-align:center;
     cursor:pointer;
-    font-weight:700;
+    font-weight:800;
     background:#fff;
   }
   .dayCell:hover{ background:rgba(12,35,75,.05); }
-  .dayCell.muted{ color:#98a2b3; background:#fbfcfe; }
+  .dayCell.muted{ color:#98a2b3; background:#fbfcfe; cursor:default; }
   .dayCell.selected{
     border-color:transparent;
     background:rgba(171,5,32,.10);
@@ -253,7 +252,7 @@
     outline:3px solid rgba(12,35,75,.16);
   }
 
-  /* Quick Note Banner (attention) */
+  /* Quick Note Banner */
   .alertTop{
     display:none;
     position:sticky;
@@ -315,6 +314,8 @@
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
 
+  .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
+
   @media(max-width:720px){
     .topbar{ flex-direction:column; }
     .top-right{ width:100%; min-width:unset; }
@@ -327,7 +328,7 @@
 <body>
 <div class="wrap">
   <h1>CATS Weekly Dashboard</h1>
-  <div class="sub">Set Student + Week (or pick a day). It autosaves and syncs to the shared version.</div>
+  <div class="sub">Pick a day or set Week Of. Load Week pulls the shared record.</div>
 
   <div class="chipbar">
     <div class="chip"><span class="dot" id="dotOnline"></span><span id="onlineText">Checking connection…</span></div>
@@ -351,7 +352,7 @@
     </div>
   </div>
 
-  <!-- Header / Meta + Meter -->
+  <!-- Header -->
   <div class="topbar">
     <div class="top-left card pad">
       <div class="row">
@@ -363,28 +364,18 @@
           <label>Sport</label>
           <select id="sport">
             <option value="">Select sport</option>
-            <option>Baseball</option>
+            <option>Football</option>
             <option>Men's Basketball</option>
             <option>Women's Basketball</option>
-            <option>Beach Volleyball</option>
-            <option>Cross Country</option>
-            <option>Football</option>
-            <option>Men's Golf</option>
-            <option>Women's Golf</option>
-            <option>Gymnastics</option>
             <option>Soccer</option>
-            <option>Softball</option>
-            <option>Men's Swimming & Diving</option>
-            <option>Women's Swimming & Diving</option>
-            <option>Men's Tennis</option>
-            <option>Women's Tennis</option>
             <option>Track & Field</option>
-            <option>Triathlon</option>
+            <option>Baseball</option>
+            <option>Softball</option>
             <option>Volleyball</option>
           </select>
         </div>
         <div class="col">
-          <label>Week Of</label>
+          <label>Week Of (start day)</label>
           <input id="weekOf" type="date" />
         </div>
         <div class="col">
@@ -406,16 +397,14 @@
         </div>
       </div>
 
-      <!-- Collapsible Calendar -->
-      <div class="monthWrap" id="monthWrap" aria-label="Calendar">
+      <!-- Collapsible Calendar (FUNCTIONAL) -->
+      <div class="monthWrap" aria-label="Calendar">
         <div class="monthHdr">
           <button class="iconBtn" id="toggleCalBtn" type="button" aria-expanded="true" style="display:flex; gap:8px; align-items:center;">
             <span id="calChevron" aria-hidden="true">▾</span>
             <span>Calendar</span>
           </button>
-
           <div class="title" id="monthTitle">—</div>
-
           <div class="mhBtns" id="monthNavBtns">
             <button class="iconBtn" id="prevMonthBtn" type="button">Prev</button>
             <button class="iconBtn" id="nextMonthBtn" type="button">Next</button>
@@ -426,6 +415,8 @@
           <div class="grid" id="dowRow"></div>
           <div class="grid" id="monthGrid"></div>
         </div>
+
+        <div class="hint" style="margin-top:6px;">Tap a date to start the week from that day.</div>
       </div>
     </div>
 
@@ -446,16 +437,14 @@
         <button class="btn" id="copySummary" type="button">Copy</button>
       </div>
 
-      <div class="hint" style="margin:0;">
-        Tip: Pick any day on the calendar to start the week from that date.
-      </div>
+      <div class="hint" style="margin:0;">Load Week = shared record for Student + Week.</div>
     </div>
   </div>
 
   <!-- Tabs -->
   <div class="tabs">
     <div class="tab active" data-tab="daily">Daily Plan</div>
-    <div class="tab" data-tab="notes">Quick Add</div>
+    <div class="tab" data-tab="quick">Quick Add</div>
     <div class="tab" data-tab="track">Upcoming / Missing</div>
   </div>
 
@@ -475,19 +464,24 @@
     </div>
   </div>
 
-  <!-- Quick Add (stays as-is + add Quick Note same style) -->
-  <div class="section" id="notes">
+  <!-- Quick Add (AUTO-APPLY BACK) + Quick Note -->
+  <div class="section" id="quick">
     <div class="row">
       <div class="col card pad">
         <div style="font-weight:900; color:var(--ua-blue);">Quick Add</div>
-        <div class="hint">Drop the most important items for the week. Keep it short.</div>
-        <textarea data-key="quickAdd" id="quickAdd" placeholder="Ex: MIS SAR due Thu • BE quiz window Wed 11am"></textarea>
+        <div class="hint">Paste your weekly block. Then apply.</div>
+        <textarea data-key="quickAdd" id="quickAdd" placeholder="Paste here (ex: Monday: ... Wednesday: ... Upcoming: ... Missing: ...)"></textarea>
+        <div style="height:8px;"></div>
+        <div class="btnrow" style="justify-content:flex-end;">
+          <button class="btn" id="applyQuickAdd" type="button">Apply to Week</button>
+        </div>
+        <div class="hint" style="margin-top:8px;">Tip: Ctrl+Enter applies.</div>
       </div>
 
       <div class="col card pad" id="quickNoteCard">
         <div style="font-weight:900; color:var(--ua-blue);">Quick Note</div>
-        <div class="hint">If it matters right now, put it here. It will show at the top.</div>
-        <textarea data-key="quickNote" id="quickNote" placeholder="Ex: Needs help structuring MIS ABP project. Time-sensitive."></textarea>
+        <div class="hint">Shows at the top with a red alert.</div>
+        <textarea data-key="quickNote" id="quickNote" placeholder="Short + urgent."></textarea>
         <div style="height:8px;"></div>
         <div class="btnrow" style="justify-content:flex-end;">
           <button class="btn danger" id="clearQuickNote" type="button">Clear</button>
@@ -501,11 +495,11 @@
     <div class="row">
       <div class="col card pad">
         <div style="font-weight:900; color:var(--ua-blue);">Upcoming</div>
-        <textarea data-key="upcoming" placeholder="Deadlines coming soon"></textarea>
+        <textarea data-key="upcoming" id="upcoming" placeholder="Deadlines coming soon"></textarea>
       </div>
       <div class="col card pad">
         <div style="font-weight:900; color:var(--ua-blue);">Missing</div>
-        <textarea data-key="missing" placeholder="Missing assignments"></textarea>
+        <textarea data-key="missing" id="missing" placeholder="Missing assignments"></textarea>
       </div>
     </div>
   </div>
@@ -529,19 +523,22 @@
 
 <script>
   const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
-  const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+
+  // Day buttons will show real dates based on Week Of start date.
+  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const FULL_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
   let saveTimer = null;
   let lastSavedHash = "";
-  let selectedDayIndex = 0;
-  let refreshTimer = null;
+
+  let selectedDayIndex = 0;      // 0..6 = day within the selected week window
+  let weekStartISO = "";         // mirrors #weekOf (start day can be any day)
   let isApplyingLoad = false;
+  let refreshTimer = null;
 
   // Calendar state
-  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  let monthAnchor = new Date();
-  monthAnchor.setDate(1);
-  let selectedDateISO = ""; // week start date (any day)
+  let monthAnchor = new Date(); monthAnchor.setDate(1);
+  let selectedDateISO = "";
   let calCollapsed = false;
 
   // ---------- UI helpers ----------
@@ -577,6 +574,31 @@
   window.addEventListener("offline", ()=>{ updateOnlineChip(); toast("Offline mode"); });
   updateOnlineChip();
 
+  // ---------- dates ----------
+  function toISO(d){
+    const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth()+1).padStart(2,"0");
+    const da = String(dt.getDate()).padStart(2,"0");
+    return `${y}-${m}-${da}`;
+  }
+  function fromISO(iso){
+    const [y,m,d] = iso.split("-").map(n=>parseInt(n,10));
+    return new Date(y, m-1, d);
+  }
+  function addDaysISO(iso, delta){
+    const d = fromISO(iso);
+    d.setDate(d.getDate()+delta);
+    return toISO(d);
+  }
+  function niceDayLabel(iso){
+    const d = fromISO(iso);
+    const wd = DOW[d.getDay()];
+    const mo = d.toLocaleString(undefined,{month:"short"});
+    const day = d.getDate();
+    return `${wd} ${mo} ${day}`;
+  }
+
   // ---------- record key ----------
   function stableKey(){
     const student = (document.getElementById("studentName").value || "").trim();
@@ -607,7 +629,6 @@
     data["Week Of"] = sk.week;
     return data;
   }
-
   function hashData(obj){ return JSON.stringify(obj); }
 
   // ---------- progress ----------
@@ -668,30 +689,63 @@
     updateProgress();
   }
 
+  function clearDayTasks(dayIndex){
+    const panel = document.getElementById("daypanel_" + dayIndex);
+    if(panel) panel.innerHTML = "";
+  }
+
+  function anyTasksExist(){
+    return !!dayPanels.querySelector(".task");
+  }
+
   function setSelectedDay(i){
     selectedDayIndex = i;
     document.querySelectorAll(".daybtn").forEach((b,idx)=>b.classList.toggle("active", idx===i));
     document.querySelectorAll(".daypanel").forEach((p,idx)=>p.classList.toggle("active", idx===i));
   }
 
-  days.forEach((d,i)=>{
-    const b = document.createElement("button");
-    b.className = "daybtn";
-    b.type = "button";
-    b.textContent = d.slice(0,3);
-    b.addEventListener("click", ()=>setSelectedDay(i));
-    daybar.appendChild(b);
+  function buildWeekUIFromStart(){
+    // Re-label day buttons as real dates based on weekStartISO
+    const start = weekStartISO || document.getElementById("weekOf").value || "";
+    if(!start) return;
 
-    const p = document.createElement("div");
-    p.className = "daypanel";
-    p.id = "daypanel_" + i;
-    dayPanels.appendChild(p);
-  });
+    for(let i=0;i<7;i++){
+      const iso = addDaysISO(start, i);
+      const btn = document.getElementById("daybtn_" + i);
+      if(btn) btn.textContent = niceDayLabel(iso);
+    }
+  }
 
-  (function pickToday(){
-    const jsDay = new Date().getDay(); // Sun=0
-    const map = {1:0,2:1,3:2,4:3,5:4,6:5,0:6};
-    setSelectedDay(map[jsDay] ?? 0);
+  function ensureWeekSeed(){
+    // ensure each day has at least one blank task
+    for(let i=0;i<7;i++){
+      const panel = document.getElementById("daypanel_" + i);
+      if(panel && !panel.querySelector(".task")){
+        addDayTask(i,"",false);
+      }
+    }
+  }
+
+  // Create day buttons/panels once
+  (function initDays(){
+    daybar.innerHTML = "";
+    dayPanels.innerHTML = "";
+
+    for(let i=0;i<7;i++){
+      const b = document.createElement("button");
+      b.className = "daybtn";
+      b.id = "daybtn_" + i;
+      b.type = "button";
+      b.textContent = "Day " + (i+1);
+      b.addEventListener("click", ()=>setSelectedDay(i));
+      daybar.appendChild(b);
+
+      const p = document.createElement("div");
+      p.className = "daypanel";
+      p.id = "daypanel_" + i;
+      dayPanels.appendChild(p);
+    }
+    setSelectedDay(0);
   })();
 
   document.getElementById("addTaskToday").addEventListener("click", ()=>{
@@ -750,158 +804,7 @@
     setStatus("typing...","Autosave on.");
   }
 
-  // ---------- calendar helpers ----------
-  function toISO(d){
-    const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const y = dt.getFullYear();
-    const m = String(dt.getMonth()+1).padStart(2,"0");
-    const da = String(dt.getDate()).padStart(2,"0");
-    return `${y}-${m}-${da}`;
-  }
-  function fromISO(iso){
-    const [y,m,d] = iso.split("-").map(n=>parseInt(n,10));
-    return new Date(y, m-1, d);
-  }
-  function formatMonthTitle(d){
-    return d.toLocaleString(undefined, { month:"long", year:"numeric" });
-  }
-
-  function setCalendarCollapsed(isCollapsed){
-    calCollapsed = !!isCollapsed;
-    const body = document.getElementById("calBody");
-    const chev = document.getElementById("calChevron");
-    const btn = document.getElementById("toggleCalBtn");
-    const nav = document.getElementById("monthNavBtns");
-
-    if(calCollapsed){
-      body.classList.add("collapsed");
-      chev.textContent = "▸";
-      btn.setAttribute("aria-expanded","false");
-      if(nav) nav.style.display = "none";
-    }else{
-      body.classList.remove("collapsed");
-      chev.textContent = "▾";
-      btn.setAttribute("aria-expanded","true");
-      if(nav) nav.style.display = "flex";
-    }
-  }
-
-  document.getElementById("toggleCalBtn").addEventListener("click", ()=>{
-    setCalendarCollapsed(!calCollapsed);
-  });
-
-  function renderMonthCalendar(){
-    document.getElementById("monthTitle").textContent = formatMonthTitle(monthAnchor);
-
-    // DOW row
-    const dowRow = document.getElementById("dowRow");
-    dowRow.innerHTML = "";
-    DOW.forEach(d=>{
-      const el = document.createElement("div");
-      el.className = "dow";
-      el.textContent = d;
-      dowRow.appendChild(el);
-    });
-
-    // Month grid
-    const grid = document.getElementById("monthGrid");
-    grid.innerHTML = "";
-
-    const first = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1);
-    const startDay = first.getDay(); // 0..6
-    const daysInMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()+1, 0).getDate();
-
-    // prior month padding
-    const prevMonthDays = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 0).getDate();
-    for(let i=0;i<startDay;i++){
-      const dayNum = prevMonthDays - (startDay-1-i);
-      const cell = document.createElement("div");
-      cell.className = "dayCell muted";
-      cell.textContent = dayNum;
-      grid.appendChild(cell);
-    }
-
-    const todayISO = toISO(new Date());
-
-    for(let d=1; d<=daysInMonth; d++){
-      const dt = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), d);
-      const cellISO = toISO(dt);
-
-      const cell = document.createElement("div");
-      cell.className = "dayCell";
-      cell.textContent = d;
-
-      if(cellISO === todayISO) cell.classList.add("today");
-      if(selectedDateISO && cellISO === selectedDateISO) cell.classList.add("selected");
-
-      cell.addEventListener("click", ()=>{
-        // week starts from clicked date (any day)
-        selectedDateISO = cellISO;
-        document.getElementById("weekOf").value = cellISO;
-
-        // Set the active day panel to the clicked day-of-week
-        const jsDay = dt.getDay(); // Sun=0
-        const map = {1:0,2:1,3:2,4:3,5:4,6:5,0:6};
-        setSelectedDay(map[jsDay] ?? 0);
-
-        ensureWeek();
-        seedWeekTemplateIfEmpty();
-
-        onKeyChanged();
-        renderMonthCalendar();
-
-        // auto-collapse after pick
-        setCalendarCollapsed(true);
-
-        toast("Week set");
-      });
-
-      grid.appendChild(cell);
-    }
-
-    // next month padding to complete grid
-    const totalCells = startDay + daysInMonth;
-    const remaining = (7 - (totalCells % 7)) % 7;
-    for(let i=1;i<=remaining;i++){
-      const cell = document.createElement("div");
-      cell.className = "dayCell muted";
-      cell.textContent = i;
-      grid.appendChild(cell);
-    }
-  }
-
-  document.getElementById("prevMonthBtn").addEventListener("click", ()=>{
-    monthAnchor = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()-1, 1);
-    renderMonthCalendar();
-  });
-  document.getElementById("nextMonthBtn").addEventListener("click", ()=>{
-    monthAnchor = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()+1, 1);
-    renderMonthCalendar();
-  });
-
-  // ---------- week template ----------
-  function ensureWeek(){
-    // creates at least 1 blank task per day if empty
-    for(let i=0;i<7;i++){
-      const panel = document.getElementById("daypanel_" + i);
-      if(panel && !panel.querySelector(".task")){
-        addDayTask(i,"", false);
-      }
-    }
-  }
-
-  function seedWeekTemplateIfEmpty(){
-    // simple starter feel — only if completely empty across the week
-    const anyTask = dayPanels.querySelector(".task");
-    if(anyTask) return;
-
-    // add a light starter across selected day only (not noisy)
-    addDayTask(selectedDayIndex, "Check Brightspace + due dates", false);
-    addDayTask(selectedDayIndex, "Finish highest-impact assignment", false);
-    addDayTask(selectedDayIndex, "Submit + confirm submission", false);
-  }
-
-  // ---------- Quick Note attention ----------
+  // ---------- quick note banner ----------
   function renderQuickNoteBanner(){
     const txt = (document.getElementById("quickNote").value || "").trim();
     const top = document.getElementById("alertTop");
@@ -931,13 +834,293 @@
   });
 
   document.getElementById("jumpToQuickNote").addEventListener("click", ()=>{
-    // Switch to Quick Add tab and focus quick note
     document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-    document.querySelector('.tab[data-tab="notes"]').classList.add("active");
+    document.querySelector('.tab[data-tab="quick"]').classList.add("active");
     document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-    document.getElementById("notes").classList.add("active");
+    document.getElementById("quick").classList.add("active");
     document.getElementById("quickNote").focus({preventScroll:true});
     document.getElementById("quickNoteCard").scrollIntoView({behavior:"smooth", block:"center"});
+  });
+
+  // ---------- collapsible calendar ----------
+  function setCalendarCollapsed(isCollapsed){
+    calCollapsed = !!isCollapsed;
+    const body = document.getElementById("calBody");
+    const chev = document.getElementById("calChevron");
+    const btn = document.getElementById("toggleCalBtn");
+    const nav = document.getElementById("monthNavBtns");
+
+    if(calCollapsed){
+      body.classList.add("collapsed");
+      chev.textContent = "▸";
+      btn.setAttribute("aria-expanded","false");
+      if(nav) nav.style.display = "none";
+    }else{
+      body.classList.remove("collapsed");
+      chev.textContent = "▾";
+      btn.setAttribute("aria-expanded","true");
+      if(nav) nav.style.display = "flex";
+    }
+  }
+  document.getElementById("toggleCalBtn").addEventListener("click", ()=>{
+    setCalendarCollapsed(!calCollapsed);
+  });
+
+  // ---------- calendar render (click sets Week Of + selects that day + keeps load functionality) ----------
+  function formatMonthTitle(d){
+    return d.toLocaleString(undefined, { month:"long", year:"numeric" });
+  }
+
+  function renderMonthCalendar(){
+    document.getElementById("monthTitle").textContent = formatMonthTitle(monthAnchor);
+
+    const dowRow = document.getElementById("dowRow");
+    dowRow.innerHTML = "";
+    DOW.forEach(d=>{
+      const el = document.createElement("div");
+      el.className = "dow";
+      el.textContent = d;
+      dowRow.appendChild(el);
+    });
+
+    const grid = document.getElementById("monthGrid");
+    grid.innerHTML = "";
+
+    const first = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1);
+    const startDay = first.getDay(); // 0..6
+    const daysInMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()+1, 0).getDate();
+
+    // padding
+    const prevMonthDays = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 0).getDate();
+    for(let i=0;i<startDay;i++){
+      const dayNum = prevMonthDays - (startDay-1-i);
+      const cell = document.createElement("div");
+      cell.className = "dayCell muted";
+      cell.textContent = dayNum;
+      grid.appendChild(cell);
+    }
+
+    const todayISO = toISO(new Date());
+
+    for(let d=1; d<=daysInMonth; d++){
+      const dt = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), d);
+      const cellISO = toISO(dt);
+
+      const cell = document.createElement("div");
+      cell.className = "dayCell";
+      cell.textContent = d;
+
+      if(cellISO === todayISO) cell.classList.add("today");
+      if(selectedDateISO && cellISO === selectedDateISO) cell.classList.add("selected");
+
+      cell.addEventListener("click", ()=>{
+        // FULL function:
+        // 1) set weekOf = clicked date (week starts from ANY day)
+        // 2) update week labels + selected day index
+        // 3) ensure week tasks exist (and template if empty)
+        selectedDateISO = cellISO;
+        document.getElementById("weekOf").value = cellISO;
+        onKeyChanged({collapseCalendar:true, seedIfNew:true});
+      });
+
+      grid.appendChild(cell);
+    }
+
+    // complete row
+    const totalCells = startDay + daysInMonth;
+    const remaining = (7 - (totalCells % 7)) % 7;
+    for(let i=1;i<=remaining;i++){
+      const cell = document.createElement("div");
+      cell.className = "dayCell muted";
+      cell.textContent = i;
+      grid.appendChild(cell);
+    }
+  }
+
+  document.getElementById("prevMonthBtn").addEventListener("click", ()=>{
+    monthAnchor = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()-1, 1);
+    renderMonthCalendar();
+  });
+  document.getElementById("nextMonthBtn").addEventListener("click", ()=>{
+    monthAnchor = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth()+1, 1);
+    renderMonthCalendar();
+  });
+
+  // ---------- QUICK ADD (AUTO-APPLY) ----------
+  function normalizeDayName(s){
+    const t = (s||"").trim().toLowerCase();
+    for(const dn of FULL_DAYS){
+      if(dn.toLowerCase() === t) return dn;
+    }
+    // allow "Mon" "Tue"...
+    const map = {mon:"Monday", tue:"Tuesday", tues:"Tuesday", wed:"Wednesday", thu:"Thursday", thur:"Thursday", thurs:"Thursday", fri:"Friday", sat:"Saturday", sun:"Sunday"};
+    return map[t] || "";
+  }
+
+  function splitTasks(chunk){
+    // split by commas OR semicolons, keep phrases intact
+    return chunk
+      .split(/[,;]+/g)
+      .map(x=>x.trim())
+      .filter(Boolean);
+  }
+
+  function cleanDoneMarkers(text){
+    // remove "DONE XX" or "DONE -XX" etc, keep task text
+    let done = false;
+    let t = (text||"").trim();
+    if(/\bDONE\b/i.test(t)){
+      done = true;
+      // remove DONE + trailing initials patterns
+      t = t.replace(/\bDONE\b\s*[-–]?\s*[A-Z]{1,4}\b/gi, "").trim();
+      t = t.replace(/\bDONE\b/gi, "").trim();
+    }
+    return { text:t, done };
+  }
+
+  function parseQuickAddBlock(raw){
+    const out = {
+      days: { Monday:[], Tuesday:[], Wednesday:[], Thursday:[], Friday:[], Saturday:[], Sunday:[] },
+      upcoming: "",
+      missing: ""
+    };
+
+    const lines = (raw||"")
+      .replace(/\r/g,"")
+      .split("\n")
+      .map(l=>l.trim())
+      .filter(l=>l.length>0);
+
+    // We support:
+    // "Monday: a, b, c"
+    // "Upcoming: ..."
+    // "Missing: ..."
+    // Also allow day lines without colon by detecting leading day name.
+    for(const line of lines){
+      const m = line.match(/^([A-Za-z]+)\s*:\s*(.*)$/);
+      if(m){
+        const key = m[1].trim();
+        const rest = m[2].trim();
+
+        const dn = normalizeDayName(key);
+        if(dn){
+          const tasks = splitTasks(rest);
+          tasks.forEach(t=>{
+            const cd = cleanDoneMarkers(t);
+            if(cd.text || cd.done) out.days[dn].push({text:cd.text, done:cd.done});
+          });
+          continue;
+        }
+
+        if(key.toLowerCase() === "upcoming"){
+          out.upcoming += (out.upcoming ? "\n" : "") + rest;
+          continue;
+        }
+        if(key.toLowerCase() === "missing"){
+          out.missing += (out.missing ? "\n" : "") + rest;
+          continue;
+        }
+
+        // If it's "Monday: ..." embedded in a longer label, ignore.
+      }
+
+      // If line begins with a day name even without colon (rare)
+      const dm = line.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/i);
+      if(dm && line.includes(":")){
+        // already caught above, but safe.
+      }
+    }
+
+    return out;
+  }
+
+  function dayIndexWithinWeekByName(dayName){
+    // weekStartISO is arbitrary; our 7 slots are day 0..6
+    // But QuickAdd uses named weekdays. We map them into our 7-day window
+    // by finding which slot in the window matches that weekday.
+    if(!weekStartISO) return null;
+    const target = normalizeDayName(dayName);
+    if(!target) return null;
+
+    for(let i=0;i<7;i++){
+      const iso = addDaysISO(weekStartISO, i);
+      const d = fromISO(iso);
+      const name = FULL_DAYS[d.getDay()];
+      if(name === target) return i;
+    }
+    return null;
+  }
+
+  function applyParsedToWeek(parsed){
+    if(!weekStartISO){
+      toast("Set Week Of first");
+      return;
+    }
+
+    // confirm overwrite if week already has real content
+    if(anyTasksExist()){
+      // check if there is any non-empty text
+      let hasText = false;
+      dayPanels.querySelectorAll('input[type="text"][data-key]').forEach(inp=>{
+        if((inp.value||"").trim()){ hasText = true; }
+      });
+      if(hasText){
+        const ok = confirm("Replace current week tasks with Quick Add?");
+        if(!ok) return;
+      }
+    }
+
+    // clear all day tasks
+    for(let i=0;i<7;i++) clearDayTasks(i);
+
+    // fill each named day into matching slot in the 7-day window
+    Object.keys(parsed.days).forEach(dayName=>{
+      const idx = dayIndexWithinWeekByName(dayName);
+      if(idx === null) return;
+
+      const tasks = parsed.days[dayName] || [];
+      if(tasks.length === 0){
+        addDayTask(idx,"",false);
+        return;
+      }
+      tasks.forEach(t=>{
+        addDayTask(idx, t.text, t.done);
+      });
+    });
+
+    // ensure every slot has at least one blank so it never looks broken
+    ensureWeekSeed();
+
+    // upcoming/missing
+    if((parsed.upcoming||"").trim()){
+      const u = document.getElementById("upcoming");
+      u.value = (u.value ? (u.value.trimEnd() + "\n") : "") + parsed.upcoming;
+    }
+    if((parsed.missing||"").trim()){
+      const m = document.getElementById("missing");
+      m.value = (m.value ? (m.value.trimEnd() + "\n") : "") + parsed.missing;
+    }
+
+    updateProgress();
+    debounceSave();
+    toast("Applied");
+  }
+
+  document.getElementById("applyQuickAdd").addEventListener("click", ()=>{
+    if(!hasRequiredKey()){
+      toast("Set Student + Week first");
+      return;
+    }
+    const raw = document.getElementById("quickAdd").value || "";
+    const parsed = parseQuickAddBlock(raw);
+    applyParsedToWeek(parsed);
+  });
+
+  document.getElementById("quickAdd").addEventListener("keydown", (e)=>{
+    if((e.ctrlKey || e.metaKey) && e.key === "Enter"){
+      e.preventDefault();
+      document.getElementById("applyQuickAdd").click();
+    }
   });
 
   // ---------- save/load ----------
@@ -1021,10 +1204,10 @@
     });
 
     // text areas
-    const q = document.querySelector('[data-key="quickAdd"]');
-    const n = document.querySelector('[data-key="quickNote"]');
-    const up = document.querySelector('[data-key="upcoming"]');
-    const mi = document.querySelector('[data-key="missing"]');
+    const q = document.getElementById("quickAdd");
+    const n = document.getElementById("quickNote");
+    const up = document.getElementById("upcoming");
+    const mi = document.getElementById("missing");
     if(q) q.value = obj["quickAdd"] ?? obj.quickAdd ?? "";
     if(n) n.value = obj["quickNote"] ?? obj.quickNote ?? "";
     if(up) up.value = obj["upcoming"] ?? obj.upcoming ?? "";
@@ -1047,13 +1230,13 @@
       }
     });
 
-    ensureWeek();
+    ensureWeekSeed();
 
     lastSavedHash = hashData(collectData());
     updateProgress();
 
-    const m = cacheMeta();
-    if(m?.localSavedAt) setLocalText(m.localSavedAt);
+    const mm = cacheMeta();
+    if(mm?.localSavedAt) setLocalText(mm.localSavedAt);
 
     isApplyingLoad = false;
   }
@@ -1065,26 +1248,37 @@
   }
   function stopAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer = null; }
 
-  function onKeyChanged(){
+  // ---------- key changes (THIS is what keeps calendar + start-day week fully working) ----------
+  function onKeyChanged(opts={collapseCalendar:false, seedIfNew:false}){
+    const wk = document.getElementById("weekOf").value || "";
+    if(!wk){
+      setStatus("idle","Set Student + Week to enable autosave.");
+      return;
+    }
+
+    weekStartISO = wk;
+    selectedDateISO = wk;
+
+    // month anchor for calendar and rerender (keeps selection highlight)
+    const d = fromISO(wk);
+    monthAnchor = new Date(d.getFullYear(), d.getMonth(), 1);
+    renderMonthCalendar();
+
+    // selected day index should match the chosen start date (day 0)
+    setSelectedDay(0);
+
+    // update day labels to show real dates
+    buildWeekUIFromStart();
+
+    // ensure week isn't empty on screen
+    if(opts.seedIfNew) ensureWeekSeed();
+
+    // record readiness / autosave gating
     if(!hasRequiredKey()){
       stopAutoRefresh();
       setStatus("idle","Set Student + Week to enable autosave.");
       setLocalText("—"); setSyncText("—");
       return;
-    }
-
-    // update calendar selection to match weekOf
-    const wk = document.getElementById("weekOf").value;
-    if(wk){
-      selectedDateISO = wk;
-      const d = fromISO(wk);
-      monthAnchor = new Date(d.getFullYear(), d.getMonth(), 1);
-      renderMonthCalendar();
-
-      // set selected day panel to that date’s dow
-      const jsDay = d.getDay();
-      const map = {1:0,2:1,3:2,4:3,5:4,6:5,0:6};
-      setSelectedDay(map[jsDay] ?? 0);
     }
 
     const cached = cacheLoad();
@@ -1095,11 +1289,14 @@
     }else{
       setLocalText("none yet");
       setStatus("ready","New record.");
-      ensureWeek();
-      seedWeekTemplateIfEmpty();
     }
 
     startAutoRefresh();
+
+    if(opts.collapseCalendar) setCalendarCollapsed(true);
+    updateProgress();
+    renderQuickNoteBanner();
+    debounceSave();
   }
 
   // ---------- buttons ----------
@@ -1124,30 +1321,27 @@
 
     out += "Quick Add\n" + (document.getElementById("quickAdd").value || "") + "\n\n";
 
-    days.forEach((d,di)=>{
-      out += d + "\n";
-      const panel = document.getElementById("daypanel_" + di);
+    for(let i=0;i<7;i++){
+      const iso = week ? addDaysISO(week, i) : "";
+      out += (iso ? niceDayLabel(iso) : ("Day " + (i+1))) + "\n";
+      const panel = document.getElementById("daypanel_" + i);
       panel.querySelectorAll(".task").forEach(t=>{
         const text = t.querySelector('input[type="text"]').value || "";
         const done = t.querySelector('input[type="checkbox"]').checked ? "DONE" : "OPEN";
         if(text) out += done + " - " + text + "\n";
       });
       out += "\n";
-    });
+    }
 
-    out += "Upcoming\n" + (document.querySelector('[data-key="upcoming"]').value || "") + "\n\n";
-    out += "Missing\n" + (document.querySelector('[data-key="missing"]').value || "") + "\n";
+    out += "Upcoming\n" + (document.getElementById("upcoming").value || "") + "\n\n";
+    out += "Missing\n" + (document.getElementById("missing").value || "") + "\n";
 
     try{ await navigator.clipboard.writeText(out); toast("Copied"); }
     catch(e){ toast("Copy failed"); }
   });
 
-  // Print Snapshot
-  document.getElementById("printSnapshot").addEventListener("click", ()=>{
-    window.print();
-  });
+  document.getElementById("printSnapshot").addEventListener("click", ()=>window.print());
 
-  // ---------- reset ----------
   document.getElementById("resetPage").addEventListener("click", ()=>{
     if(confirm("Reset everything? This will reload the page.")) location.reload();
   });
@@ -1155,11 +1349,13 @@
   // ---------- autosave triggers ----------
   document.addEventListener("input", (e)=>{
     updateProgress();
-    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")) return;
 
     if(e.target && e.target.id === "quickNote"){
       renderQuickNoteBanner();
     }
+
+    // don't autosave while typing name/week until change event
+    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")) return;
 
     debounceSave();
   });
@@ -1167,39 +1363,48 @@
   document.addEventListener("change", (e)=>{
     updateProgress();
 
-    if(e.target && (e.target.id === "quickNote")){
+    if(e.target && e.target.id === "quickNote"){
       renderQuickNoteBanner();
     }
 
-    // Key fields: handle record setup + refresh
-    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")){
-      onKeyChanged();
+    // week change is the real reset point
+    if(e.target && e.target.id === "weekOf"){
+      onKeyChanged({collapseCalendar:false, seedIfNew:true});
+      return;
+    }
+
+    // student change affects record key
+    if(e.target && e.target.id === "studentName"){
+      if(document.getElementById("weekOf").value){
+        onKeyChanged({collapseCalendar:false, seedIfNew:true});
+      }
       return;
     }
 
     debounceSave();
   });
 
-  // ---------- URL prefill ----------
+  // ---------- prefill from URL ----------
   (function prefillFromURL(){
     const url = new URL(window.location.href);
     const student = url.searchParams.get("student");
     const week = url.searchParams.get("week");
     if(student) document.getElementById("studentName").value = student;
     if(week) document.getElementById("weekOf").value = week;
-    if(student || week){
-      onKeyChanged();
-      if(student && week) loadWeek({silent:true});
+    if(student && week){
+      onKeyChanged({collapseCalendar:true, seedIfNew:true});
+      loadWeek({silent:true});
     }
   })();
 
-  // ---------- initialize ----------
-  updateProgress();
+  // ---------- init ----------
   setSyncText("—");
   setLocalText("—");
   setStatus("idle","Set Student + Week to enable autosave.");
-  renderMonthCalendar();
   renderQuickNoteBanner();
+  renderMonthCalendar();
+  // default collapsed? keep open by default
 </script>
 </body>
 </html>
+```
