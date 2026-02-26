@@ -8,24 +8,69 @@
   :root{
     --bg:#f7f9fc; --card:#fff; --text:#222; --muted:#667085;
     --line:#e6eaf0; --blue:#0b6bff; --red:#cc0033; --shadow:0 1px 6px rgba(0,0,0,.08);
-    --radius:14px; --good:#12b76a; --gold:#f5c542; --dark:#111827;
+    --radius:14px; --good:#12b76a; --amber:#fdb022; --dark:#111827;
   }
   *{ box-sizing:border-box; }
   body{ margin:0; padding:12px 12px 110px; font-family: Arial, sans-serif; background:var(--bg); color:var(--text); }
   h1{ font-size:20px; margin:2px 0 4px; text-align:center; letter-spacing:.2px; }
   .sub{ font-size:12px; color:var(--muted); text-align:center; margin:0 0 10px; }
-  .wrap{ max-width:980px; margin:0 auto; }
+  .wrap{ max-width:1100px; margin:0 auto; }
 
   .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
   .pad{ padding:12px; }
   .row{ display:flex; gap:10px; flex-wrap:wrap; }
-  .col{ flex:1; min-width:180px; }
+  .col{ flex:1; min-width:200px; }
   label{ display:block; font-size:11px; color:var(--muted); margin:0 0 4px; }
   input, select, textarea{
     width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:12px; outline:none;
     font-size:14px; background:#fff;
   }
-  textarea{ min-height:68px; resize:vertical; }
+  textarea{ min-height:72px; resize:vertical; }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+  .chipbar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:6px 0 0; }
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:6px 10px; border-radius:999px;
+    border:1px solid var(--line); background:#fff;
+    font-size:12px; color:#475467;
+  }
+  .dot{ width:8px; height:8px; border-radius:999px; display:inline-block; background:#98a2b3; }
+  .dot.green{ background:var(--good); }
+  .dot.red{ background:var(--red); }
+  .dot.blue{ background:var(--blue); }
+  .dot.amber{ background:var(--amber); }
+
+  .topbar{ display:flex; gap:10px; align-items:stretch; }
+  .top-left{ flex:1; }
+  .top-right{
+    width:330px; min-width:330px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:12px; border-radius:var(--radius); border:1px solid var(--line); background:var(--card); box-shadow:var(--shadow);
+    gap:10px;
+  }
+
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:6px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px; color:var(--muted);
+    background:#fff; white-space:nowrap;
+  }
+  .pill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
+  .pill.blue{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
+  .pill.warn{ background:rgba(253,176,34,.18); border-color:transparent; color:#7a5200; }
+  .pill.bad{ background:rgba(204,0,51,.10); border-color:transparent; color:#8f0026; }
+
+  .big{ font-size:22px; font-weight:800; }
+  .small{ font-size:11px; color:var(--muted); }
+  .btnrow{ display:flex; gap:8px; flex-wrap:wrap; }
+  .btn{
+    padding:9px 10px; border-radius:12px; border:1px solid var(--line); background:#fff;
+    cursor:pointer; font-size:13px;
+  }
+  .btn.primary{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
+  .btn.danger{ background:rgba(204,0,51,.10); border-color:transparent; color:#8f0026; }
+  .btn:active{ transform:translateY(1px); }
+  .btn:disabled{ opacity:.55; cursor:not-allowed; }
 
   .tabs{ display:flex; gap:8px; margin:10px 0; flex-wrap:wrap; justify-content:center; }
   .tab{
@@ -36,38 +81,6 @@
 
   .section{ display:none; }
   .section.active{ display:block; }
-
-  .topbar{ display:flex; gap:10px; align-items:stretch; }
-  .top-left{ flex:1; }
-  .top-right{
-    width:280px; min-width:280px;
-    display:flex; flex-direction:column; justify-content:space-between;
-    padding:12px; border-radius:var(--radius); border:1px solid var(--line); background:var(--card); box-shadow:var(--shadow);
-    gap:10px;
-  }
-
-  .meter{ display:flex; align-items:flex-start; gap:10px; }
-  .pill{
-    display:inline-flex; align-items:center; gap:6px;
-    padding:6px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px; color:var(--muted);
-    background:#fff; white-space:nowrap;
-  }
-  .pill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
-  .pill.blue{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
-  .pill.gold{ background:rgba(245,197,66,.18); border-color:transparent; color:#7a5a00; }
-
-  .big{ font-size:20px; font-weight:700; }
-  .small{ font-size:11px; color:var(--muted); }
-  .btnrow{ display:flex; gap:8px; flex-wrap:wrap; }
-  .btn{
-    padding:9px 10px; border-radius:12px; border:1px solid var(--line); background:#fff;
-    cursor:pointer; font-size:13px;
-  }
-  .btn.primary{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
-  .btn.danger{ background:rgba(204,0,51,.10); border-color:transparent; color:#8f0026; }
-  .btn.gold{ background:rgba(245,197,66,.22); border-color:transparent; color:#6b4a00; }
-  .btn:active{ transform:translateY(1px); }
-  .btn:disabled{ opacity:.55; cursor:not-allowed; }
 
   .task{
     display:flex; gap:8px; align-items:flex-start; margin:8px 0;
@@ -88,6 +101,84 @@
   .daypanel{ display:none; }
   .daypanel.active{ display:block; }
 
+  /* Week calendar */
+  .weekCal{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap:8px;
+    margin-top:10px;
+  }
+  .calDay{
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:#fff;
+    padding:10px;
+    min-height:86px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .calTop{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .calName{ font-size:12px; font-weight:700; color:#344054; }
+  .calDate{ font-size:11px; color:var(--muted); }
+  .calBar{
+    height:8px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    overflow:hidden;
+    background:#f8fafc;
+  }
+  .calFill{ height:100%; width:0%; background:rgba(11,107,255,.35); }
+  .calMini{ display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
+  .calPill{
+    align-self:flex-start;
+    font-size:11px;
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:#475467;
+  }
+  .calPill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
+  .calPill.warn{ background:rgba(253,176,34,.18); border-color:transparent; color:#7a5200; }
+  .calPill.bad{ background:rgba(204,0,51,.10); border-color:transparent; color:#8f0026; }
+
+  /* Touchpoints log */
+  .logItem{
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px;
+    background:#fff;
+    margin-top:8px;
+  }
+  .logHead{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .logTitle{ font-weight:700; font-size:13px; }
+  .logMeta{ color:var(--muted); font-size:11px; }
+  .logBody{ margin-top:6px; color:#344054; font-size:13px; line-height:1.35; white-space:pre-wrap; }
+  .tag{
+    font-size:11px;
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:#475467;
+  }
+  .tag.blue{ background:rgba(11,107,255,.10); border-color:transparent; color:#0b48c6; }
+  .tag.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
+  .tag.warn{ background:rgba(253,176,34,.18); border-color:transparent; color:#7a5200; }
+  .tag.bad{ background:rgba(204,0,51,.10); border-color:transparent; color:#8f0026; }
+
   /* Sticky bottom */
   .sticky{
     position:fixed; left:0; right:0; bottom:0;
@@ -95,7 +186,7 @@
     border-top:1px solid var(--line);
   }
   .sticky .inner{
-    max-width:980px; margin:0 auto; padding:10px 12px;
+    max-width:1100px; margin:0 auto; padding:10px 12px;
     display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
   }
   .status{ font-size:12px; color:var(--muted); }
@@ -115,89 +206,22 @@
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
 
-  /* Header chips */
-  .chipbar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:6px 0 0; }
-  .chip{
-    display:inline-flex; align-items:center; gap:6px;
-    padding:6px 10px; border-radius:999px;
-    border:1px solid var(--line); background:#fff;
-    font-size:12px; color:#475467;
-  }
-  .dot{ width:8px; height:8px; border-radius:999px; display:inline-block; background:#98a2b3; }
-  .dot.green{ background:var(--good); }
-  .dot.red{ background:var(--red); }
-  .dot.blue{ background:var(--blue); }
+  .divider{ height:1px; background:var(--line); margin:10px 0; }
 
-  /* Slot (simple numbers) */
-  .slotWrap{
-    display:grid;
-    gap:12px;
-  }
-  .slotTop{
-    display:flex; gap:10px; justify-content:space-between; align-items:center; flex-wrap:wrap;
-  }
-  .slotFrame{
-    border:1px solid var(--line);
-    border-radius:18px;
-    background: linear-gradient(180deg, #ffffff, #f8fafc);
-    padding:12px;
-    box-shadow: inset 0 1px 0 rgba(0,0,0,.04);
-  }
-  .machine{
-    display:flex;
-    gap:10px;
-    justify-content:center;
-    align-items:center;
-    padding:14px 10px;
-  }
-  .reel{
-    width:92px; height:92px;
-    border-radius:18px;
-    border:1px solid #d9dfe8;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:44px;
-    font-weight:800;
-    background:#fff;
-    user-select:none;
-    position:relative;
-    overflow:hidden;
-  }
-  .reel:after{
-    content:"";
-    position:absolute;
-    inset:0;
-    background: radial-gradient(circle at 30% 20%, rgba(11,107,255,.10), transparent 45%),
-                radial-gradient(circle at 70% 80%, rgba(245,197,66,.14), transparent 45%);
-    pointer-events:none;
-  }
-  .spark{ animation: spark .28s ease-in-out 2; }
-  @keyframes spark{ 0%{ transform:scale(1);} 50%{ transform:scale(1.05);} 100%{ transform:scale(1);} }
-  .shake{ animation: shake .33s ease-in-out 1; }
-  @keyframes shake{ 0%{ transform:translateX(0);} 25%{ transform:translateX(-4px);} 50%{ transform:translateX(4px);} 75%{ transform:translateX(-3px);} 100%{ transform:translateX(0);} }
-
-  .confetti{ position:relative; overflow:hidden; }
-  .confetti i{
-    position:absolute;
-    width:8px; height:14px;
-    border-radius:3px;
-    opacity:.95;
-    top:-20px;
-    animation: fall 950ms linear forwards;
-  }
-  @keyframes fall{ to{ transform: translateY(220px) rotate(300deg); opacity:0; } }
-
-  .mono{
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /* Print */
+  @media print{
+    body{ background:#fff; padding:0; }
+    .sticky, .tabs, .chipbar, .btnrow, .sub{ display:none !important; }
+    .card{ box-shadow:none; }
+    .wrap{ max-width:100%; }
   }
 
-  @media(max-width:720px){
+  @media(max-width:820px){
     .topbar{ flex-direction:column; }
     .top-right{ width:100%; min-width:unset; }
     body{ padding-bottom:118px; }
     .toast{ bottom:108px; }
-    .reel{ width:78px; height:78px; font-size:40px; }
+    .weekCal{ grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 </head>
@@ -205,14 +229,15 @@
 <body>
 <div class="wrap">
   <h1>CATS Weekly Dashboard</h1>
-  <div class="sub">Autosaves after you set Student + Week. “Load Week” pulls the shared version.</div>
+  <div class="sub">Autosaves after you set Student + Week. “Load Week” pulls the shared version. “Add Week” makes it easy to track progress across weeks.</div>
 
   <div class="chipbar">
     <div class="chip"><span class="dot" id="dotOnline"></span><span id="onlineText">Checking connection…</span></div>
     <div class="chip"><span class="dot blue"></span><span id="syncText">Last synced: —</span></div>
+    <div class="chip"><span class="dot amber"></span><span id="rosterText">Roster: not loaded</span></div>
   </div>
 
-  <!-- Header / Meta + Meter -->
+  <!-- Header / Meta + Insights -->
   <div class="topbar" style="margin-top:10px;">
     <div class="top-left card pad">
       <div class="row">
@@ -220,67 +245,101 @@
           <label>Student Name</label>
           <input id="studentName" type="text" placeholder="First Last" autocomplete="off" />
         </div>
+
         <div class="col">
           <label>Sport (UA Athletics)</label>
           <select id="sport">
             <option value="">Select sport</option>
-            <option>Baseball</option>
-            <option>Men's Basketball</option>
-            <option>Women's Basketball</option>
-            <option>Beach Volleyball</option>
-            <option>Cross Country</option>
-            <option>Football</option>
-            <option>Men's Golf</option>
-            <option>Women's Golf</option>
-            <option>Gymnastics</option>
-            <option>Soccer</option>
-            <option>Softball</option>
-            <option>Men's Swimming & Diving</option>
-            <option>Women's Swimming & Diving</option>
-            <option>Men's Tennis</option>
-            <option>Women's Tennis</option>
-            <option>Track & Field</option>
-            <option>Triathlon</option>
-            <option>Volleyball</option>
           </select>
+          <div class="hint" id="sportHint">Tip: sports list can also come from the roster endpoint.</div>
         </div>
+
         <div class="col">
-          <label>Week Of</label>
+          <label>Week Of (click for calendar)</label>
           <input id="weekOf" type="date" />
+          <div class="btnrow" style="margin-top:8px;">
+            <button class="btn" id="prevWeek" type="button">◀ Prev</button>
+            <button class="btn" id="thisWeek" type="button">This Week</button>
+            <button class="btn" id="nextWeek" type="button">Next ▶</button>
+          </div>
         </div>
+
         <div class="col">
-          <label>Counselor</label>
+          <label>Academic Counselor (from CATS roster)</label>
           <select id="counselor">
             <option value="">Select counselor</option>
-            <option>Jennifer</option>
-            <option>Sarah</option>
           </select>
+          <input id="counselorSearch" type="text" placeholder="Search counselor…" style="margin-top:8px;" />
         </div>
+
         <div class="col">
-          <label>Learning Specialist</label>
+          <label>Learning Specialist (from CATS roster)</label>
           <select id="ls">
             <option value="">Select LS</option>
-            <option>Elias Ortega</option>
-            <option>Other LS</option>
           </select>
+          <input id="lsSearch" type="text" placeholder="Search LS…" style="margin-top:8px;" />
         </div>
       </div>
 
-      <div style="margin-top:10px;">
-        <label>Quick Note (what matters this week)</label>
-        <textarea id="note" placeholder="One sentence: what are we focusing on and why?"></textarea>
+      <div class="row" style="margin-top:10px;">
+        <div class="col">
+          <label>Quick Focus (what matters this week)</label>
+          <textarea id="note" placeholder="One sentence: what are we focusing on and why?"></textarea>
+        </div>
+        <div class="col">
+          <label>Support Plan (SMART)</label>
+          <textarea data-key="smartPlan" placeholder="S: …  M: …  A: …  R: …  T: …"></textarea>
+        </div>
       </div>
+
+      <div class="divider"></div>
+
+      <div class="row">
+        <div class="col">
+          <label>Weeks Tracker</label>
+          <div class="row" style="margin:0;">
+            <div class="col" style="min-width:260px;">
+              <select id="weekPicker"></select>
+              <div class="hint">Switch weeks instantly (same student). Uses your Student Name + Week Of as the record key.</div>
+            </div>
+            <div class="col" style="min-width:240px;">
+              <div class="btnrow">
+                <button class="btn primary" id="addWeekBtn" type="button">+ Add Week</button>
+                <button class="btn" id="duplicateWeekBtn" type="button">Duplicate This Week</button>
+                <button class="btn" id="printBtn" type="button">Print Snapshot</button>
+              </div>
+              <div class="hint">“Duplicate” copies tasks/notes into a new week (you choose the date).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="weekCal" id="weekCal"></div>
     </div>
 
     <div class="top-right">
-      <div class="meter">
-        <div style="flex:1;">
-          <div class="small">Weekly Completion</div>
-          <div class="big"><span id="doneCount">0</span>/<span id="totalCount">0</span></div>
-          <div class="small"><span id="pct">0%</span> tasks marked done</div>
-          <div class="small" id="localText" style="margin-top:6px;">Local backup: —</div>
-        </div>
+      <div>
+        <div class="small">Weekly Completion</div>
+        <div class="big"><span id="doneCount">0</span>/<span id="totalCount">0</span></div>
+        <div class="small"><span id="pct">0%</span> tasks done</div>
+        <div class="small" id="localText" style="margin-top:6px;">Local backup: —</div>
+      </div>
+
+      <div class="row" style="margin:0;">
         <div class="pill blue" id="weekPill">Week status: in progress</div>
+        <div class="pill" id="riskPill">Risk: —</div>
+      </div>
+
+      <div class="card pad" style="box-shadow:none; border:1px dashed var(--line);">
+        <div style="font-weight:700; margin-bottom:6px;">Surprise Feature: “Next Best Action”</div>
+        <div class="hint" style="margin:0;">
+          This tool watches your inputs and suggests one concrete next step that’s likely to move grades/eligibility.
+        </div>
+        <div style="margin-top:8px; padding:10px; border-radius:12px; border:1px solid var(--line); background:#fff;">
+          <div class="small">Recommendation</div>
+          <div id="nbaText" style="font-weight:700; margin-top:4px;">Set Student + Week to begin.</div>
+          <div class="small" id="nbaWhy" style="margin-top:6px;">—</div>
+        </div>
       </div>
 
       <div class="btnrow" style="justify-content:flex-end;">
@@ -288,49 +347,81 @@
         <button class="btn" id="copySummary" type="button">Copy Summary</button>
         <button class="btn" id="shareLink" type="button">Share Link</button>
       </div>
-      <div class="hint" style="margin:0;">
-        Earn <strong>1 spin</strong> only when the entire week is done (100%).
-      </div>
+      <div class="hint" style="margin:0;">Share link pre-fills student + week for quick handoffs.</div>
     </div>
   </div>
 
   <!-- Tabs -->
   <div class="tabs">
-    <div class="tab active" data-tab="priorities">Priorities</div>
-    <div class="tab" data-tab="daily">Daily Plan</div>
+    <div class="tab active" data-tab="tasks">Tasks</div>
     <div class="tab" data-tab="notes">Upcoming / Missing</div>
-    <div class="tab" data-tab="slot">One Spin</div>
+    <div class="tab" data-tab="touchpoints">Touchpoints</div>
+    <div class="tab" data-tab="reports">Reports</div>
   </div>
 
-  <!-- Priorities -->
-  <div class="section active" id="priorities">
-    <div class="card pad">
-      <div class="row" style="align-items:center; justify-content:space-between;">
-        <div>
-          <div style="font-weight:700;">This Week Priorities</div>
-          <div class="hint">Keep it tight. If it doesn’t move grades or eligibility, it can wait.</div>
+  <!-- Tasks -->
+  <div class="section active" id="tasks">
+    <div class="row">
+      <div class="col card pad" style="min-width:320px;">
+        <div class="row" style="align-items:center; justify-content:space-between; margin:0;">
+          <div>
+            <div style="font-weight:800;">This Week Priorities</div>
+            <div class="hint">Keep it tight. These should be the “grade movers.”</div>
+          </div>
+          <div class="btnrow">
+            <button class="btn primary" id="addPriority" type="button">+ Add</button>
+            <button class="btn" id="quick3" type="button">+3</button>
+          </div>
         </div>
-        <div class="btnrow">
-          <button class="btn primary" id="addPriority" type="button">+ Add Priority</button>
-          <button class="btn" id="quick3" type="button">Add 3 blanks</button>
+        <div id="prioritiesBox" style="margin-top:10px;"></div>
+
+        <div class="divider"></div>
+        <div style="font-weight:800;">Risk Flags</div>
+        <div class="hint">Use these for fast team communication (shows in reports).</div>
+        <div class="row" style="margin-top:8px;">
+          <div class="col" style="min-width:220px;">
+            <label>Attendance / Show-ups</label>
+            <select data-key="riskAttendance">
+              <option value="">—</option>
+              <option>On track</option>
+              <option>Inconsistent</option>
+              <option>Missed appointments</option>
+            </select>
+          </div>
+          <div class="col" style="min-width:220px;">
+            <label>Missing Work</label>
+            <select data-key="riskMissing">
+              <option value="">—</option>
+              <option>Low</option>
+              <option>Moderate</option>
+              <option>High</option>
+            </select>
+          </div>
+          <div class="col" style="min-width:220px;">
+            <label>Communication</label>
+            <select data-key="riskComm">
+              <option value="">—</option>
+              <option>Responsive</option>
+              <option>Slow</option>
+              <option>Non-responsive</option>
+            </select>
+          </div>
         </div>
+        <textarea data-key="riskNotes" placeholder="Risk notes (short + specific)" style="margin-top:10px;"></textarea>
       </div>
-      <div id="prioritiesBox" style="margin-top:10px;"></div>
-    </div>
-  </div>
 
-  <!-- Daily Plan -->
-  <div class="section" id="daily">
-    <div class="card pad">
-      <div style="font-weight:700;">Daily Plan</div>
-      <div class="hint">Pick a day. Add tasks. Tap DONE.</div>
+      <div class="col card pad">
+        <div style="font-weight:800;">Daily Plan</div>
+        <div class="hint">Pick a day. Add tasks. Tap DONE. The calendar tiles above reflect daily completion.</div>
 
-      <div class="daybar" id="daybar"></div>
-      <div id="dayPanels"></div>
+        <div class="daybar" id="daybar"></div>
+        <div id="dayPanels"></div>
 
-      <div class="btnrow" style="justify-content:center; margin-top:8px;">
-        <button class="btn" id="addTaskToday" type="button">+ Add task to selected day</button>
-        <button class="btn" id="addStudyTemplate" type="button">Add “Study Hall” template</button>
+        <div class="btnrow" style="justify-content:center; margin-top:8px;">
+          <button class="btn" id="addTaskToday" type="button">+ Add task</button>
+          <button class="btn" id="addStudyTemplate" type="button">Add “Study Hall” template</button>
+          <button class="btn" id="clearDone" type="button">Clear DONE checks (keeps text)</button>
+        </div>
       </div>
     </div>
   </div>
@@ -339,72 +430,131 @@
   <div class="section" id="notes">
     <div class="row">
       <div class="col card pad">
-        <div style="font-weight:700;">Upcoming</div>
-        <textarea data-key="upcoming" placeholder="Deadlines coming soon"></textarea>
+        <div style="font-weight:800;">Upcoming</div>
+        <div class="hint">Deadlines coming soon (exams, papers, labs, quizzes, travel).</div>
+        <textarea data-key="upcoming" placeholder="Example: BIO midterm Fri / ENGL draft due Sun"></textarea>
       </div>
       <div class="col card pad">
-        <div style="font-weight:700;">Missing</div>
-        <textarea data-key="missing" placeholder="Missing assignments"></textarea>
+        <div style="font-weight:800;">Missing</div>
+        <div class="hint">Only the missing items that matter right now.</div>
+        <textarea data-key="missing" placeholder="Example: 2 late discussion posts + 1 quiz"></textarea>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <div class="col card pad">
+        <div style="font-weight:800;">Appointments / Commitments (quick tracker)</div>
+        <div class="hint">Not an official calendar—just a fast view of what the week looks like.</div>
+        <div class="row">
+          <div class="col">
+            <label>Date (calendar)</label>
+            <input type="date" id="apptDate" />
+          </div>
+          <div class="col">
+            <label>Time</label>
+            <input type="time" id="apptTime" />
+          </div>
+          <div class="col">
+            <label>Type</label>
+            <select id="apptType">
+              <option>Study Hall</option>
+              <option>CATS Appointment</option>
+              <option>Tutoring</option>
+              <option>Team Meeting</option>
+              <option>Class</option>
+              <option>Travel</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <label>Details</label>
+          <input type="text" id="apptDetails" placeholder="ex: Chem tutoring in library / meet coach / etc." />
+        </div>
+        <div class="btnrow" style="margin-top:10px;">
+          <button class="btn primary" id="addApptBtn" type="button">+ Add commitment</button>
+          <button class="btn" id="clearApptsBtn" type="button">Clear list</button>
+        </div>
+
+        <textarea data-key="apptList" id="apptList" class="mono" placeholder="Commitments log (auto)"></textarea>
       </div>
     </div>
   </div>
 
-  <!-- Slot -->
-  <div class="section" id="slot">
-    <div class="card pad slotWrap">
-      <div class="slotTop">
-        <div>
-          <div style="font-weight:700;">One Spin Slot</div>
-          <div class="hint">
-            You unlock <strong>1 spin</strong> when all tasks are DONE (100%).  
-            Match numbers to win the reward: <strong>Cancel CATS Appointment</strong> (request logged).
-          </div>
+  <!-- Touchpoints -->
+  <div class="section" id="touchpoints">
+    <div class="card pad">
+      <div class="row" style="margin:0; align-items:flex-end;">
+        <div class="col" style="min-width:220px;">
+          <label>Touchpoint Type</label>
+          <select id="tpType">
+            <option>In-person</option>
+            <option>Text</option>
+            <option>Email</option>
+            <option>Phone</option>
+            <option>Canvas/Brightspace check</option>
+            <option>Coach communication</option>
+            <option>Other</option>
+          </select>
         </div>
-        <div class="row" style="margin:0;">
-          <div class="pill gold">🎟 Spins available: <span id="spinsAvail">0</span></div>
-          <div class="pill good">🏆 Reward status: <span id="rewardStatus">—</span></div>
+        <div class="col" style="min-width:220px;">
+          <label>Owner</label>
+          <select id="tpOwner">
+            <option value="">—</option>
+            <option>Student</option>
+            <option>Learning Specialist</option>
+            <option>Academic Counselor</option>
+            <option>Coach</option>
+            <option>Faculty</option>
+          </select>
+        </div>
+        <div class="col" style="min-width:220px;">
+          <label>Impact</label>
+          <select id="tpImpact">
+            <option class="tag blue">Routine</option>
+            <option>Important</option>
+            <option>Urgent</option>
+          </select>
+        </div>
+        <div class="col" style="min-width:240px;">
+          <label>Next Step (short)</label>
+          <input type="text" id="tpNext" placeholder="ex: submit quiz + confirm" />
         </div>
       </div>
 
-      <div class="slotFrame confetti" id="slotBox">
-        <div class="machine" aria-label="Slot machine numbers">
-          <div class="reel mono" id="reel1">0</div>
-          <div class="reel mono" id="reel2">0</div>
-          <div class="reel mono" id="reel3">0</div>
-        </div>
-
-        <div class="btnrow" style="justify-content:center;">
-          <button class="btn primary" id="spinBtn" type="button">Spin</button>
-          <button class="btn" id="resetSpinBtn" type="button">Reset Spin (staff)</button>
-        </div>
-
-        <div class="hint" style="text-align:center; margin-top:6px;">
-          Win rules: <strong>3 of a kind</strong> = WIN. <strong>Any 2 match</strong> = “near win” (no reward).
-        </div>
+      <div style="margin-top:10px;">
+        <label>Notes</label>
+        <textarea id="tpNotes" placeholder="Write what happened + what the student agreed to do. Keep it factual."></textarea>
       </div>
 
-      <div class="row">
-        <div class="col card pad">
-          <div style="font-weight:700;">Cancel Appointment Request</div>
-          <div class="hint">If you WIN, this section auto-fills and logs the request. Staff still confirms/cancels officially.</div>
-          <input type="text" data-key="cancelApptWhen" placeholder="Appointment date/time (ex: Thu 3:30pm)" />
-          <div style="height:8px;"></div>
-          <input type="text" data-key="cancelApptReason" placeholder="Reason (optional)" />
-          <div style="height:8px;"></div>
-          <button class="btn danger" id="submitCancelBtn" type="button">Submit Cancellation Request</button>
-          <div class="hint" style="margin-top:8px;">This logs the request in the weekly record.</div>
-        </div>
+      <div class="btnrow" style="margin-top:10px;">
+        <button class="btn primary" id="addTouchpointBtn" type="button">+ Add Touchpoint</button>
+        <button class="btn" id="clearTouchpointsBtn" type="button">Clear Touchpoints</button>
+      </div>
 
-        <div class="col card pad">
-          <div style="font-weight:700;">Spin Log</div>
-          <div class="hint">Saved with the student/week.</div>
-          <textarea data-key="spinLog" placeholder="Spin results show here…"></textarea>
+      <input type="hidden" data-key="touchpointsJSON" id="touchpointsJSON" />
+      <div id="touchpointFeed" style="margin-top:10px;"></div>
+    </div>
+  </div>
 
-          <!-- Hidden fields saved to sheet -->
-          <input type="hidden" data-key="spinsAvailable" id="spinsAvailableField" />
-          <input type="hidden" data-key="spinUsedThisWeek" id="spinUsedField" />
-          <input type="hidden" data-key="rewardWon" id="rewardWonField" />
+  <!-- Reports -->
+  <div class="section" id="reports">
+    <div class="row">
+      <div class="col card pad">
+        <div style="font-weight:800;">Weekly Snapshot</div>
+        <div class="hint">One-click summary designed for quick Teamworks-style updates.</div>
+        <div class="btnrow" style="margin-top:10px;">
+          <button class="btn primary" id="buildSnapshotBtn" type="button">Build Snapshot</button>
+          <button class="btn" id="copySnapshotBtn" type="button">Copy Snapshot</button>
+          <button class="btn" id="exportCsvBtn" type="button">Export CSV</button>
         </div>
+        <textarea id="snapshotBox" class="mono" style="min-height:220px;" placeholder="Click Build Snapshot…"></textarea>
+      </div>
+
+      <div class="col card pad">
+        <div style="font-weight:800;">Internal Notes</div>
+        <div class="hint">Keep these internal to the team. (Still saved with the record.)</div>
+        <textarea data-key="internalNotes" placeholder="Staff-only notes: barriers, context, patterns, what to watch next week."></textarea>
       </div>
     </div>
   </div>
@@ -427,23 +577,42 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  // ===========
+  // CONFIG
+  // ===========
   const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
-  const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
+  // If your Apps Script supports this endpoint, it should return:
+  // { counselors: ["Name",...], learningSpecialists: ["Name",...], sports: ["Sport",...], updatedAt: "..." }
+  // GET:  webAppURL?action=roster
+  // (This page falls back to default lists if not available.)
+  const FALLBACK_ROSTER = {
+    counselors: ["Jennifer", "Sarah"],
+    learningSpecialists: ["Elias Ortega", "Other LS"],
+    sports: [
+      "Baseball","Men's Basketball","Women's Basketball","Beach Volleyball","Cross Country","Football",
+      "Men's Golf","Women's Golf","Gymnastics","Soccer","Softball","Men's Swimming & Diving",
+      "Women's Swimming & Diving","Men's Tennis","Women's Tennis","Track & Field","Triathlon","Volleyball"
+    ]
+  };
+
+  // ===========
+  // STATE
+  // ===========
   let saveTimer = null;
   let lastSavedHash = "";
   let selectedDayIndex = 0;
   let refreshTimer = null;
   let isApplyingLoad = false;
 
-  // Slot state: 1 spin max per completed week
-  let spinsAvailable = 0;        // 0 or 1
-  let spinUsedThisWeek = false;  // locks after spinning
-  let rewardWon = false;
+  // touchpoints in-memory (also saved as JSON string)
+  let touchpoints = [];
 
-  // ---------- UI helpers ----------
+  // ===========
+  // HELPERS
+  // ===========
   function nowStamp(){ return new Date().toLocaleString(); }
-
   function toast(msg){
     const el = document.getElementById("toast");
     el.textContent = msg;
@@ -451,18 +620,18 @@
     clearTimeout(el._t);
     el._t = setTimeout(()=>el.classList.remove("show"), 1600);
   }
-
   function setStatus(state, meta){
     const el = document.getElementById("status");
     el.innerHTML = "Status: <strong>" + state + "</strong>";
     const metaEl = document.getElementById("statusMeta");
     if(typeof meta === "string") metaEl.textContent = meta;
   }
-
   function setSyncText(text){ document.getElementById("syncText").textContent = "Last synced: " + text; }
   function setLocalText(text){ document.getElementById("localText").textContent = "Local backup: " + text; }
 
-  // ---------- connection indicator ----------
+  // ===========
+  // ONLINE INDICATOR
+  // ===========
   function updateOnlineChip(){
     const online = navigator.onLine;
     const dot = document.getElementById("dotOnline");
@@ -474,7 +643,9 @@
   window.addEventListener("offline", ()=>{ updateOnlineChip(); toast("Offline mode"); });
   updateOnlineChip();
 
-  // ---------- record key ----------
+  // ===========
+  // RECORD KEY + CACHE
+  // ===========
   function stableKey(){
     const student = (document.getElementById("studentName").value || "").trim();
     const week = document.getElementById("weekOf").value || "";
@@ -487,20 +658,191 @@
   function cacheKey(){ return "cats_week_data_" + stableKey().key; }
   function metaKey(){ return "cats_week_meta_" + stableKey().key; }
 
-  // ---------- fields ----------
+  function cacheSave(data, meta){
+    try{
+      localStorage.setItem(cacheKey(), JSON.stringify(data));
+      localStorage.setItem(metaKey(), JSON.stringify(meta));
+      setLocalText(meta?.localSavedAt ? meta.localSavedAt : "saved");
+    }catch(e){}
+  }
+  function cacheLoad(){
+    try{
+      const raw = localStorage.getItem(cacheKey());
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+  function cacheMeta(){
+    try{
+      const raw = localStorage.getItem(metaKey());
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  // ===========
+  // WEEK TOOLS
+  // ===========
+  function toDate(str){
+    const d = new Date(str + "T00:00:00");
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function fmtMMDD(d){
+    if(!d) return "—";
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    return `${m}/${day}`;
+  }
+  function fmtISO(d){
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const dd = String(d.getDate()).padStart(2,"0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  // Snap weekOf to Monday
+  function mondayOf(dateObj){
+    const d = new Date(dateObj);
+    const day = d.getDay(); // Sun=0
+    const diff = (day === 0 ? -6 : 1 - day); // move to Monday
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+  function setWeekOfToMonday(iso){
+    const d = toDate(iso);
+    if(!d) return;
+    const mon = mondayOf(d);
+    document.getElementById("weekOf").value = fmtISO(mon);
+  }
+
+  function weekDates(){
+    const iso = document.getElementById("weekOf").value;
+    const mon = toDate(iso);
+    if(!mon) return [];
+    return Array.from({length:7}, (_,i)=>{
+      const d = new Date(mon);
+      d.setDate(mon.getDate()+i);
+      return d;
+    });
+  }
+
+  // Multi-week tracker list (per student)
+  function weeksIndexKey(){
+    const student = (document.getElementById("studentName").value || "").trim().toLowerCase();
+    return "cats_weeks_index_" + student;
+  }
+  function loadWeeksIndex(){
+    try{
+      const raw = localStorage.getItem(weeksIndexKey());
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){ return []; }
+  }
+  function saveWeeksIndex(list){
+    try{ localStorage.setItem(weeksIndexKey(), JSON.stringify(list)); }catch(e){}
+  }
+  function refreshWeekPicker(){
+    const picker = document.getElementById("weekPicker");
+    const list = loadWeeksIndex();
+    picker.innerHTML = "";
+    if(!list.length){
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No saved weeks yet";
+      picker.appendChild(opt);
+      picker.disabled = true;
+      return;
+    }
+    picker.disabled = false;
+    list
+      .sort((a,b)=> (a.weekOf < b.weekOf ? 1 : -1))
+      .forEach(item=>{
+        const opt = document.createElement("option");
+        opt.value = item.weekOf;
+        opt.textContent = `${item.weekOf}  •  ${item.label || "Week"}`;
+        picker.appendChild(opt);
+      });
+
+    // select current week if exists
+    const cur = document.getElementById("weekOf").value;
+    if(cur){
+      const idx = list.findIndex(x=>x.weekOf === cur);
+      if(idx >= 0) picker.value = cur;
+    }
+  }
+
+  // ===========
+  // ROSTER (LS + Counselors + Sports)
+  // ===========
+  async function loadRoster(){
+    const rosterText = document.getElementById("rosterText");
+    rosterText.textContent = "Roster: loading…";
+    try{
+      const res = await fetch(webAppURL + "?action=roster", { method:"GET" });
+      if(!res.ok) throw new Error("Roster request failed");
+      const obj = await res.json();
+      const counselors = Array.isArray(obj.counselors) ? obj.counselors : FALLBACK_ROSTER.counselors;
+      const ls = Array.isArray(obj.learningSpecialists) ? obj.learningSpecialists : FALLBACK_ROSTER.learningSpecialists;
+      const sports = Array.isArray(obj.sports) ? obj.sports : FALLBACK_ROSTER.sports;
+
+      populateSelect("counselor", counselors, "Select counselor");
+      populateSelect("ls", ls, "Select LS");
+      populateSelect("sport", sports, "Select sport");
+
+      rosterText.textContent = "Roster: loaded";
+      return;
+    }catch(e){
+      populateSelect("counselor", FALLBACK_ROSTER.counselors, "Select counselor");
+      populateSelect("ls", FALLBACK_ROSTER.learningSpecialists, "Select LS");
+      populateSelect("sport", FALLBACK_ROSTER.sports, "Select sport");
+      rosterText.textContent = "Roster: fallback list";
+    }
+  }
+
+  function populateSelect(id, items, placeholder){
+    const sel = document.getElementById(id);
+    const current = sel.value;
+    sel.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = placeholder;
+    sel.appendChild(ph);
+
+    (items || []).forEach(name=>{
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    });
+
+    // try to keep selection if still exists
+    if(current && [...sel.options].some(o=>o.value === current)) sel.value = current;
+  }
+
+  function filterSelect(id, query){
+    const sel = document.getElementById(id);
+    const q = (query || "").trim().toLowerCase();
+    [...sel.options].forEach((opt, idx)=>{
+      if(idx === 0) return; // placeholder always visible
+      opt.hidden = q && !opt.value.toLowerCase().includes(q);
+    });
+  }
+
+  // ===========
+  // FIELDS + DATA
+  // ===========
   function allFields(){
-    return document.querySelectorAll("[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note");
+    return document.querySelectorAll(
+      "[data-key], #studentName, #sport, #weekOf, #counselor, #ls, #note"
+    );
   }
 
   function collectData(){
-    // sync slot state into hidden fields before save
-    syncSlotHiddenFields();
+    // touchpoints JSON sync
+    document.getElementById("touchpointsJSON").value = JSON.stringify(touchpoints);
 
     const data = {};
     allFields().forEach(el=>{
       const key = el.getAttribute("data-key") || el.id;
       data[key] = (el.type === "checkbox") ? el.checked : el.value;
     });
+
     const sk = stableKey();
     data["recordKey"] = sk.key;
     data["Student Name"] = sk.student;
@@ -510,47 +852,13 @@
 
   function hashData(obj){ return JSON.stringify(obj); }
 
-  // ---------- progress ----------
-  function updateProgress(){
-    const checks = document.querySelectorAll('input[type="checkbox"][data-key]');
-    let total = 0, done = 0;
-    checks.forEach(c=>{ total++; if(c.checked) done++; });
-
-    document.getElementById("totalCount").textContent = total;
-    document.getElementById("doneCount").textContent = done;
-
-    const pct = total ? Math.round((done/total)*100) : 0;
-    document.getElementById("pct").textContent = pct + "%";
-
-    const weekPill = document.getElementById("weekPill");
-    if(pct === 100 && total > 0){
-      weekPill.textContent = "Week status: COMPLETE";
-      weekPill.className = "pill good";
-    }else{
-      weekPill.textContent = "Week status: in progress";
-      weekPill.className = "pill blue";
-    }
-
-    // Unlock 1 spin ONLY when week is complete and they haven't spun yet
-    refreshSpinEligibility(pct, total);
-  }
-
-  function refreshSpinEligibility(pct, total){
-    if(pct === 100 && total > 0 && !spinUsedThisWeek){
-      spinsAvailable = 1;
-    }else{
-      // keep at 0 if not complete, or if they already used it
-      spinsAvailable = 0;
-    }
-    renderSlotUI();
-  }
-
-  // ---------- ids / tasks ----------
+  // ===========
+  // TASKS UI
+  // ===========
   function uid(){ return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
-  // ---------- priorities ----------
+  // priorities
   const prioritiesBox = document.getElementById("prioritiesBox");
-
   function addPriorityRow(text="", done=false){
     const id = uid();
     const div = document.createElement("div");
@@ -571,21 +879,10 @@
     prioritiesBox.appendChild(div);
     updateProgress();
   }
-
   document.getElementById("addPriority").addEventListener("click", ()=>{ addPriorityRow(); debounceSave(); });
   document.getElementById("quick3").addEventListener("click", ()=>{ addPriorityRow(); addPriorityRow(); addPriorityRow(); debounceSave(); });
 
-  function ensureSeededNewRecord(){
-    const anyPriority = prioritiesBox.querySelector(".task");
-    if(!anyPriority){ addPriorityRow(); addPriorityRow(); addPriorityRow(); }
-    days.forEach((d,i)=>{
-      const panel = document.getElementById("daypanel_" + i);
-      const any = panel.querySelector(".task");
-      if(!any){ addDayTask(i,""); addDayTask(i,""); }
-    });
-  }
-
-  // ---------- daily plan ----------
+  // daily plan
   const daybar = document.getElementById("daybar");
   const dayPanels = document.getElementById("dayPanels");
 
@@ -617,7 +914,7 @@
     document.querySelectorAll(".daypanel").forEach((p,idx)=>p.classList.toggle("active", idx===i));
   }
 
-  days.forEach((d,i)=>{
+  DAYS.forEach((d,i)=>{
     const b = document.createElement("button");
     b.className = "daybtn";
     b.type = "button";
@@ -644,7 +941,321 @@
     debounceSave();
   });
 
-  // ---------- tabs ----------
+  document.getElementById("clearDone").addEventListener("click", ()=>{
+    if(!confirm("Clear all DONE checks for this week? (Task text stays)")) return;
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(c=>c.checked=false);
+    updateProgress();
+    debounceSave();
+    toast("DONE checks cleared");
+  });
+
+  function ensureSeededNewRecord(){
+    if(!prioritiesBox.querySelector(".task")){
+      addPriorityRow(); addPriorityRow(); addPriorityRow();
+    }
+    DAYS.forEach((d,i)=>{
+      const panel = document.getElementById("daypanel_" + i);
+      if(!panel.querySelector(".task")){
+        addDayTask(i,"");
+        addDayTask(i,"");
+      }
+    });
+  }
+
+  // ===========
+  // PROGRESS + CALENDAR TILES
+  // ===========
+  function dayCompletion(dayIndex){
+    const panel = document.getElementById("daypanel_" + dayIndex);
+    const checks = panel.querySelectorAll('input[type="checkbox"][data-key]');
+    let total = 0, done = 0;
+    checks.forEach(c=>{ total++; if(c.checked) done++; });
+    const pct = total ? Math.round((done/total)*100) : 0;
+    return { total, done, pct };
+  }
+
+  function updateWeekCalendar(){
+    const cal = document.getElementById("weekCal");
+    cal.innerHTML = "";
+
+    const dates = weekDates();
+    if(!dates.length){
+      // empty until week set
+      return;
+    }
+
+    dates.forEach((dateObj, i)=>{
+      const comp = dayCompletion(i);
+      const wrap = document.createElement("div");
+      wrap.className = "calDay";
+      const pillClass = comp.total === 0 ? "" : (comp.pct >= 80 ? "good" : comp.pct >= 40 ? "warn" : "bad");
+      const pillText = comp.total === 0 ? "No tasks" : (comp.pct === 100 ? "Done" : (comp.pct + "%"));
+
+      wrap.innerHTML = `
+        <div class="calTop">
+          <div>
+            <div class="calName">${DAYS[i].slice(0,3)}</div>
+            <div class="calDate">${fmtMMDD(dateObj)}</div>
+          </div>
+          <div class="calPill ${pillClass}">${pillText}</div>
+        </div>
+        <div class="calBar"><div class="calFill" style="width:${comp.pct}%;"></div></div>
+        <div class="calMini"><span>${comp.done}/${comp.total}</span><span>${comp.pct}%</span></div>
+        <button class="btn" type="button" style="margin-top:auto;" data-cal-jump="${i}">Open</button>
+      `;
+      cal.appendChild(wrap);
+    });
+
+    cal.querySelectorAll("[data-cal-jump]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const i = parseInt(btn.getAttribute("data-cal-jump"),10);
+        setSelectedDay(i);
+        document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+        document.querySelector('.tab[data-tab="tasks"]').classList.add("active");
+        document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+        document.getElementById("tasks").classList.add("active");
+        window.scrollTo({top:0, behavior:"smooth"});
+      });
+    });
+  }
+
+  function computeRisk(){
+    const a = (document.querySelector('[data-key="riskAttendance"]')?.value || "").toLowerCase();
+    const m = (document.querySelector('[data-key="riskMissing"]')?.value || "").toLowerCase();
+    const c = (document.querySelector('[data-key="riskComm"]')?.value || "").toLowerCase();
+
+    let score = 0;
+    if(a.includes("missed")) score += 3;
+    else if(a.includes("inconsistent")) score += 2;
+
+    if(m.includes("high")) score += 3;
+    else if(m.includes("moderate")) score += 2;
+    else if(m.includes("low")) score += 1;
+
+    if(c.includes("non")) score += 3;
+    else if(c.includes("slow")) score += 2;
+    else if(c.includes("responsive")) score += 0;
+
+    if(score >= 7) return { label:"High", cls:"bad" };
+    if(score >= 4) return { label:"Moderate", cls:"warn" };
+    if(score >= 1) return { label:"Low", cls:"blue" };
+    return { label:"—", cls:"" };
+  }
+
+  function updateNextBestAction(){
+    const sk = stableKey();
+    const nbaText = document.getElementById("nbaText");
+    const nbaWhy = document.getElementById("nbaWhy");
+
+    if(!sk.student || !sk.week){
+      nbaText.textContent = "Set Student + Week to begin.";
+      nbaWhy.textContent = "This unlocks autosave, loading, and multi-week tracking.";
+      return;
+    }
+
+    const miss = (document.querySelector('[data-key="missing"]')?.value || "").trim();
+    const upcoming = (document.querySelector('[data-key="upcoming"]')?.value || "").trim();
+
+    // find first OPEN priority
+    const pri = [...prioritiesBox.querySelectorAll(".task")].map(t=>{
+      const done = t.querySelector('input[type="checkbox"]')?.checked;
+      const text = t.querySelector('input[type="text"]')?.value?.trim();
+      return { done, text };
+    }).filter(x=>x.text);
+
+    const openPri = pri.find(x=>!x.done);
+
+    // compute completion
+    const checks = document.querySelectorAll('input[type="checkbox"][data-key]');
+    let total=0, done=0;
+    checks.forEach(c=>{ total++; if(c.checked) done++; });
+    const pct = total ? Math.round((done/total)*100) : 0;
+
+    const risk = computeRisk();
+
+    if(miss){
+      nbaText.textContent = "Start with the highest-impact missing item.";
+      nbaWhy.textContent = "Missing work is usually the fastest grade change. Pick ONE item, submit, then confirm submission.";
+      return;
+    }
+
+    if(openPri){
+      nbaText.textContent = "Move Priority #1 to DONE.";
+      nbaWhy.textContent = `Next target: "${openPri.text}". Knock it out or shrink it into a smaller task.`;
+      return;
+    }
+
+    if(upcoming){
+      nbaText.textContent = "Pre-load the next deadline into the daily plan.";
+      nbaWhy.textContent = "If it’s upcoming, schedule it on a specific day with a small first step (start, draft, quiz attempt).";
+      return;
+    }
+
+    if(risk.label === "High" || risk.label === "Moderate"){
+      nbaText.textContent = "Make one accountability move today.";
+      nbaWhy.textContent = "Add a touchpoint: confirm expectations, agree on one next step, and document it.";
+      return;
+    }
+
+    if(pct < 40){
+      nbaText.textContent = "Add 2–3 tasks for today only.";
+      nbaWhy.textContent = "Students respond better to today’s move than an abstract weekly plan.";
+      return;
+    }
+
+    nbaText.textContent = "Keep momentum: confirm one submission.";
+    nbaWhy.textContent = "If something was submitted, verify it posted correctly (screenshot or confirmation page).";
+  }
+
+  function updateProgress(){
+    const checks = document.querySelectorAll('input[type="checkbox"][data-key]');
+    let total = 0, done = 0;
+    checks.forEach(c=>{ total++; if(c.checked) done++; });
+
+    document.getElementById("totalCount").textContent = total;
+    document.getElementById("doneCount").textContent = done;
+
+    const pct = total ? Math.round((done/total)*100) : 0;
+    document.getElementById("pct").textContent = pct + "%";
+
+    const weekPill = document.getElementById("weekPill");
+    if(pct === 100 && total > 0){
+      weekPill.textContent = "Week status: COMPLETE";
+      weekPill.className = "pill good";
+    }else{
+      weekPill.textContent = "Week status: in progress";
+      weekPill.className = "pill blue";
+    }
+
+    const risk = computeRisk();
+    const riskPill = document.getElementById("riskPill");
+    riskPill.textContent = "Risk: " + risk.label;
+    riskPill.className = "pill " + (risk.cls || "");
+
+    updateWeekCalendar();
+    updateNextBestAction();
+  }
+
+  // ===========
+  // TOUCHPOINTS
+  // ===========
+  function renderTouchpoints(){
+    const feed = document.getElementById("touchpointFeed");
+    feed.innerHTML = "";
+
+    if(!touchpoints.length){
+      feed.innerHTML = `<div class="hint">No touchpoints yet. Add one when you have contact or check progress.</div>`;
+      return;
+    }
+
+    // newest first
+    [...touchpoints].slice().reverse().forEach(tp=>{
+      const wrap = document.createElement("div");
+      wrap.className = "logItem";
+
+      const impactCls = tp.impact === "Urgent" ? "bad" : tp.impact === "Important" ? "warn" : "blue";
+
+      wrap.innerHTML = `
+        <div class="logHead">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <div class="logTitle">${tp.type}</div>
+            <span class="tag ${impactCls}">${tp.impact}</span>
+            ${tp.owner ? `<span class="tag">${tp.owner}</span>` : ""}
+          </div>
+          <div class="logMeta">${tp.at}</div>
+        </div>
+        <div class="logBody">${escapeHtml(tp.notes || "")}</div>
+        ${tp.next ? `<div class="hint" style="margin-top:8px;"><strong>Next:</strong> ${escapeHtml(tp.next)}</div>` : ""}
+        <div class="btnrow" style="margin-top:10px;">
+          <button class="btn danger" type="button" data-tp-del="${tp.id}">Delete</button>
+        </div>
+      `;
+      feed.appendChild(wrap);
+    });
+
+    feed.querySelectorAll("[data-tp-del]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-tp-del");
+        touchpoints = touchpoints.filter(t=>t.id !== id);
+        renderTouchpoints();
+        updateProgress();
+        debounceSave();
+        toast("Touchpoint deleted");
+      });
+    });
+
+    document.getElementById("touchpointsJSON").value = JSON.stringify(touchpoints);
+  }
+
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  document.getElementById("addTouchpointBtn").addEventListener("click", ()=>{
+    const tp = {
+      id: uid(),
+      at: nowStamp(),
+      type: document.getElementById("tpType").value,
+      owner: document.getElementById("tpOwner").value,
+      impact: document.getElementById("tpImpact").value,
+      next: (document.getElementById("tpNext").value || "").trim(),
+      notes: (document.getElementById("tpNotes").value || "").trim()
+    };
+    if(!tp.notes){
+      toast("Add notes first");
+      return;
+    }
+    touchpoints.push(tp);
+    document.getElementById("tpNext").value = "";
+    document.getElementById("tpNotes").value = "";
+    renderTouchpoints();
+    updateProgress();
+    debounceSave();
+    toast("Touchpoint added");
+  });
+
+  document.getElementById("clearTouchpointsBtn").addEventListener("click", ()=>{
+    if(!confirm("Clear all touchpoints for this week?")) return;
+    touchpoints = [];
+    renderTouchpoints();
+    debounceSave();
+    toast("Touchpoints cleared");
+  });
+
+  // ===========
+  // APPOINTMENTS QUICK TRACKER
+  // ===========
+  function appendApptLine(line){
+    const box = document.getElementById("apptList");
+    box.value = (box.value ? box.value.trimEnd() + "\n" : "") + line + "\n";
+  }
+  document.getElementById("addApptBtn").addEventListener("click", ()=>{
+    const d = document.getElementById("apptDate").value;
+    const t = document.getElementById("apptTime").value;
+    const type = document.getElementById("apptType").value;
+    const details = (document.getElementById("apptDetails").value || "").trim();
+    if(!d){ toast("Pick a date"); return; }
+    const line = `${d} ${t || ""} • ${type}${details ? " • " + details : ""}`;
+    appendApptLine(line);
+    document.getElementById("apptDetails").value = "";
+    debounceSave();
+    toast("Added");
+  });
+  document.getElementById("clearApptsBtn").addEventListener("click", ()=>{
+    if(!confirm("Clear commitments list?")) return;
+    document.getElementById("apptList").value = "";
+    debounceSave();
+    toast("Cleared");
+  });
+
+  // ===========
+  // TABS
+  // ===========
   document.querySelectorAll(".tab").forEach(t=>{
     t.addEventListener("click", ()=>{
       document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
@@ -656,28 +1267,9 @@
     });
   });
 
-  // ---------- local cache ----------
-  function cacheSave(data, meta){
-    try{
-      localStorage.setItem(cacheKey(), JSON.stringify(data));
-      localStorage.setItem(metaKey(), JSON.stringify(meta));
-      setLocalText(meta?.localSavedAt ? meta.localSavedAt : "saved");
-    }catch(e){}
-  }
-  function cacheLoad(){
-    try{
-      const raw = localStorage.getItem(cacheKey());
-      return raw ? JSON.parse(raw) : null;
-    }catch(e){ return null; }
-  }
-  function cacheMeta(){
-    try{
-      const raw = localStorage.getItem(metaKey());
-      return raw ? JSON.parse(raw) : null;
-    }catch(e){ return null; }
-  }
-
-  // ---------- autosave gating ----------
+  // ===========
+  // SAVE / LOAD
+  // ===========
   function debounceSave(){
     if(isApplyingLoad) return;
     if(!hasRequiredKey()){
@@ -689,154 +1281,6 @@
     setStatus("typing...","Autosave on. Changes save automatically.");
   }
 
-  // ---------- slot mechanics ----------
-  function syncSlotHiddenFields(){
-    document.getElementById("spinsAvailableField").value = String(spinsAvailable);
-    document.getElementById("spinUsedField").value = String(spinUsedThisWeek);
-    document.getElementById("rewardWonField").value = String(rewardWon);
-  }
-
-  function renderSlotUI(){
-    const spinsEl = document.getElementById("spinsAvail");
-    const statusEl = document.getElementById("rewardStatus");
-    const spinBtn = document.getElementById("spinBtn");
-
-    spinsEl.textContent = spinsAvailable;
-    if(rewardWon) statusEl.textContent = "WIN (request ready)";
-    else statusEl.textContent = (spinUsedThisWeek ? "spin used" : "—");
-
-    spinBtn.disabled = !(spinsAvailable === 1 && !spinUsedThisWeek);
-    syncSlotHiddenFields();
-  }
-
-  function spawnConfetti(count=24){
-    const box = document.getElementById("slotBox");
-    if(!box) return;
-    for(let i=0;i<count;i++){
-      const p = document.createElement("i");
-      p.style.left = (Math.random()*100) + "%";
-      p.style.animationDelay = (Math.random()*120) + "ms";
-      p.style.transform = "rotate(" + (Math.random()*360) + "deg)";
-      p.style.background = "hsl(" + Math.floor(Math.random()*360) + ", 90%, 60%)";
-      box.appendChild(p);
-      setTimeout(()=>p.remove(), 1100);
-    }
-  }
-
-  function sparkReels(){
-    ["reel1","reel2","reel3"].forEach(id=>{
-      const r = document.getElementById(id);
-      r.classList.remove("spark");
-      void r.offsetWidth;
-      r.classList.add("spark");
-    });
-  }
-
-  function shakeBox(){
-    const box = document.getElementById("slotBox");
-    box.classList.remove("shake");
-    void box.offsetWidth;
-    box.classList.add("shake");
-  }
-
-  function randDigit(){ return Math.floor(Math.random()*10); }
-  function setReels(a,b,c){
-    document.getElementById("reel1").textContent = a;
-    document.getElementById("reel2").textContent = b;
-    document.getElementById("reel3").textContent = c;
-  }
-  function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
-
-  function logSpin(line){
-    const box = document.querySelector('[data-key="spinLog"]');
-    const stamp = nowStamp();
-    box.value = (box.value ? box.value.trimEnd() + "\n" : "") + `[${stamp}] ${line}\n`;
-  }
-
-  async function spinOnce(){
-    if(!(spinsAvailable === 1 && !spinUsedThisWeek)){
-      toast("Spin is locked. Complete the whole week first.");
-      return;
-    }
-
-    spinUsedThisWeek = true;
-    spinsAvailable = 0;
-    rewardWon = false;
-    renderSlotUI();
-    debounceSave();
-
-    const btn = document.getElementById("spinBtn");
-    btn.disabled = true;
-    btn.textContent = "Spinning…";
-
-    shakeBox();
-
-    const start = Date.now();
-    while(Date.now() - start < 900){
-      setReels(randDigit(), randDigit(), randDigit());
-      sparkReels();
-      await sleep(70);
-    }
-
-    const a = randDigit(), b = randDigit(), c = randDigit();
-    setReels(a,b,c);
-
-    const three = (a===b && b===c);
-    const two = (a===b || b===c || a===c);
-
-    if(three){
-      rewardWon = true;
-      spawnConfetti(30);
-      toast("WIN!");
-      logSpin(`🎰 Result ${a}-${b}-${c} = WIN. Reward unlocked: Cancel CATS appointment (request).`);
-      // auto-fill something helpful (student can edit)
-      const when = document.querySelector('[data-key="cancelApptWhen"]');
-      if(when && !when.value.trim()) when.value = "Enter appointment date/time here";
-      const reason = document.querySelector('[data-key="cancelApptReason"]');
-      if(reason && !reason.value.trim()) reason.value = "Won weekly spin reward";
-    } else if(two){
-      toast("So close — no reward");
-      logSpin(`🎰 Result ${a}-${b}-${c} = near win (2 match). No reward.`);
-    } else {
-      toast("No match — no reward");
-      logSpin(`🎰 Result ${a}-${b}-${c} = no match. No reward.`);
-    }
-
-    renderSlotUI();
-    debounceSave();
-
-    btn.textContent = "Spin";
-    btn.disabled = true; // stays disabled since spin used
-  }
-
-  document.getElementById("spinBtn").addEventListener("click", spinOnce);
-
-  // Simple staff reset button (kept basic; you can remove if you don’t want it)
-  document.getElementById("resetSpinBtn").addEventListener("click", ()=>{
-    const ok = confirm("Staff reset spin lock for this week?");
-    if(!ok) return;
-    spinUsedThisWeek = false;
-    rewardWon = false;
-    updateProgress(); // will re-evaluate eligibility
-    logSpin("🔧 Staff reset: spin lock cleared.");
-    debounceSave();
-    toast("Spin reset");
-  });
-
-  // Cancel request submit
-  document.getElementById("submitCancelBtn").addEventListener("click", ()=>{
-    const when = (document.querySelector('[data-key="cancelApptWhen"]').value || "").trim();
-    if(!when){
-      toast("Add the appointment time first");
-      return;
-    }
-    const reason = (document.querySelector('[data-key="cancelApptReason"]').value || "").trim();
-    logSpin(`📌 Cancellation request submitted. When: ${when} | Reason: ${reason || "—"}`);
-    toast("Request saved");
-    debounceSave();
-  });
-
-  // ---------- save/load ----------
   async function saveAll(force=false){
     if(!hasRequiredKey()){
       setStatus("idle","Set Student + Week to enable autosave.");
@@ -878,6 +1322,7 @@
     setStatus("loading...","Pulling the shared version.");
     const sk = stableKey();
 
+    // server first
     try{
       const url = webAppURL + "?studentName=" + encodeURIComponent(sk.student) + "&weekOf=" + encodeURIComponent(sk.week);
       const res = await fetch(url, { method:"GET" });
@@ -891,6 +1336,7 @@
       }
     }catch(e){}
 
+    // fallback local
     const cached = cacheLoad();
     if(cached){
       applyLoaded(cached);
@@ -912,22 +1358,29 @@
   function applyLoaded(obj){
     isApplyingLoad = true;
 
+    // Keep key fields controlled by user (studentName/weekOf define record),
+    // but load the rest.
     ["sport","counselor","ls","note"].forEach(id=>{
       if(document.getElementById(id)) document.getElementById(id).value = obj[id] || "";
     });
 
-    const up = document.querySelector('[data-key="upcoming"]');
-    const mi = document.querySelector('[data-key="missing"]');
-    if(up) up.value = obj["upcoming"] ?? obj.upcoming ?? "";
-    if(mi) mi.value = obj["missing"] ?? obj.missing ?? "";
+    // data-key textareas/fields
+    const directKeys = ["upcoming","missing","smartPlan","riskAttendance","riskMissing","riskComm","riskNotes","internalNotes","apptList"];
+    directKeys.forEach(k=>{
+      const el = document.querySelector(`[data-key="${k}"]`);
+      if(el) el.value = obj[k] ?? "";
+    });
 
-    // Restore slot state
-    spinsAvailable = Number(obj.spinsAvailable ?? obj["spinsAvailable"] ?? 0) || 0;
-    spinUsedThisWeek = String(obj.spinUsedThisWeek ?? obj["spinUsedThisWeek"] ?? "false") === "true";
-    rewardWon = String(obj.rewardWon ?? obj["rewardWon"] ?? "false") === "true";
+    // touchpoints
+    try{
+      touchpoints = obj.touchpointsJSON ? JSON.parse(obj.touchpointsJSON) : [];
+      if(!Array.isArray(touchpoints)) touchpoints = [];
+    }catch(e){ touchpoints = []; }
+    renderTouchpoints();
 
     clearAllTasks();
 
+    // rebuild priorities + daily tasks
     Object.keys(obj).forEach(k=>{
       if(k.startsWith("p_") && k.endsWith("_text")){
         const base = k.replace("_text","");
@@ -936,7 +1389,6 @@
         const done = (obj[doneKey] === true || obj[doneKey] === "true");
         if(text || done) addPriorityRow(text, done);
       }
-
       const m = k.match(/^d(\d+)_(.+)_text$/);
       if(m){
         const dayIndex = parseInt(m[1],10);
@@ -951,8 +1403,7 @@
     ensureSeededNewRecord();
 
     lastSavedHash = hashData(collectData());
-    updateProgress(); // recalculates eligibility (may set spin to 1 if complete + unused)
-    renderSlotUI();
+    updateProgress();
 
     const m = cacheMeta();
     if(m?.localSavedAt) setLocalText(m.localSavedAt);
@@ -960,20 +1411,38 @@
     isApplyingLoad = false;
   }
 
-  // ---------- auto-refresh ----------
+  // ===========
+  // AUTO REFRESH
+  // ===========
   function startAutoRefresh(){
     stopAutoRefresh();
     refreshTimer = setInterval(()=>{ if(hasRequiredKey()) loadWeek({silent:true}); }, 20000);
   }
   function stopAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer = null; }
 
+  // ===========
+  // KEY CHANGE HANDLING
+  // ===========
   function onKeyChanged(){
     if(!hasRequiredKey()){
       stopAutoRefresh();
       setStatus("idle","Set Student + Week to enable autosave.");
-      setLocalText("—"); setSyncText("—");
+      setLocalText("—");
+      setSyncText("—");
+      updateWeekCalendar();
+      updateNextBestAction();
       return;
     }
+
+    // add to weeks index for this student
+    const weekOf = document.getElementById("weekOf").value;
+    const list = loadWeeksIndex();
+    if(!list.some(x=>x.weekOf === weekOf)){
+      list.push({ weekOf, label: "Week" });
+      saveWeeksIndex(list);
+    }
+    refreshWeekPicker();
+
     const cached = cacheLoad();
     const m = cacheMeta();
     if(cached){
@@ -984,75 +1453,271 @@
       setLocalText("none yet");
       setStatus("ready","New record. Start typing—autosave is on.");
       ensureSeededNewRecord();
+      updateProgress();
+      toast("New week ready");
     }
+
     startAutoRefresh();
   }
 
-  // ---------- buttons ----------
-  document.getElementById("loadWeek").addEventListener("click", ()=>loadWeek({silent:false}));
-  document.getElementById("saveNow").addEventListener("click", ()=>saveAll(true));
-
-  document.getElementById("shareLink").addEventListener("click", async ()=>{
-    const sk = stableKey();
-    if(!sk.student || !sk.week){ toast("Set Student + Week first"); return; }
-    const url = new URL(window.location.href);
-    url.searchParams.set("student", sk.student);
-    url.searchParams.set("week", sk.week);
-    try{ await navigator.clipboard.writeText(url.toString()); toast("Link copied"); }
-    catch(e){ toast("Copy failed"); }
+  // ===========
+  // WEEK NAV BUTTONS
+  // ===========
+  document.getElementById("prevWeek").addEventListener("click", ()=>{
+    const iso = document.getElementById("weekOf").value;
+    if(!iso){ toast("Pick a week first"); return; }
+    const d = toDate(iso); d.setDate(d.getDate()-7);
+    document.getElementById("weekOf").value = fmtISO(d);
+    onKeyChanged();
+    loadWeek({silent:true});
   });
 
-  // ---------- copy summary ----------
-  document.getElementById("copySummary").addEventListener("click", async ()=>{
-    if(hasRequiredKey()) await saveAll(true);
+  document.getElementById("nextWeek").addEventListener("click", ()=>{
+    const iso = document.getElementById("weekOf").value;
+    if(!iso){ toast("Pick a week first"); return; }
+    const d = toDate(iso); d.setDate(d.getDate()+7);
+    document.getElementById("weekOf").value = fmtISO(d);
+    onKeyChanged();
+    loadWeek({silent:true});
+  });
 
+  document.getElementById("thisWeek").addEventListener("click", ()=>{
+    const today = mondayOf(new Date());
+    document.getElementById("weekOf").value = fmtISO(today);
+    onKeyChanged();
+    loadWeek({silent:true});
+  });
+
+  // Force Monday snapping
+  document.getElementById("weekOf").addEventListener("change", ()=>{
+    const iso = document.getElementById("weekOf").value;
+    if(iso) setWeekOfToMonday(iso);
+  });
+
+  // ===========
+  // WEEK TRACKER BUTTONS
+  // ===========
+  document.getElementById("addWeekBtn").addEventListener("click", ()=>{
+    const sk = stableKey();
+    if(!sk.student){
+      toast("Set student first");
+      return;
+    }
+    const next = prompt("Enter Week Of date (YYYY-MM-DD). It will auto-snap to Monday:", "");
+    if(!next) return;
+    setWeekOfToMonday(next);
+    onKeyChanged();
+    loadWeek({silent:true});
+    toast("Week added");
+  });
+
+  document.getElementById("duplicateWeekBtn").addEventListener("click", async ()=>{
+    const sk = stableKey();
+    if(!sk.student || !sk.week){
+      toast("Set Student + Week first");
+      return;
+    }
+    const next = prompt("Duplicate into which Week Of? (YYYY-MM-DD). It will snap to Monday:", "");
+    if(!next) return;
+
+    // collect current data (copy)
+    const data = collectData();
+
+    // switch week
+    setWeekOfToMonday(next);
+    onKeyChanged();
+
+    // remove recordKey/student/week so collectData recalculates properly on save
+    // then apply loaded-like data into UI and save
+    applyLoaded(data);
+    await saveAll(true);
+    toast("Duplicated");
+  });
+
+  document.getElementById("weekPicker").addEventListener("change", ()=>{
+    const val = document.getElementById("weekPicker").value;
+    if(!val) return;
+    document.getElementById("weekOf").value = val;
+    onKeyChanged();
+    loadWeek({silent:true});
+  });
+
+  document.getElementById("printBtn").addEventListener("click", ()=>{
+    window.print();
+  });
+
+  // ===========
+  // REPORTS
+  // ===========
+  function buildSnapshot(){
     const student = (document.getElementById("studentName").value || "").trim();
     const week = document.getElementById("weekOf").value || "";
+    const sport = document.getElementById("sport").value || "";
+    const counselor = document.getElementById("counselor").value || "";
+    const ls = document.getElementById("ls").value || "";
+    const focus = (document.getElementById("note").value || "").trim();
+
+    const risk = computeRisk();
+    const riskNotes = (document.querySelector('[data-key="riskNotes"]')?.value || "").trim();
+
+    const checks = document.querySelectorAll('input[type="checkbox"][data-key]');
+    let total=0, done=0;
+    checks.forEach(c=>{ total++; if(c.checked) done++; });
+    const pct = total ? Math.round((done/total)*100) : 0;
+
+    // priorities
+    const pri = [...prioritiesBox.querySelectorAll(".task")].map(t=>{
+      const done = t.querySelector('input[type="checkbox"]')?.checked;
+      const text = t.querySelector('input[type="text"]')?.value?.trim();
+      return (text ? `${done ? "DONE" : "OPEN"} - ${text}` : null);
+    }).filter(Boolean);
+
+    // daily highlights: count open tasks per day
+    const daily = DAYS.map((d, i)=>{
+      const panel = document.getElementById("daypanel_" + i);
+      const tasks = [...panel.querySelectorAll(".task")].map(t=>{
+        const text = t.querySelector('input[type="text"]')?.value?.trim();
+        const done = t.querySelector('input[type="checkbox"]')?.checked;
+        return text ? {text, done} : null;
+      }).filter(Boolean);
+      const open = tasks.filter(x=>!x.done).slice(0,3);
+      const doneN = tasks.filter(x=>x.done).length;
+      return { d, doneN, total: tasks.length, open };
+    });
+
+    // touchpoints summary
+    const tpCount = touchpoints.length;
+    const tpRecent = [...touchpoints].slice(-3).map(tp=>{
+      return `${tp.at} • ${tp.type} • ${tp.impact}${tp.next ? " • Next: " + tp.next : ""}`;
+    });
+
     let out = "";
-    out += "Student: " + student + "\n";
-    out += "Week Of: " + week + "\n";
-    out += "Sport: " + (document.getElementById("sport").value || "") + "\n";
-    out += "Counselor: " + (document.getElementById("counselor").value || "") + "\n";
-    out += "LS: " + (document.getElementById("ls").value || "") + "\n\n";
-    out += "Focus Note: " + (document.getElementById("note").value || "") + "\n\n";
+    out += `CATS Weekly Snapshot\n`;
+    out += `Student: ${student}\nWeek Of (Mon): ${week}\nSport: ${sport}\nCounselor: ${counselor}\nLearning Specialist: ${ls}\n\n`;
+    out += `Completion: ${done}/${total} (${pct}%)\n`;
+    out += `Risk: ${risk.label}${riskNotes ? " • " + riskNotes : ""}\n\n`;
+    out += `Focus: ${focus || "—"}\n\n`;
 
-    out += "Priorities\n";
+    out += `Priorities\n`;
+    out += (pri.length ? pri.join("\n") : "—") + "\n\n";
+
+    out += `Daily (next 1–3 OPEN items)\n`;
+    daily.forEach(x=>{
+      const openText = x.open.length ? x.open.map(o=>`- ${o.text}`).join(" ") : "—";
+      out += `${x.d}: ${x.doneN}/${x.total} done • Next: ${openText}\n`;
+    });
+
+    out += `\nTouchpoints: ${tpCount}\n`;
+    out += (tpRecent.length ? tpRecent.join("\n") : "—") + "\n\n";
+
+    out += `Upcoming\n${(document.querySelector('[data-key="upcoming"]')?.value || "").trim() || "—"}\n\n`;
+    out += `Missing\n${(document.querySelector('[data-key="missing"]')?.value || "").trim() || "—"}\n\n`;
+    out += `SMART Plan\n${(document.querySelector('[data-key="smartPlan"]')?.value || "").trim() || "—"}\n`;
+
+    return out;
+  }
+
+  document.getElementById("buildSnapshotBtn").addEventListener("click", ()=>{
+    document.getElementById("snapshotBox").value = buildSnapshot();
+    toast("Snapshot built");
+  });
+
+  document.getElementById("copySnapshotBtn").addEventListener("click", async ()=>{
+    const txt = document.getElementById("snapshotBox").value || buildSnapshot();
+    try{
+      await navigator.clipboard.writeText(txt);
+      toast("Copied");
+    }catch(e){
+      toast("Copy failed");
+    }
+  });
+
+  document.getElementById("exportCsvBtn").addEventListener("click", ()=>{
+    const student = (document.getElementById("studentName").value || "").trim();
+    const week = document.getElementById("weekOf").value || "";
+    if(!student || !week){
+      toast("Set Student + Week first");
+      return;
+    }
+
+    // Flatten tasks for CSV
+    const rows = [];
+    // priorities
     prioritiesBox.querySelectorAll(".task").forEach(t=>{
-      const text = t.querySelector('input[type="text"]').value || "";
-      const done = t.querySelector('input[type="checkbox"]').checked ? "DONE" : "OPEN";
-      if(text) out += done + " - " + text + "\n";
+      const text = t.querySelector('input[type="text"]')?.value?.trim() || "";
+      const done = t.querySelector('input[type="checkbox"]')?.checked ? "DONE" : "OPEN";
+      if(text) rows.push(["Priority","",text,done]);
     });
-
-    out += "\nUpcoming\n" + (document.querySelector('[data-key="upcoming"]').value || "") + "\n";
-    out += "\nMissing\n" + (document.querySelector('[data-key="missing"]').value || "") + "\n\n";
-
-    days.forEach((d,di)=>{
-      out += d + "\n";
-      const panel = document.getElementById("daypanel_" + di);
+    // daily
+    DAYS.forEach((d,i)=>{
+      const panel = document.getElementById("daypanel_" + i);
       panel.querySelectorAll(".task").forEach(t=>{
-        const text = t.querySelector('input[type="text"]').value || "";
-        const done = t.querySelector('input[type="checkbox"]').checked ? "DONE" : "OPEN";
-        if(text) out += done + " - " + text + "\n";
+        const text = t.querySelector('input[type="text"]')?.value?.trim() || "";
+        const done = t.querySelector('input[type="checkbox"]')?.checked ? "DONE" : "OPEN";
+        if(text) rows.push(["Daily",d,text,done]);
       });
-      out += "\n";
     });
 
-    out += "Slot\n";
-    out += "Spins available: " + spinsAvailable + " | Used: " + spinUsedThisWeek + " | Reward won: " + rewardWon + "\n";
-    out += "\nSpin Log\n" + (document.querySelector('[data-key="spinLog"]').value || "") + "\n";
+    const header = ["Type","Day","Task","Status"];
+    const csv = [header, ...rows].map(r=>r.map(cell=>{
+      const s = String(cell ?? "");
+      return /[",\n]/.test(s) ? `"${s.replaceAll('"','""')}"` : s;
+    }).join(",")).join("\n");
 
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `CATS_${student.replaceAll(" ","_")}_${week}_tasks.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast("CSV exported");
+  });
+
+  // ===========
+  // COPY SUMMARY + SHARE
+  // ===========
+  document.getElementById("copySummary").addEventListener("click", async ()=>{
+    if(hasRequiredKey()) await saveAll(true);
+    const out = buildSnapshot();
     try{ await navigator.clipboard.writeText(out); toast("Summary copied"); }
     catch(e){ toast("Copy failed"); }
   });
 
-  // ---------- reset ----------
+  document.getElementById("shareLink").addEventListener("click", async ()=>{
+    const sk = stableKey();
+    if(!sk.student || !sk.week){
+      toast("Set Student + Week first");
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("student", sk.student);
+    url.searchParams.set("week", sk.week);
+    try{
+      await navigator.clipboard.writeText(url.toString());
+      toast("Link copied");
+    }catch(e){
+      toast("Copy failed");
+    }
+  });
+
+  // ===========
+  // BUTTONS
+  // ===========
+  document.getElementById("loadWeek").addEventListener("click", ()=>loadWeek({silent:false}));
+  document.getElementById("saveNow").addEventListener("click", ()=>saveAll(true));
   document.getElementById("resetPage").addEventListener("click", ()=>{
     if(confirm("Reset everything? This will reload the page.")) location.reload();
   });
 
-  // ---------- autosave triggers ----------
+  // ===========
+  // INPUT TRIGGERS
+  // ===========
   document.addEventListener("input", (e)=>{
     updateProgress();
+    // Avoid autosave spam while key isn't set
     if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")) return;
     debounceSave();
   });
@@ -1060,31 +1725,62 @@
   document.addEventListener("change", (e)=>{
     updateProgress();
     if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")){
+      // weekOf gets snapped to Monday already; still call key changed
       onKeyChanged();
       return;
     }
     debounceSave();
   });
 
-  // ---------- URL prefill ----------
+  // roster search filters
+  document.getElementById("counselorSearch").addEventListener("input", (e)=>filterSelect("counselor", e.target.value));
+  document.getElementById("lsSearch").addEventListener("input", (e)=>filterSelect("ls", e.target.value));
+
+  // ===========
+  // URL PREFILL
+  // ===========
   (function prefillFromURL(){
     const url = new URL(window.location.href);
     const student = url.searchParams.get("student");
     const week = url.searchParams.get("week");
     if(student) document.getElementById("studentName").value = student;
-    if(week) document.getElementById("weekOf").value = week;
-    if(student || week){
-      onKeyChanged();
-      if(student && week) loadWeek({silent:true});
+    if(week){
+      document.getElementById("weekOf").value = week;
+      setWeekOfToMonday(week);
     }
   })();
 
-  // ---------- initialize ----------
-  updateProgress();
-  renderSlotUI();
-  setSyncText("—");
-  setLocalText("—");
-  setStatus("idle","Set Student + Week to enable autosave.");
+  // ===========
+  // INIT
+  // ===========
+  (async function init(){
+    await loadRoster();
+
+    // default: set this week if empty (nice UX)
+    if(!document.getElementById("weekOf").value){
+      const todayMon = mondayOf(new Date());
+      document.getElementById("weekOf").value = fmtISO(todayMon);
+    }else{
+      // snap whatever is there
+      setWeekOfToMonday(document.getElementById("weekOf").value);
+    }
+
+    refreshWeekPicker();
+    ensureSeededNewRecord();
+    renderTouchpoints();
+
+    setSyncText("—");
+    setLocalText("—");
+    setStatus("idle","Set Student + Week to enable autosave.");
+
+    // If student+week already present, activate record + load
+    if(hasRequiredKey()){
+      onKeyChanged();
+      loadWeek({silent:true});
+    }else{
+      updateProgress();
+    }
+  })();
 </script>
 </body>
 </html>
