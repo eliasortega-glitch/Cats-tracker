@@ -6,39 +6,141 @@
 <title>CATS Weekly Tracker</title>
 <style>
   :root{
+    /* UA colors */
     --ua-blue:#0C234B;
     --ua-red:#AB0520;
+    --ua-sand:#F4EDE5;
 
+    /* UI */
     --bg:#f6f8fb;
     --card:#ffffff;
     --text:#101828;
     --muted:#667085;
     --line:#e6eaf0;
-
-    --shadow:0 1px 8px rgba(16,24,40,.08);
-    --r:14px;
+    --shadow:0 1px 10px rgba(16,24,40,.08);
+    --r:16px;
 
     --good:#12b76a;
     --warn:#f79009;
 
     --focus:rgba(12,35,75,.18);
   }
+
   *{ box-sizing:border-box; }
   body{
     margin:0;
     padding:12px 12px 96px;
     font-family: Arial, sans-serif;
-    background:var(--bg);
+    background:
+      radial-gradient(circle at 15% 0%, rgba(171,5,32,.12), transparent 38%),
+      radial-gradient(circle at 85% 0%, rgba(12,35,75,.16), transparent 42%),
+      var(--bg);
     color:var(--text);
   }
   .wrap{ max-width:980px; margin:0 auto; }
 
-  .header{ text-align:center; margin:2px 0 10px; }
-  .title{ margin:0; font-size:20px; font-weight:900; color:var(--ua-blue); letter-spacing:.2px; }
-  .subtitle{ margin:4px 0 0; font-size:12px; color:var(--muted); }
+  /* Header */
+  .top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:2px 0 10px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .mark{
+    width:36px; height:36px;
+    border-radius:12px;
+    background: linear-gradient(135deg, var(--ua-blue), #173b72);
+    position:relative;
+    box-shadow:0 10px 25px rgba(12,35,75,.18);
+  }
+  .mark:after{
+    content:"";
+    position:absolute;
+    right:-6px; top:-6px;
+    width:16px; height:16px;
+    border-radius:999px;
+    background: linear-gradient(135deg, var(--ua-red), #d6102b);
+    box-shadow:0 10px 25px rgba(171,5,32,.18);
+  }
+  .titleWrap{ line-height:1.05; }
+  .title{
+    margin:0;
+    font-size:18px;
+    font-weight:900;
+    letter-spacing:.2px;
+    color:var(--ua-blue);
+  }
+  .subtitle{
+    margin:3px 0 0;
+    font-size:12px;
+    color:var(--muted);
+  }
 
-  .bar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:10px 0 10px; }
+  /* Quick Note Banner */
+  .banner{
+    display:none;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 12px;
+    border-radius:16px;
+    border:1px solid rgba(171,5,32,.28);
+    background:
+      radial-gradient(circle at 10% 50%, rgba(244,237,229,.55), transparent 45%),
+      linear-gradient(135deg, rgba(171,5,32,.18), rgba(12,35,75,.06));
+    box-shadow:0 10px 25px rgba(171,5,32,.12);
+    margin:0 0 10px;
+    cursor:pointer;
+  }
+  .banner.show{ display:flex; }
+  .bannerLeft{
+    display:flex; gap:10px; align-items:flex-start;
+    flex:1;
+    min-width:220px;
+  }
+  .bang{
+    width:26px; height:26px;
+    border-radius:999px;
+    background:var(--ua-red);
+    color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:900;
+    box-shadow:0 10px 20px rgba(171,5,32,.18);
+    flex:0 0 auto;
+  }
+  .bannerText{
+    display:flex; flex-direction:column; gap:2px;
+    min-width:0;
+  }
+  .bannerLabel{
+    font-size:12px;
+    font-weight:900;
+    color:var(--ua-red);
+    letter-spacing:.2px;
+  }
+  .bannerMsg{
+    font-size:13px;
+    color:#7a0015;
+    font-weight:700;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
 
+  /* Controls */
+  .bar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
   .btn{
     padding:8px 10px;
     border-radius:999px;
@@ -48,40 +150,73 @@
     font-size:13px;
     user-select:none;
   }
-  .btn.primary{ border-color:transparent; background:rgba(12,35,75,.10); color:var(--ua-blue); font-weight:800; }
-  .btn.danger{ border-color:transparent; background:rgba(171,5,32,.10); color:var(--ua-red); font-weight:800; }
+  .btn.primary{
+    border-color:transparent;
+    background:rgba(12,35,75,.12);
+    color:var(--ua-blue);
+    font-weight:900;
+  }
+  .btn.red{
+    border-color:transparent;
+    background:rgba(171,5,32,.12);
+    color:var(--ua-red);
+    font-weight:900;
+  }
   .btn:active{ transform:translateY(1px); }
   .btn:disabled{ opacity:.55; cursor:not-allowed; }
 
-  .grid2{ display:grid; grid-template-columns: 1.2fr .8fr; gap:10px; align-items:start; }
-  @media(max-width:820px){ .grid2{ grid-template-columns:1fr; } }
+  /* Layout */
+  .grid2{
+    display:grid;
+    grid-template-columns: 1.25fr .75fr;
+    gap:10px;
+    align-items:start;
+  }
+  @media(max-width:860px){ .grid2{ grid-template-columns:1fr; } }
 
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    box-shadow:var(--shadow);
+  }
   .pad{ padding:12px; }
 
-  label{ display:block; font-size:11px; color:var(--muted); margin:0 0 4px; }
+  label{
+    display:block;
+    font-size:11px;
+    color:var(--muted);
+    margin:0 0 4px;
+  }
   input, select, textarea{
     width:100%;
     padding:9px 10px;
     border:1px solid var(--line);
-    border-radius:12px;
+    border-radius:14px;
     outline:none;
     font-size:14px;
     background:#fff;
   }
-  input:focus, select:focus, textarea:focus{ box-shadow:0 0 0 4px var(--focus); border-color:transparent; }
+  input:focus, select:focus, textarea:focus{
+    box-shadow:0 0 0 4px var(--focus);
+    border-color:transparent;
+  }
   textarea{ min-height:64px; resize:vertical; }
 
-  .settingsHdr{
+  /* Settings (compact) */
+  .settingsTop{
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:10px;
     flex-wrap:wrap;
   }
-  .settingsHdr .left{ display:flex; align-items:center; gap:10px; }
-  .settingsHdr .name{ font-weight:900; color:var(--ua-blue); }
-
+  .settingsTop .left{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
   .pill{
     display:inline-flex;
     align-items:center;
@@ -94,9 +229,9 @@
     color:var(--muted);
     white-space:nowrap;
   }
-  .pill.blue{ background:rgba(12,35,75,.08); border-color:transparent; color:var(--ua-blue); }
-  .pill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; }
-  .pill.warn{ background:rgba(247,144,9,.14); border-color:transparent; color:#7a4b00; }
+  .pill.blue{ background:rgba(12,35,75,.10); border-color:transparent; color:var(--ua-blue); font-weight:900; }
+  .pill.good{ background:rgba(18,183,106,.12); border-color:transparent; color:#067647; font-weight:900; }
+  .pill.warn{ background:rgba(247,144,9,.14); border-color:transparent; color:#7a4b00; font-weight:900; }
 
   .settingsBody{ margin-top:10px; display:none; }
   .settingsBody.show{ display:block; }
@@ -104,7 +239,7 @@
   .row{ display:flex; gap:10px; flex-wrap:wrap; }
   .col{ flex:1; min-width:170px; }
 
-  /* Calendar */
+  /* Calendar: functional + collapsible */
   .calWrap{ margin-top:10px; }
   .calHdr{
     display:flex;
@@ -114,21 +249,27 @@
     flex-wrap:wrap;
     padding:10px;
     border:1px solid var(--line);
-    border-radius:14px;
-    background:#fff;
+    border-radius:16px;
+    background:
+      linear-gradient(135deg, rgba(12,35,75,.06), rgba(171,5,32,.04)),
+      #fff;
   }
-  .calHdr .month{ font-weight:900; color:var(--ua-blue); }
-  .calBtns{ display:flex; gap:8px; }
+  .calHdr .month{
+    font-weight:900;
+    color:var(--ua-blue);
+    letter-spacing:.2px;
+  }
+  .calBtns{ display:flex; gap:8px; flex-wrap:wrap; }
 
   .calBody{
     margin-top:8px;
     border:1px solid var(--line);
-    border-radius:14px;
+    border-radius:16px;
     background:#fff;
     padding:10px;
     overflow:hidden;
     max-height:520px;
-    transition:max-height .2s ease, opacity .18s ease, padding .18s ease, margin .18s ease, border .18s ease;
+    transition:max-height .22s ease, opacity .18s ease, padding .18s ease, margin .18s ease, border .18s ease;
     opacity:1;
   }
   .calBody.collapsed{
@@ -138,12 +279,16 @@
     margin-top:0;
     border:0;
   }
-
   .calGrid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
-  .dow{ text-align:center; font-size:11px; color:var(--muted); padding:6px 0; }
+  .dow{
+    text-align:center;
+    font-size:11px;
+    color:var(--muted);
+    padding:6px 0;
+  }
   .day{
     border:1px solid var(--line);
-    border-radius:12px;
+    border-radius:14px;
     padding:10px 0;
     text-align:center;
     font-weight:900;
@@ -151,13 +296,25 @@
     user-select:none;
     background:#fff;
   }
-  .day:hover{ background:rgba(12,35,75,.05); }
+  .day:hover{ background:rgba(12,35,75,.06); }
   .day.muted{ color:#98a2b3; background:#fbfcfe; cursor:default; }
-  .day.sel{ background:rgba(171,5,32,.10); border-color:transparent; color:var(--ua-red); }
-  .day.today{ outline:3px solid rgba(12,35,75,.16); }
+  .day.sel{
+    background:rgba(171,5,32,.14);
+    border-color:transparent;
+    color:var(--ua-red);
+  }
+  .day.today{
+    outline:3px solid rgba(12,35,75,.16);
+  }
 
-  /* Week day picker */
-  .weekRow{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:10px; }
+  /* Week strip (always the driver) */
+  .weekRow{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-top:10px;
+  }
   .wbtn{
     padding:7px 10px;
     border-radius:999px;
@@ -166,7 +323,12 @@
     cursor:pointer;
     font-size:13px;
   }
-  .wbtn.active{ background:rgba(12,35,75,.10); border-color:transparent; color:var(--ua-blue); font-weight:900; }
+  .wbtn.active{
+    background:rgba(12,35,75,.12);
+    border-color:transparent;
+    color:var(--ua-blue);
+    font-weight:900;
+  }
 
   /* Tasks */
   .taskHdr{
@@ -176,9 +338,19 @@
     gap:10px;
     flex-wrap:wrap;
   }
-  .taskHdr .left{ display:flex; flex-direction:column; gap:3px; }
-  .taskHdr .dateLine{ font-weight:900; color:var(--ua-blue); }
-  .taskHdr .isoLine{ font-size:12px; color:var(--muted); }
+  .taskHdr .left{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+  }
+  .dateLine{
+    font-weight:900;
+    color:var(--ua-blue);
+  }
+  .isoLine{
+    font-size:12px;
+    color:var(--muted);
+  }
 
   .taskList{ margin-top:10px; }
   .task{
@@ -187,20 +359,33 @@
     align-items:flex-start;
     padding:8px;
     border:1px solid var(--line);
-    border-radius:12px;
+    border-radius:14px;
     background:#fff;
     margin:8px 0;
   }
-  .task input[type="checkbox"]{ width:auto; margin-top:3px; accent-color:var(--ua-blue); }
+  .task input[type="checkbox"]{
+    width:auto;
+    margin-top:3px;
+    accent-color:var(--ua-blue);
+  }
   .task .text{ flex:1; }
+  .x{
+    cursor:pointer;
+    color:var(--ua-red);
+    font-weight:900;
+    padding:0 6px;
+    user-select:none;
+  }
 
-  .x{ cursor:pointer; color:var(--ua-red); font-weight:900; padding:0 6px; user-select:none; }
-
+  .sectionTitle{
+    font-weight:900;
+    color:var(--ua-blue);
+    margin:0 0 8px;
+    letter-spacing:.2px;
+  }
   .hint{ font-size:12px; color:var(--muted); }
 
-  .smallBoxTitle{ font-weight:900; color:var(--ua-blue); margin:0 0 8px; }
-
-  /* Sticky status */
+  /* Sticky */
   .sticky{
     position:fixed; left:0; right:0; bottom:0;
     background:rgba(246,248,251,.92);
@@ -222,39 +407,57 @@
 
   /* Print */
   @media print{
-    .bar, .sticky, .calBtns, #toggleSettings, #toggleCal, #shareBtn, #todayBtn, #printBtn, #loadBtn, #saveBtn, #resetBtn { display:none !important; }
+    .bar, .sticky, #toggleSettingsBtn, #toggleCalBtn, #shareBtn, #todayBtn, #printBtn, #loadBtn, #saveBtn, #resetBtn { display:none !important; }
     body{ padding:0; background:#fff; }
     .card{ box-shadow:none; }
+    .banner{ border:1px solid #ddd !important; box-shadow:none !important; }
   }
 </style>
 </head>
+
 <body>
 <div class="wrap">
-  <div class="header">
-    <h1 class="title">CATS Weekly Tracker</h1>
-    <div class="subtitle">Simple weekly planning + check-offs</div>
+  <div class="top">
+    <div class="brand">
+      <div class="mark"></div>
+      <div class="titleWrap">
+        <h1 class="title">CATS Weekly Tracker</h1>
+        <div class="subtitle">Simple weekly planning + check-offs</div>
+      </div>
+    </div>
+
+    <div class="bar">
+      <button class="btn" id="toggleSettingsBtn">Settings</button>
+      <button class="btn" id="todayBtn">Today</button>
+      <button class="btn" id="shareBtn">Share</button>
+      <button class="btn" id="printBtn">Print</button>
+      <button class="btn primary" id="loadBtn">Load</button>
+      <button class="btn" id="saveBtn">Save</button>
+      <button class="btn red" id="resetBtn">Reset</button>
+    </div>
   </div>
 
-  <div class="bar">
-    <button class="btn" id="toggleSettings">Settings</button>
-    <button class="btn" id="todayBtn">Today</button>
-    <button class="btn" id="shareBtn">Share</button>
-    <button class="btn" id="printBtn">Print</button>
-    <button class="btn primary" id="loadBtn">Load</button>
-    <button class="btn" id="saveBtn">Save</button>
-    <button class="btn danger" id="resetBtn">Reset</button>
+  <!-- FLAG BANNER (click to jump to note editor) -->
+  <div class="banner" id="noteBanner" title="Click to edit note">
+    <div class="bannerLeft">
+      <div class="bang">!</div>
+      <div class="bannerText">
+        <div class="bannerLabel">QUICK NOTE</div>
+        <div class="bannerMsg" id="noteBannerText">—</div>
+      </div>
+    </div>
+    <button class="btn red" id="dismissBannerBtn" type="button">Dismiss</button>
   </div>
 
-  <!-- Settings -->
+  <!-- SETTINGS (compact + collapsible) -->
   <div class="card pad">
-    <div class="settingsHdr">
+    <div class="settingsTop">
       <div class="left">
-        <div class="name">Settings</div>
         <div class="pill blue" id="syncPill">Idle</div>
+        <div class="pill" id="progressPill">0/0</div>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <div class="pill" id="progressPill">—</div>
-        <button class="btn" id="toggleCal">Calendar</button>
+        <button class="btn" id="toggleCalBtn" type="button">Calendar</button>
       </div>
     </div>
 
@@ -286,12 +489,16 @@
 
       <div class="calWrap">
         <div class="calHdr">
-          <div class="month" id="calMonth">—</div>
+          <div>
+            <div class="month" id="calMonth">—</div>
+            <div class="hint" id="weekRangeText" style="margin-top:3px;">—</div>
+          </div>
           <div class="calBtns">
-            <button class="btn" id="prevMonth">Prev</button>
-            <button class="btn" id="nextMonth">Next</button>
+            <button class="btn" id="prevMonth" type="button">Prev</button>
+            <button class="btn" id="nextMonth" type="button">Next</button>
           </div>
         </div>
+
         <div class="calBody" id="calBody">
           <div class="calGrid" id="calGrid"></div>
         </div>
@@ -302,7 +509,7 @@
   </div>
 
   <div class="grid2" style="margin-top:10px;">
-    <!-- Main -->
+    <!-- MAIN -->
     <div class="card pad">
       <div class="taskHdr">
         <div class="left">
@@ -310,35 +517,43 @@
           <div class="isoLine" id="activeDayISO">—</div>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn primary" id="addTaskBtn">Add task</button>
-          <button class="btn" id="studyHallBtn">Study Hall</button>
+          <button class="btn primary" id="addTaskBtn" type="button">Add task</button>
+          <button class="btn" id="studyHallBtn" type="button">Study Hall</button>
         </div>
       </div>
 
       <div class="taskList" id="taskList"></div>
 
       <div style="margin-top:10px;">
-        <div class="smallBoxTitle">Quick add (paste a Teamworks line and press Enter)</div>
+        <div class="sectionTitle">Quick add</div>
         <input id="quickAdd" type="text" placeholder="Example: MIS111 PAR 11 due 2/25 9am DONE JD" />
         <div class="hint" style="margin-top:6px;">
-          Tip: If your line includes a day name (Monday/Tuesday/etc) or a date (2/25 or 2026-02-25), it will route automatically.
+          Press Enter to add. If a day name or date is included, it routes automatically.
         </div>
       </div>
 
-      <div style="margin-top:12px;">
-        <button class="btn" id="copySummaryBtn">Copy summary</button>
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn" id="copySummaryBtn" type="button">Copy summary</button>
       </div>
     </div>
 
-    <!-- Side -->
+    <!-- SIDE -->
     <div class="card pad">
-      <div class="smallBoxTitle">Upcoming (auto)</div>
-      <textarea id="upcomingBox" placeholder="Auto-generated from tasks with due dates"></textarea>
+      <div class="sectionTitle">Quick note</div>
+      <textarea id="quickNote" placeholder="Type here. If this has text, it flags at the top."></textarea>
+      <div class="hint" style="margin-top:6px;">
+        Keep it short. This is the first thing staff should see.
+      </div>
+
+      <div style="height:12px;"></div>
+
+      <div class="sectionTitle">Upcoming (auto)</div>
+      <textarea id="upcomingBox" placeholder="Auto-generated from tasks with dates"></textarea>
 
       <div style="height:10px;"></div>
 
-      <div class="smallBoxTitle">Missing (auto)</div>
-      <textarea id="missingBox" placeholder="Auto-generated from tasks marked as missed / not done after due date"></textarea>
+      <div class="sectionTitle">Missing (auto)</div>
+      <textarea id="missingBox" placeholder="Auto-generated from missed / past-due tasks"></textarea>
     </div>
   </div>
 </div>
@@ -354,21 +569,21 @@
 
 <script>
   // ---------- State ----------
-  let weekStart = null;          // Date object (the start date picked)
-  let activeDate = null;         // Date object (selected day within the week)
-  let tasksByISO = {};           // { "YYYY-MM-DD": [{id,text,done}] }
+  let weekStart = null;
+  let activeDate = null;
+  let tasksByISO = {}; // { "YYYY-MM-DD": [{id,text,done}] }
 
-  // Settings collapse state
-  let settingsOpen = false;
-  let calCollapsed = false;
+  // UI prefs (remembered)
+  const PREFS_KEY = "cats_ui_prefs_v1";
+
+  // Quick note banner dismiss (per record)
+  let bannerDismissed = false;
 
   // ---------- Helpers ----------
   const $ = (id)=>document.getElementById(id);
 
   function pad2(n){ return String(n).padStart(2,"0"); }
-  function toISO(d){
-    return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
-  }
+  function toISO(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
   function fromISO(s){
     const [y,m,dd] = s.split("-").map(Number);
     return new Date(y, m-1, dd);
@@ -376,19 +591,28 @@
   function fmtLong(d){
     return d.toLocaleDateString(undefined, { weekday:"long", year:"numeric", month:"long", day:"numeric" });
   }
-  function fmtMonth(d){
-    return d.toLocaleDateString(undefined, { month:"long", year:"numeric" });
-  }
+  function fmtMonth(d){ return d.toLocaleDateString(undefined, { month:"long", year:"numeric" }); }
   function isSameDay(a,b){
     return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
   }
-  function addDays(d, n){
+  function addDays(d,n){
     const x = new Date(d);
     x.setDate(x.getDate()+n);
     return x;
   }
   function uid(){
     return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  // ---------- Prefs ----------
+  function loadPrefs(){
+    try{
+      const raw = localStorage.getItem(PREFS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){ return {}; }
+  }
+  function savePrefs(obj){
+    try{ localStorage.setItem(PREFS_KEY, JSON.stringify(obj)); }catch(e){}
   }
 
   // ---------- Connectivity ----------
@@ -400,34 +624,55 @@
   window.addEventListener("offline", updateOnline);
   updateOnline();
 
-  // ---------- Storage (local only, simple + reliable) ----------
+  // ---------- Record key + storage ----------
   function recordKey(){
     const student = ($("studentName").value || "").trim().toLowerCase();
     const start = $("startDate").value || "";
     if(!student || !start) return null;
     return "cats_week_" + student + "_" + start;
   }
+  function dismissKey(){
+    const k = recordKey();
+    return k ? (k + "_banner_dismissed") : null;
+  }
+
+  function setStatus(text){
+    $("syncPill").textContent = text;
+    $("statusLine").textContent = text + " · " + (recordKey() ? "ready" : "set Student + Start date");
+  }
+
   function saveLocal(){
     const k = recordKey();
     if(!k) return;
+
     const payload = {
       studentName: $("studentName").value || "",
       sport: $("sport").value || "",
       startDate: $("startDate").value || "",
       weekStartISO: weekStart ? toISO(weekStart) : "",
       activeISO: activeDate ? toISO(activeDate) : "",
-      tasksByISO
+      tasksByISO,
+      quickNote: $("quickNote").value || ""
     };
     localStorage.setItem(k, JSON.stringify(payload));
+
+    // persist dismiss state per record
+    const dk = dismissKey();
+    if(dk) localStorage.setItem(dk, bannerDismissed ? "true" : "false");
+
     setStatus("Saved");
   }
+
   function loadLocal(){
     const k = recordKey();
     if(!k) return false;
+
     const raw = localStorage.getItem(k);
     if(!raw) return false;
+
     try{
       const obj = JSON.parse(raw);
+
       $("studentName").value = obj.studentName || "";
       $("sport").value = obj.sport || "";
       $("startDate").value = obj.startDate || "";
@@ -436,9 +681,19 @@
       activeDate = obj.activeISO ? fromISO(obj.activeISO) : (weekStart ? new Date(weekStart) : null);
       tasksByISO = obj.tasksByISO || {};
 
+      $("quickNote").value = obj.quickNote || "";
+
+      // restore dismiss
+      const dk = dismissKey();
+      bannerDismissed = (dk && localStorage.getItem(dk) === "true") ? true : false;
+
       rebuildWeekButtons();
       renderTasks();
-      renderCalendarMonth(); // keep selection visible
+      renderCalendarMonth();
+      updateProgressPill();
+      buildAutoUpcomingMissing();
+      renderNoteBanner();
+
       setStatus("Loaded");
       return true;
     }catch(e){
@@ -446,16 +701,12 @@
     }
   }
 
-  // ---------- Status ----------
-  function setStatus(text){
-    $("syncPill").textContent = text;
-    $("statusLine").textContent = text + " · " + (recordKey() ? "ready" : "set Student + Start date");
-  }
-
+  // ---------- Progress across week ----------
   function updateProgressPill(){
-    // progress across whole week (7 days)
     if(!weekStart){
-      $("progressPill").textContent = "—";
+      $("progressPill").textContent = "0/0";
+      $("progressPill").className = "pill";
+      $("weekRangeText").textContent = "—";
       return;
     }
     let total=0, done=0;
@@ -464,11 +715,28 @@
       const arr = tasksByISO[iso] || [];
       arr.forEach(t=>{ total++; if(t.done) done++; });
     }
-    $("progressPill").textContent = total ? `${done}/${total}` : "0/0";
+    $("progressPill").textContent = `${done}/${total}`;
     $("progressPill").className = "pill " + (total && done===total ? "good" : "blue");
+
+    const end = addDays(weekStart, 6);
+    $("weekRangeText").textContent = `Week: ${weekStart.toLocaleDateString()} – ${end.toLocaleDateString()}`;
   }
 
-  // ---------- Week day buttons ----------
+  // ---------- Note banner ----------
+  function renderNoteBanner(){
+    const text = ($("quickNote").value || "").trim();
+    const banner = $("noteBanner");
+    const bannerText = $("noteBannerText");
+
+    if(text && !bannerDismissed){
+      bannerText.textContent = text;
+      banner.classList.add("show");
+    }else{
+      banner.classList.remove("show");
+    }
+  }
+
+  // ---------- Week strip ----------
   const weekNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   function rebuildWeekButtons(){
     const row = $("weekRow");
@@ -482,12 +750,12 @@
       b.type="button";
       b.className="wbtn";
       b.textContent = weekNames[d.getDay()] + " " + (d.getMonth()+1) + "/" + d.getDate();
+      b.dataset.iso = iso;
       b.addEventListener("click", ()=>{
         activeDate = d;
         renderTasks();
         highlightWeekButtons();
       });
-      b.dataset.iso = iso;
       row.appendChild(b);
     }
     highlightWeekButtons();
@@ -499,9 +767,13 @@
     });
   }
 
-  // ---------- Tasks rendering ----------
+  // ---------- Tasks ----------
   function ensureDayList(iso){
     if(!tasksByISO[iso]) tasksByISO[iso] = [];
+  }
+  function addTaskToISO(iso, text, done=false){
+    ensureDayList(iso);
+    tasksByISO[iso].push({ id:uid(), text:(text||"").trim(), done:!!done });
   }
 
   function renderTasks(){
@@ -569,12 +841,6 @@
     buildAutoUpcomingMissing();
   }
 
-  function addTaskToISO(iso, text, done=false){
-    ensureDayList(iso);
-    tasksByISO[iso].push({ id:uid(), text: (text||"").trim(), done: !!done });
-  }
-
-  // Study Hall template (simple + useful)
   function addStudyHall(){
     if(!activeDate) return;
     const iso = toISO(activeDate);
@@ -585,9 +851,9 @@
     renderTasks();
   }
 
-  // ---------- Quick add parsing (automatic routing) ----------
+  // ---------- Quick add parsing ----------
   function parseDateFromLine(line){
-    // supports: 2026-02-25
+    // 2026-02-25
     const isoMatch = line.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
     if(isoMatch){
       const y = Number(isoMatch[1]);
@@ -595,7 +861,7 @@
       const d = Number(isoMatch[3]);
       return new Date(y, m-1, d);
     }
-    // supports: 2/25 or 02/25 (assumes current year)
+    // 2/25 or 02/25 (assumes weekStart year)
     const mdMatch = line.match(/\b(\d{1,2})\/(\d{1,2})\b/);
     if(mdMatch){
       const m = Number(mdMatch[1]);
@@ -641,26 +907,21 @@
     const done = inferDoneFromLine(line);
     let targetISO = null;
 
-    // route by explicit date if present
     const d = parseDateFromLine(line);
     if(d){
       targetISO = toISO(d);
     }else{
-      // route by day name if present
       const dn = parseDayNameFromLine(line);
       if(dn){
         targetISO = isoForDayNameInWeek(dn);
       }
     }
 
-    // fallback: selected day
     if(!targetISO) targetISO = toISO(activeDate);
 
     addTaskToISO(targetISO, line, done);
 
-    // if it landed on another day, switch to it (feels “smart”)
     activeDate = fromISO(targetISO);
-
     $("quickAdd").value = "";
     saveLocal();
     rebuildWeekButtons();
@@ -668,17 +929,13 @@
     highlightWeekButtons();
   }
 
-  // ---------- Auto upcoming/missing ----------
+  // ---------- Auto Upcoming/Missing ----------
   function buildAutoUpcomingMissing(){
-    // simple, based on:
-    // - tasks that include a date and are not done => upcoming
-    // - tasks that include "missed" or are past-due based on embedded date => missing
     const up = [];
     const miss = [];
-
-    const today = new Date();
     const seenUp = new Set();
     const seenMiss = new Set();
+    const today = new Date();
 
     function pushUnique(arr, set, s){
       const k = s.trim();
@@ -704,11 +961,8 @@
         if(embedded){
           const endOfDay = new Date(embedded);
           endOfDay.setHours(23,59,59,999);
-          if(endOfDay < today && !t.done){
-            pushUnique(miss, seenMiss, text);
-          }else if(endOfDay >= today && !t.done){
-            pushUnique(up, seenUp, text);
-          }
+          if(endOfDay < today && !t.done) pushUnique(miss, seenMiss, text);
+          else if(endOfDay >= today && !t.done) pushUnique(up, seenUp, text);
         }
       });
     });
@@ -718,7 +972,7 @@
   }
 
   // ---------- Calendar rendering ----------
-  let calView = new Date(); // month shown
+  let calView = new Date();
 
   function renderCalendarMonth(){
     $("calMonth").textContent = fmtMonth(calView);
@@ -740,7 +994,6 @@
     const startDow = first.getDay();
     const daysInMonth = new Date(year, month+1, 0).getDate();
 
-    // leading blanks
     for(let i=0;i<startDow;i++){
       const el = document.createElement("div");
       el.className = "day muted";
@@ -749,6 +1002,7 @@
     }
 
     const today = new Date();
+    const selectedStart = $("startDate").value ? fromISO($("startDate").value) : null;
 
     for(let day=1; day<=daysInMonth; day++){
       const dateObj = new Date(year, month, day);
@@ -757,19 +1011,20 @@
       el.textContent = String(day);
 
       if(isSameDay(dateObj, today)) el.classList.add("today");
-
-      const selectedStart = $("startDate").value ? fromISO($("startDate").value) : null;
       if(selectedStart && isSameDay(dateObj, selectedStart)) el.classList.add("sel");
 
       el.addEventListener("click", ()=>{
-        // start week from clicked day (this is the behavior you want)
         $("startDate").value = toISO(dateObj);
         weekStart = new Date(dateObj);
         activeDate = new Date(dateObj);
         rebuildWeekButtons();
         renderTasks();
         renderCalendarMonth();
+        updateProgressPill();
+        buildAutoUpcomingMissing();
         setStatus("Ready");
+
+        // if user clicks a date, keep the calendar state as-is (don’t auto-open/close)
         saveLocal();
       });
 
@@ -778,15 +1033,30 @@
   }
 
   // ---------- Actions ----------
-  $("toggleSettings").addEventListener("click", ()=>{
+  const prefs = loadPrefs();
+
+  // Settings open default (first-time helpful)
+  let settingsOpen = (prefs.settingsOpen !== undefined) ? !!prefs.settingsOpen : true;
+  $("settingsBody").classList.toggle("show", settingsOpen);
+
+  // Calendar collapsed preference (2B)
+  let calCollapsed = (prefs.calCollapsed !== undefined) ? !!prefs.calCollapsed : true;
+  $("calBody").classList.toggle("collapsed", calCollapsed);
+
+  $("toggleSettingsBtn").addEventListener("click", ()=>{
     settingsOpen = !settingsOpen;
     $("settingsBody").classList.toggle("show", settingsOpen);
+    const p = loadPrefs();
+    p.settingsOpen = settingsOpen;
+    savePrefs(p);
   });
 
-  $("toggleCal").addEventListener("click", ()=>{
+  $("toggleCalBtn").addEventListener("click", ()=>{
     calCollapsed = !calCollapsed;
     $("calBody").classList.toggle("collapsed", calCollapsed);
-    $("toggleCal").textContent = calCollapsed ? "Calendar" : "Calendar";
+    const p = loadPrefs();
+    p.calCollapsed = calCollapsed;
+    savePrefs(p);
   });
 
   $("prevMonth").addEventListener("click", ()=>{
@@ -807,6 +1077,8 @@
     rebuildWeekButtons();
     renderTasks();
     renderCalendarMonth();
+    updateProgressPill();
+    buildAutoUpcomingMissing();
     saveLocal();
     setStatus("Ready");
   });
@@ -818,6 +1090,7 @@
     addTaskToISO(toISO(activeDate), "", false);
     saveLocal();
     renderTasks();
+    updateProgressPill();
   });
 
   $("studyHallBtn").addEventListener("click", addStudyHall);
@@ -833,7 +1106,11 @@
     const student = ($("studentName").value||"").trim();
     const sport = $("sport").value||"";
     const start = $("startDate").value||"";
-    let out = `Student: ${student}\nSport: ${sport}\nStart date: ${start}\n\n`;
+    const note = ($("quickNote").value||"").trim();
+
+    let out = `Student: ${student}\nSport: ${sport}\nStart date: ${start}\n`;
+    if(note) out += `Quick note: ${note}\n`;
+    out += `\n`;
 
     if(weekStart){
       for(let i=0;i<7;i++){
@@ -874,7 +1151,7 @@
     }
   });
 
-  $("saveBtn").addEventListener("click", ()=>{ saveLocal(); });
+  $("saveBtn").addEventListener("click", ()=>saveLocal());
 
   $("loadBtn").addEventListener("click", ()=>{
     const ok = loadLocal();
@@ -882,28 +1159,71 @@
   });
 
   $("resetBtn").addEventListener("click", ()=>{
-    if(!confirm("Reset page? (Does not delete saved records unless you clear browser storage)")) return;
+    if(!confirm("Reset page? (Saved records stay unless you clear browser storage)")) return;
     location.reload();
   });
 
-  // ---------- Settings changes ----------
+  // Note banner interactions
+  $("noteBanner").addEventListener("click", (e)=>{
+    // ignore if clicking dismiss button
+    if(e.target && e.target.id === "dismissBannerBtn") return;
+    // open settings so they can see the note area, then scroll note into view
+    settingsOpen = true;
+    $("settingsBody").classList.add("show");
+    const p = loadPrefs();
+    p.settingsOpen = true;
+    savePrefs(p);
+
+    $("quickNote").scrollIntoView({behavior:"smooth", block:"center"});
+    $("quickNote").focus();
+  });
+
+  $("dismissBannerBtn").addEventListener("click", (e)=>{
+    e.stopPropagation();
+    bannerDismissed = true;
+    renderNoteBanner();
+    saveLocal();
+    setStatus("Dismissed");
+  });
+
+  $("quickNote").addEventListener("input", ()=>{
+    const text = ($("quickNote").value||"").trim();
+    // If they typed/changed the note, show banner again
+    if(text) bannerDismissed = false;
+    renderNoteBanner();
+    saveLocal();
+  });
+
+  // Settings changes
   $("startDate").addEventListener("change", ()=>{
     const v = $("startDate").value;
     if(!v) return;
+
     weekStart = fromISO(v);
     activeDate = fromISO(v);
     calView = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1);
+
     rebuildWeekButtons();
     renderTasks();
     renderCalendarMonth();
+    updateProgressPill();
+    buildAutoUpcomingMissing();
     saveLocal();
     setStatus("Ready");
   });
-  $("studentName").addEventListener("change", ()=>setStatus("Ready"));
+
+  $("studentName").addEventListener("change", ()=>{
+    // when key changes, reload dismiss state if present
+    const dk = dismissKey();
+    bannerDismissed = (dk && localStorage.getItem(dk) === "true") ? true : false;
+    renderNoteBanner();
+    setStatus("Ready");
+  });
+
   $("sport").addEventListener("change", ()=>{ saveLocal(); setStatus("Ready"); });
 
-  // ---------- URL prefill ----------
-  (function prefill(){
+  // Prefill from URL
+  (function init(){
     const url = new URL(window.location.href);
     const student = url.searchParams.get("student");
     const start = url.searchParams.get("start");
@@ -915,20 +1235,20 @@
       activeDate = fromISO($("startDate").value);
       calView = new Date(weekStart.getFullYear(), weekStart.getMonth(), 1);
     }else{
-      calView = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      const t = new Date();
+      calView = new Date(t.getFullYear(), t.getMonth(), 1);
     }
 
     renderCalendarMonth();
     rebuildWeekButtons();
     renderTasks();
+    updateProgressPill();
+    buildAutoUpcomingMissing();
 
-    // auto open settings on first load so the calendar is visible
-    settingsOpen = true;
-    $("settingsBody").classList.add("show");
-
-    // attempt local load if key exists
+    // Attempt record load if key exists
     if(recordKey()) loadLocal();
 
+    renderNoteBanner();
     setStatus("Idle");
   })();
 </script>
