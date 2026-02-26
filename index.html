@@ -2,408 +2,268 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>CATS Pulse</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CATS Weekly Tracker</title>
 <style>
   :root{
-    /* University of Arizona (clean use, not overdone) */
+    /* UA-inspired */
     --ua-red:#AB0520;
     --ua-blue:#0C234B;
 
-    --bg:#f6f8fc;
-    --card:#ffffff;
-    --text:#0b1220;
-    --muted:#667085;
-    --line:#e6eaf2;
+    --bg:#F7F9FC;
+    --card:#FFFFFF;
+    --text:#111827;
+    --muted:#6B7280;
+    --line:#E5E7EB;
 
-    --shadow:0 10px 25px rgba(16,24,40,.06);
-    --shadow2:0 2px 10px rgba(16,24,40,.06);
-    --radius:18px;
+    --good:#12B76A;
+    --warn:#F79009;
+    --bad:#F04438;
 
-    --good:#12b76a;
-    --warn:#f79009;
-    --bad:#f04438;
-
-    --chip:#f2f4f7;
-    --softBlue:rgba(12,35,75,.08);
-    --softRed:rgba(171,5,32,.10);
+    --shadow:0 1px 10px rgba(12,35,75,.08);
+    --r:16px;
   }
 
   *{ box-sizing:border-box; }
   body{
     margin:0;
-    background:
-      radial-gradient(1100px 520px at 10% -10%, rgba(171,5,32,.12), transparent 60%),
-      radial-gradient(900px 480px at 90% 0%, rgba(12,35,75,.12), transparent 55%),
-      var(--bg);
-    font-family: Arial, sans-serif;
-    color:var(--text);
-    padding:14px 14px 92px;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 12px 12px 92px;
   }
 
-  .wrap{ max-width:1100px; margin:0 auto; }
+  .wrap{ max-width: 980px; margin: 0 auto; }
 
-  /* ===== Top Bar (Pulse-ish) ===== */
-  .topbar{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:12px; flex-wrap:wrap;
-    margin-bottom:10px;
-  }
-  .brand{
-    display:flex; align-items:center; gap:12px;
-    user-select:none;
-  }
-  .mark{
-    width:42px; height:42px; border-radius:14px;
-    background: linear-gradient(135deg, var(--ua-red), #d61f3a 55%, var(--ua-blue));
-    box-shadow: var(--shadow2);
-    position:relative;
-    overflow:hidden;
-  }
-  .mark:after{
-    content:"";
-    position:absolute; inset:-30%;
-    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.32), transparent 55%);
-    transform: rotate(18deg);
-  }
-  .title h1{ margin:0; font-size:18px; letter-spacing:.2px; }
-  .title .sub{ margin-top:2px; font-size:12px; color:var(--muted); }
-
-  .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-
-  .btn{
-    border:1px solid var(--line);
-    background:#fff;
-    padding:10px 12px;
-    border-radius:14px;
-    cursor:pointer;
-    font-size:13px;
-    box-shadow: 0 1px 0 rgba(16,24,40,.02);
-    transition: transform .08s ease, box-shadow .12s ease, background .12s ease;
-  }
-  .btn:hover{ box-shadow: var(--shadow2); }
-  .btn:active{ transform: translateY(1px); }
-
-  .btn.primary{
-    border-color: transparent;
-    background: linear-gradient(135deg, rgba(12,35,75,.12), rgba(12,35,75,.06));
-    color: var(--ua-blue);
-  }
-  .btn.red{
-    border-color: transparent;
-    background: linear-gradient(135deg, rgba(171,5,32,.14), rgba(171,5,32,.06));
-    color: var(--ua-red);
-  }
-  .btn.ghost{
-    border-color: transparent;
-    background: transparent;
-    color: var(--ua-blue);
-    box-shadow:none;
-  }
-
-  /* ===== Chips ===== */
-  .chips{
-    display:flex; gap:8px; flex-wrap:wrap;
-    margin-bottom:12px;
-  }
-  .chip{
-    display:inline-flex; align-items:center; gap:8px;
-    padding:8px 10px;
-    border-radius:999px;
-    border:1px solid var(--line);
-    background:#fff;
-    font-size:12px;
-    color:#344054;
-    box-shadow: 0 1px 0 rgba(16,24,40,.02);
-  }
-  .dot{ width:9px; height:9px; border-radius:999px; background:#98a2b3; }
-  .dot.good{ background:var(--good); }
-  .dot.bad{ background:var(--bad); }
-  .dot.blue{ background:var(--ua-blue); }
-  .dot.red{ background:var(--ua-red); }
-
-  /* ===== Layout ===== */
-  .grid{
-    display:grid;
-    grid-template-columns: 1.2fr .8fr;
-    gap:12px;
-  }
-  @media(max-width:900px){
-    .grid{ grid-template-columns: 1fr; }
-  }
-
-  .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    box-shadow: var(--shadow);
-  }
-  .pad{ padding:12px; }
-  .sectionHead{
-    display:flex; align-items:flex-start; justify-content:space-between;
+  /* Top bar (clean) */
+  .top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
     gap:10px;
     margin-bottom:10px;
   }
-  .sectionHead h2{ margin:0; font-size:14px; letter-spacing:.2px; }
-  .hint{ font-size:12px; color:var(--muted); margin-top:3px; }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+  }
+  .mark{
+    width:38px; height:38px; border-radius:12px;
+    background: linear-gradient(135deg, var(--ua-red), var(--ua-blue));
+    box-shadow: var(--shadow);
+  }
+  h1{ font-size:16px; margin:0; letter-spacing:.2px; }
+  .sub{ font-size:12px; color:var(--muted); margin:2px 0 0; }
 
-  /* Inputs */
+  .modeToggle{
+    display:flex; gap:6px; padding:4px;
+    background:#fff; border:1px solid var(--line);
+    border-radius:999px; box-shadow: var(--shadow);
+  }
+  .modeBtn{
+    border:0; background:transparent; cursor:pointer;
+    padding:8px 10px; border-radius:999px;
+    font-size:12px; color:var(--muted);
+    user-select:none;
+  }
+  .modeBtn.active{
+    color:#fff;
+    background: linear-gradient(135deg, var(--ua-blue), rgba(12,35,75,.86));
+  }
+
+  /* Cards */
+  .card{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    box-shadow: var(--shadow);
+  }
+  .pad{ padding:12px; }
   .row{ display:flex; gap:10px; flex-wrap:wrap; }
-  .col{ flex:1; min-width:190px; }
-  label{ display:block; font-size:11px; color:var(--muted); margin:0 0 5px; }
+  .col{ flex:1; min-width: 200px; }
+  label{ display:block; font-size:11px; color:var(--muted); margin:0 0 4px; }
   input, select, textarea{
     width:100%;
     padding:10px 10px;
     border:1px solid var(--line);
-    border-radius:14px;
-    font-size:14px;
+    border-radius:12px;
     outline:none;
+    font-size:14px;
     background:#fff;
+    color:var(--text);
   }
-  textarea{ min-height:72px; resize:vertical; }
+  textarea{ min-height: 72px; resize: vertical; }
 
-  /* ===== Week Strip (interactive any-day start) ===== */
-  .weekTop{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:10px; flex-wrap:wrap;
-    margin-top:10px;
+  /* Minimal actions */
+  .actions{
+    display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;
+  }
+  .btn{
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    font-size:13px;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn.primary{
+    border-color: transparent;
+    color:#fff;
+    background: linear-gradient(135deg, var(--ua-red), rgba(171,5,32,.85));
+  }
+  .btn.blue{
+    border-color: transparent;
+    color:#fff;
+    background: linear-gradient(135deg, var(--ua-blue), rgba(12,35,75,.86));
+  }
+
+  /* Calendar strip */
+  .calTop{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .calStrip{
+    display:flex; gap:8px;
+    overflow:auto;
+    padding:8px 2px 2px;
+    scroll-snap-type:x mandatory;
+  }
+  .dayCard{
+    flex: 0 0 auto;
+    min-width: 112px;
+    border:1px solid var(--line);
+    border-radius: 14px;
+    background:#fff;
+    padding:10px;
+    cursor:pointer;
+    scroll-snap-align:start;
+    user-select:none;
+    transition: transform .08s ease, border-color .08s ease;
+  }
+  .dayCard:hover{ transform: translateY(-1px); }
+  .dayCard.active{
+    border-color: rgba(12,35,75,.18);
+    box-shadow: 0 10px 25px rgba(12,35,75,.10);
+    background: linear-gradient(180deg, rgba(12,35,75,.06), #fff);
+  }
+  .dow{ font-size:12px; color: var(--muted); }
+  .date{ font-size:14px; font-weight:700; margin-top:2px; }
+  .mini{
+    font-size:11px; margin-top:6px; color:var(--muted);
+    display:flex; justify-content:space-between; gap:6px;
+  }
+  .mini strong{ color:var(--text); }
+
+  /* Progress bar */
+  .progRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px; }
+  .bar{
+    width:100%; height:10px; border-radius:999px;
+    background:#EEF2FF;
+    overflow:hidden; border:1px solid rgba(12,35,75,.10);
+  }
+  .fill{
+    height:100%;
+    width:0%;
+    border-radius:999px;
+    background: linear-gradient(90deg, var(--ua-blue), var(--ua-red));
+    transition: width .2s ease;
+  }
+  .kpi{
+    font-size:12px; color:var(--muted); white-space:nowrap;
+  }
+  .flag{
+    padding:6px 10px; border-radius:999px;
+    font-size:12px; border:1px solid var(--line);
+    background:#fff; color:var(--muted);
+    white-space:nowrap;
+  }
+  .flag.good{ background: rgba(18,183,106,.10); border-color:transparent; color:#067647; }
+  .flag.warn{ background: rgba(247,144,9,.12); border-color:transparent; color:#7A4B00; }
+  .flag.bad{ background: rgba(240,68,56,.12); border-color:transparent; color:#8F1D14; }
+
+  /* Tasks */
+  .taskRow{
+    display:flex; gap:8px; align-items:flex-start;
     padding:10px;
     border:1px solid var(--line);
-    border-radius:16px;
-    background: linear-gradient(135deg, rgba(12,35,75,.06), rgba(171,5,32,.04));
-  }
-  .weekMeta{
-    font-size:12px; color:#344054;
-  }
-  .weekBtns{ display:flex; gap:8px; flex-wrap:wrap; }
-
-  .weekStrip{
-    margin-top:10px;
-    display:grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap:8px;
-  }
-  @media(max-width:720px){
-    .weekStrip{ grid-template-columns: repeat(4, 1fr); }
-  }
-
-  .dayChip{
-    border:1px solid var(--line);
+    border-radius:14px;
     background:#fff;
-    border-radius:16px;
-    padding:9px 9px;
-    cursor:pointer;
-    min-height:58px;
-    transition: transform .08s ease, background .12s ease, box-shadow .12s ease;
-    position:relative;
+    margin-top:8px;
   }
-  .dayChip:hover{ box-shadow: var(--shadow2); }
-  .dayChip:active{ transform: translateY(1px); }
-
-  .dayChip .dow{ font-size:11px; color:var(--muted); }
-  .dayChip .date{ font-size:13px; font-weight:800; margin-top:2px; color:#101828; }
-  .dayChip .badge{
-    position:absolute; right:8px; top:8px;
-    font-size:11px;
-    padding:3px 7px;
-    border-radius:999px;
-    background:var(--chip);
-    border:1px solid var(--line);
-    color:#344054;
-  }
-  .dayChip.active{
-    border-color: transparent;
-    background: linear-gradient(135deg, rgba(12,35,75,.12), rgba(12,35,75,.05));
-  }
-  .dayChip.active .date{ color:var(--ua-blue); }
-  .dayChip.today{
-    outline:2px solid rgba(171,5,32,.18);
-  }
-
-  /* ===== Tasks (Canva-like cards) ===== */
-  .taskList{ margin-top:8px; }
-  .task{
-    display:flex; gap:8px; align-items:flex-start;
-    padding:10px 10px;
-    border:1px solid var(--line);
-    border-radius:16px;
-    background:#fff;
-    margin:8px 0;
-    box-shadow: 0 1px 0 rgba(16,24,40,.02);
-  }
-  .task.dragging{ opacity:.55; }
-  .task input[type="checkbox"]{ width:auto; margin-top:3px; }
-  .task input[type="text"]{ flex:1; }
-  .task .tag{
-    min-width:110px;
-    text-align:center;
-    font-size:11px;
-    padding:6px 8px;
-    border-radius:999px;
-    background: var(--chip);
-    border:1px solid var(--line);
-    color:#344054;
-    cursor:pointer;
-    user-select:none;
-  }
-  .task .x{
-    cursor:pointer;
-    color:var(--ua-red);
-    font-weight:900;
+  .taskRow input[type="checkbox"]{ width:auto; margin-top:3px; }
+  .taskRow input[type="text"]{ flex:1; }
+  .x{
+    cursor:pointer; user-select:none;
+    font-weight:800; color:#B42318;
     padding:0 6px;
-    user-select:none;
   }
 
-  /* ===== Right Column (Pulse KPIs + feed) ===== */
-  .kpis{
+  /* Staff-only area (clean) */
+  .staffOnly{ display:none; }
+  .staffOnly.show{ display:block; }
+
+  /* Admin list editor */
+  .miniGrid{
     display:grid;
     grid-template-columns: 1fr 1fr;
     gap:10px;
   }
-  .kpi{
-    border:1px solid var(--line);
-    background:#fff;
-    border-radius:16px;
-    padding:10px;
-  }
-  .kpi .k{ font-size:11px; color:var(--muted); }
-  .kpi .v{ font-size:18px; font-weight:900; margin-top:2px; }
-  .kpi .s{ font-size:12px; color:var(--muted); margin-top:4px; }
-
-  /* Progress ring */
-  .ringWrap{ display:flex; align-items:center; gap:10px; }
-  .ring{
-    width:54px; height:54px; border-radius:999px;
-    background: conic-gradient(var(--ua-red) var(--deg), rgba(12,35,75,.08) 0);
-    display:grid; place-items:center;
-    border:1px solid var(--line);
-  }
-  .ringInner{
-    width:42px; height:42px; border-radius:999px;
-    background:#fff;
-    border:1px solid var(--line);
-    display:grid; place-items:center;
-    font-size:12px; font-weight:900; color:var(--ua-blue);
+  .hint{
+    font-size:12px; color:var(--muted);
+    margin-top:6px;
   }
 
-  .feed{
-    margin-top:10px;
-    border:1px solid var(--line);
-    background:#fff;
-    border-radius:16px;
-    padding:10px;
-  }
-  .feed .t{ font-weight:900; font-size:13px; }
-  .feed .m{ color:var(--muted); font-size:12px; margin-top:4px; }
-  .feed .c{ margin-top:8px; white-space:pre-wrap; font-size:13px; color:#101828; }
-
-  /* ===== Bottom Nav (simple) ===== */
-  .nav{
-    position:fixed; left:0; right:0; bottom:0;
-    background:rgba(246,248,252,.92);
-    backdrop-filter: blur(8px);
-    border-top:1px solid var(--line);
-  }
-  .navInner{
-    max-width:1100px; margin:0 auto;
-    display:flex; justify-content:space-between; align-items:center;
-    padding:10px 14px;
-    gap:10px; flex-wrap:wrap;
-  }
-  .status{ font-size:12px; color:var(--muted); text-align:right; }
-  .status strong{ color:var(--text); }
-  .status .mini{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
-
-  /* ===== Modal (Calendar) ===== */
-  .modalBackdrop{
-    position:fixed; inset:0;
-    background:rgba(16,24,40,.45);
-    display:none;
-    align-items:center; justify-content:center;
-    padding:16px;
-    z-index:50;
-  }
-  .modalBackdrop.show{ display:flex; }
-
-  .modal{
-    width:min(920px, 100%);
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:18px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.22);
-    overflow:hidden;
-  }
-  .modalHead{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:10px; flex-wrap:wrap;
-    padding:12px;
-    background: linear-gradient(135deg, rgba(171,5,32,.10), rgba(12,35,75,.10));
-    border-bottom:1px solid var(--line);
-  }
-  .modalHead .h{ font-weight:900; }
-  .modalBody{ padding:12px; }
-
-  .calTop{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:10px; flex-wrap:wrap;
-    margin-bottom:10px;
-  }
-  .calTitle{ font-weight:900; }
-  .calGrid{
-    display:grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap:8px;
-  }
-  .dow{
-    text-align:center;
-    font-size:11px;
-    color:var(--muted);
-  }
-  .calDay{
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:10px;
-    min-height:64px;
-    cursor:pointer;
-    background:#fff;
-    position:relative;
-    transition: box-shadow .12s ease, transform .08s ease, background .12s ease;
-  }
-  .calDay:hover{ box-shadow: var(--shadow2); }
-  .calDay:active{ transform: translateY(1px); }
-  .calDay.muted{ opacity:.45; }
-  .calDay .n{ font-weight:900; }
-  .calDay.selected{
-    border-color: transparent;
-    background: linear-gradient(135deg, rgba(12,35,75,.10), rgba(12,35,75,.04));
-  }
-  .calDay.today{
-    outline:2px solid rgba(171,5,32,.18);
-  }
-
-  /* ===== Toast ===== */
+  /* Toast */
   .toast{
-    position:fixed; left:50%; transform:translateX(-50%);
-    bottom:86px;
-    background:#111827;
+    position:fixed;
+    left:50%;
+    transform: translateX(-50%);
+    bottom: 84px;
+    background: #111827;
     color:#fff;
     padding:10px 12px;
-    border-radius:12px;
-    box-shadow:0 12px 28px rgba(0,0,0,.18);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,.18);
     font-size:13px;
-    opacity:0; pointer-events:none;
+    opacity:0;
+    pointer-events:none;
     transition: opacity .16s ease, transform .16s ease;
-    max-width:92vw;
-    z-index:60;
+    max-width: 92vw;
   }
-  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(-4px); }
 
-  /* ===== Print Snapshot ===== */
+  /* Sticky bottom bar */
+  .sticky{
+    position:fixed; left:0; right:0; bottom:0;
+    background: rgba(247,249,252,.92);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--line);
+  }
+  .sticky .inner{
+    max-width:980px; margin:0 auto;
+    padding:10px 12px;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; flex-wrap:wrap;
+  }
+  .status{
+    font-size:12px; color:var(--muted);
+  }
+  .status strong{ color:var(--text); }
+
+  /* Print snapshot */
   @media print{
     body{ padding:0; background:#fff; }
-    .actions, .chips, .nav, .modalBackdrop, .toast, .btn{ display:none !important; }
-    .card{ box-shadow:none; }
-    .grid{ grid-template-columns: 1fr; }
+    .sticky, .modeToggle, .actions, #printBtn, #shareBtn, #loadWeekBtn, #saveNowBtn, #resetBtn { display:none !important; }
+    .card{ box-shadow:none !important; }
+    .wrap{ max-width:100%; }
+  }
+
+  @media(max-width:720px){
+    .miniGrid{ grid-template-columns: 1fr; }
+    .dayCard{ min-width: 104px; }
   }
 </style>
 </head>
@@ -411,235 +271,127 @@
 <body>
 <div class="wrap">
 
-  <div class="topbar">
+  <div class="top">
     <div class="brand">
       <div class="mark" aria-hidden="true"></div>
-      <div class="title">
-        <h1>CATS Pulse</h1>
-        <div class="sub">Simple dashboard. Strong execution. Day-by-day control.</div>
+      <div>
+        <h1>CATS Weekly Tracker</h1>
+        <div class="sub" id="subText">Student view</div>
       </div>
+    </div>
+
+    <div class="modeToggle" aria-label="Mode toggle">
+      <button class="modeBtn active" id="studentModeBtn" type="button">Student</button>
+      <button class="modeBtn" id="staffModeBtn" type="button">Staff</button>
+    </div>
+  </div>
+
+  <!-- Core dashboard -->
+  <div class="card pad">
+    <div class="row">
+      <div class="col">
+        <label>Student</label>
+        <input id="studentName" type="text" placeholder="First Last" autocomplete="off" />
+      </div>
+
+      <div class="col">
+        <label>Sport</label>
+        <select id="sport"></select>
+      </div>
+
+      <div class="col">
+        <label>Start date</label>
+        <input id="startDate" type="date" />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px; align-items:flex-end;">
+      <div class="col staffOnly" id="staffMetaCard">
+        <div class="miniGrid">
+          <div>
+            <label>Learning Specialist</label>
+            <select id="ls"></select>
+          </div>
+          <div>
+            <label>Academic Counselor</label>
+            <select id="counselor"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="col" style="min-width:260px;">
+        <div class="actions">
+          <button class="btn blue" id="loadWeekBtn" type="button">Load current week</button>
+          <button class="btn" id="shareBtn" type="button">Share</button>
+          <button class="btn" id="printBtn" type="button">Print snapshot</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="calTop" style="margin-top:10px;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <div class="flag" id="flagPill">—</div>
+        <div class="kpi" id="kpiText">0/0</div>
+      </div>
+      <div class="actions" style="justify-content:flex-start;">
+        <button class="btn primary" id="addTaskBtn" type="button">Add task</button>
+        <button class="btn" id="studyHallBtn" type="button">Study Hall</button>
+      </div>
+    </div>
+
+    <div class="progRow">
+      <div class="bar" aria-label="Progress bar">
+        <div class="fill" id="fillBar"></div>
+      </div>
+    </div>
+
+    <div class="calStrip" id="calStrip" aria-label="7-day strip"></div>
+
+    <div id="tasksArea" style="margin-top:8px;"></div>
+
+    <div class="staffOnly" id="staffNotes" style="margin-top:10px;">
+      <label>Staff note</label>
+      <textarea id="note" placeholder=""></textarea>
+    </div>
+  </div>
+
+  <!-- Staff: editable lists -->
+  <div class="card pad staffOnly" id="adminLists" style="margin-top:10px;">
+    <div class="row">
+      <div class="col">
+        <label>Learning Specialists (one per line)</label>
+        <textarea id="lsList"></textarea>
+      </div>
+      <div class="col">
+        <label>Academic Counselors (one per line)</label>
+        <textarea id="counselorList"></textarea>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div class="col">
+        <label>Sports (one per line)</label>
+        <textarea id="sportList"></textarea>
+        <div class="hint">Edits save on this device and update the dropdowns instantly.</div>
+      </div>
+      <div class="col" style="min-width:260px;">
+        <div class="actions" style="justify-content:flex-end; height:100%; align-items:flex-end;">
+          <button class="btn" id="saveListsBtn" type="button">Save lists</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Sticky bar -->
+<div class="sticky">
+  <div class="inner">
+    <div class="status" id="status">
+      <strong>Idle</strong> · set Student + Start date
     </div>
     <div class="actions">
-      <button class="btn ghost" id="openCalendarBtn" type="button">Calendar</button>
-      <button class="btn" id="printBtn" type="button">Print Snapshot</button>
-      <button class="btn primary" id="saveBtn" type="button">Save</button>
-      <button class="btn" id="loadBtn" type="button">Load</button>
-      <button class="btn red" id="resetBtn" type="button">Reset</button>
-    </div>
-  </div>
-
-  <div class="chips">
-    <div class="chip"><span class="dot" id="onlineDot"></span><span id="onlineText">Checking…</span></div>
-    <div class="chip"><span class="dot blue"></span><span id="syncText">Last sync: —</span></div>
-    <div class="chip"><span class="dot red"></span><span id="weekText">Week: —</span></div>
-  </div>
-
-  <div class="grid">
-    <!-- LEFT: Main Dashboard -->
-    <div class="card pad">
-
-      <div class="sectionHead">
-        <div>
-          <h2>Dashboard</h2>
-          <div class="hint">Pick any start day → click a day → run that day.</div>
-        </div>
-        <div class="row" style="margin:0; gap:8px;">
-          <button class="btn" id="thisWeekBtn" type="button">This Week</button>
-          <button class="btn" id="prev7Btn" type="button">-7</button>
-          <button class="btn" id="next7Btn" type="button">+7</button>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="col">
-          <label>Student</label>
-          <input id="studentName" type="text" placeholder="First Last" autocomplete="off" />
-        </div>
-        <div class="col">
-          <label>Sport</label>
-          <select id="sport">
-            <option value="">Select</option>
-            <option>Football</option>
-            <option>Men's Basketball</option>
-            <option>Women's Basketball</option>
-            <option>Soccer</option>
-            <option>Track & Field</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="col">
-          <label>Academic Counselor</label>
-          <select id="counselor"></select>
-        </div>
-        <div class="col">
-          <label>Learning Specialist</label>
-          <select id="ls"></select>
-        </div>
-      </div>
-
-      <div class="weekTop">
-        <div class="weekMeta" id="anchorMeta">Start day: —</div>
-        <div class="weekBtns">
-          <button class="btn" id="pickStartBtn" type="button">Pick Start Day</button>
-          <button class="btn primary" id="quickTemplateBtn" type="button">Quick Template</button>
-        </div>
-      </div>
-
-      <div class="weekStrip" id="weekStrip"></div>
-
-      <div class="card pad" style="margin-top:12px;">
-        <div class="sectionHead" style="margin-bottom:6px;">
-          <div>
-            <h2 id="dayTitle">Day Plan</h2>
-            <div class="hint">Keep it tight. If it doesn’t move the grade/eligibility, it waits.</div>
-          </div>
-          <div class="row" style="margin:0; gap:8px;">
-            <button class="btn primary" id="addTaskBtn" type="button">+ Task</button>
-            <button class="btn" id="addPriorityBtn" type="button">+ Priority</button>
-          </div>
-        </div>
-
-        <div class="row" style="margin-top:8px;">
-          <div class="col">
-            <label>Focus (1 sentence)</label>
-            <input id="focusNote" data-key="focusNote" type="text" placeholder="What matters most today?" />
-          </div>
-          <div class="col">
-            <label>Due soon (optional)</label>
-            <input id="dueSoon" data-key="dueSoon" type="text" placeholder="Exam Fri / draft Sun / travel Thu" />
-          </div>
-        </div>
-
-        <div class="taskList" id="taskList"></div>
-      </div>
-
-      <div class="row" style="margin-top:12px;">
-        <div class="col card pad">
-          <div class="sectionHead" style="margin-bottom:6px;">
-            <div>
-              <h2>Upcoming</h2>
-              <div class="hint">Brightspace-style: deadlines coming soon.</div>
-            </div>
-            <button class="btn" id="pullUpcomingBtn" type="button">Pull from Day</button>
-          </div>
-          <textarea id="upcoming" data-key="upcoming" placeholder="Only the next important deadlines."></textarea>
-        </div>
-
-        <div class="col card pad">
-          <div class="sectionHead" style="margin-bottom:6px;">
-            <div>
-              <h2>Missing</h2>
-              <div class="hint">Only what matters right now.</div>
-            </div>
-            <button class="btn" id="pullMissingBtn" type="button">Pull from Day</button>
-          </div>
-          <textarea id="missing" data-key="missing" placeholder="Late/missing items that affect progress."></textarea>
-        </div>
-      </div>
-
-      <div class="card pad" style="margin-top:12px;">
-        <div class="sectionHead">
-          <div>
-            <h2>Priority Queue</h2>
-            <div class="hint">Canva-style list: small, high impact.</div>
-          </div>
-          <div class="row" style="margin:0; gap:8px;">
-            <button class="btn" id="prio3Btn" type="button">Add 3</button>
-            <button class="btn" id="clearDonePrioBtn" type="button">Clear DONE</button>
-          </div>
-        </div>
-        <div id="priorityBox"></div>
-      </div>
-
-    </div>
-
-    <!-- RIGHT: Pulse Column -->
-    <div class="card pad">
-      <div class="sectionHead">
-        <div>
-          <h2>Pulse</h2>
-          <div class="hint">Fast read. No clutter.</div>
-        </div>
-        <button class="btn" id="shareBtn" type="button">Copy Share Link</button>
-      </div>
-
-      <div class="kpis">
-        <div class="kpi">
-          <div class="k">Completion</div>
-          <div class="ringWrap" style="margin-top:6px;">
-            <div class="ring" id="ring" style="--deg: 0deg;">
-              <div class="ringInner" id="ringPct">0%</div>
-            </div>
-            <div>
-              <div class="v"><span id="doneCount">0</span>/<span id="totalCount">0</span></div>
-              <div class="s">Tasks done (this 7-day run)</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="kpi">
-          <div class="k">Momentum</div>
-          <div class="v" id="momentum">Building</div>
-          <div class="s" id="momentumSub">Start with the easiest win.</div>
-        </div>
-      </div>
-
-      <div class="feed">
-        <div class="t">Due Next</div>
-        <div class="m">Tag tasks like: <strong>DUE 2026-03-03</strong></div>
-        <div class="c" id="dueNext">—</div>
-      </div>
-
-      <div class="feed">
-        <div class="t">Activity Log</div>
-        <div class="m">Short, real updates (Teamworks-friendly).</div>
-        <textarea id="log" data-key="log" placeholder="Ex: emailed prof, submitted quiz, needs office hours..."></textarea>
-        <button class="btn primary" id="copySummaryBtn" type="button" style="margin-top:8px;">Copy Summary</button>
-      </div>
-
-    </div>
-  </div>
-
-</div>
-
-<!-- Calendar Modal -->
-<div class="modalBackdrop" id="calModal">
-  <div class="modal" role="dialog" aria-modal="true">
-    <div class="modalHead">
-      <div class="h">Calendar (Pick ANY start day)</div>
-      <div class="row" style="margin:0; gap:8px;">
-        <button class="btn" id="calPrev" type="button">‹</button>
-        <button class="btn" id="calToday" type="button">Today</button>
-        <button class="btn" id="calNext" type="button">›</button>
-        <button class="btn primary" id="calSetStart" type="button">Set Week Start</button>
-        <button class="btn red" id="calClose" type="button">Close</button>
-      </div>
-    </div>
-    <div class="modalBody">
-      <div class="calTop">
-        <div class="calTitle" id="calTitle">Month</div>
-        <div class="hint">Click a day → Set Week Start.</div>
-      </div>
-
-      <div class="calGrid" style="margin-bottom:8px;">
-        <div class="dow">Sun</div><div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div>
-      </div>
-      <div class="calGrid" id="calGrid"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Bottom Status -->
-<div class="nav">
-  <div class="navInner">
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="btn primary" id="saveMiniBtn" type="button">Save</button>
-      <button class="btn" id="loadMiniBtn" type="button">Load</button>
-      <button class="btn" id="openCalMiniBtn" type="button">Calendar</button>
-    </div>
-    <div class="status" id="status">
-      Status: <strong>idle</strong>
-      <span class="mini" id="statusMini">Set student + pick a start day.</span>
+      <button class="btn" id="saveNowBtn" type="button">Save</button>
+      <button class="btn" id="resetBtn" type="button">Reset</button>
     </div>
   </div>
 </div>
@@ -647,408 +399,131 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ============== CONFIG ============== */
+/* ================================
+   CONFIG
+================================== */
 const webAppURL = "https://script.google.com/macros/s/AKfycby6NVVsDPuOT6oYJ-6Uq8_F12bqhTDCtu0to1k76T3jDTDMaaZquy-oKwFwib2qrpt-/exec";
 
-/* ============== TEAM LISTS (editable in code) ============== */
-const DEFAULT_COUNSELORS = ["Jennifer", "Sarah"];
-const DEFAULT_LS = ["Elias Ortega", "Other LS"];
-
-/* ============== STATE ============== */
-let anchorDate = null;     // week start (ANY day)
-let selectedDate = null;   // day selected inside week
-let calCursor = new Date();
-let calSelected = new Date();
-
+/* ================================
+   STATE
+================================== */
+let mode = "student"; // student | staff
+let selectedDateISO = ""; // yyyy-mm-dd
+let weekDates = []; // array of ISO dates (7 days)
 let saveTimer = null;
-let lastSavedHash = "";
 let isApplyingLoad = false;
+let lastSavedHash = "";
 
-/* ============== UI HELPERS ============== */
+/* ================================
+   UTIL
+================================== */
 function toast(msg){
   const el = document.getElementById("toast");
   el.textContent = msg;
   el.classList.add("show");
   clearTimeout(el._t);
-  el._t = setTimeout(()=>el.classList.remove("show"), 1700);
+  el._t = setTimeout(()=>el.classList.remove("show"), 1400);
 }
-function setStatus(state, mini){
-  document.getElementById("status").innerHTML = `Status: <strong>${state}</strong>`;
-  if(typeof mini === "string") document.getElementById("statusMini").textContent = mini;
+function fmtDow(date){
+  return date.toLocaleDateString(undefined, { weekday:"short" });
 }
-function nowStamp(){ return new Date().toLocaleString(); }
-function pad2(n){ return String(n).padStart(2,"0"); }
-function ymd(d){
-  const x = new Date(d);
-  return `${x.getFullYear()}-${pad2(x.getMonth()+1)}-${pad2(x.getDate())}`;
+function fmtMD(date){
+  return date.toLocaleDateString(undefined, { month:"short", day:"numeric" });
 }
-function pretty(d){
-  const x = new Date(d);
-  return x.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+function iso(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const da = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${da}`;
 }
-function addDays(d,n){
-  const x = new Date(d);
-  x.setDate(x.getDate()+n);
-  return x;
+function parseISO(s){
+  // interpret as local date
+  const [y,m,d] = s.split("-").map(Number);
+  return new Date(y, m-1, d);
 }
-function sameYMD(a,b){ return ymd(a) === ymd(b); }
+function nowStamp(){
+  return new Date().toLocaleString();
+}
+function setStatus(title, detail){
+  const el = document.getElementById("status");
+  el.innerHTML = `<strong>${title}</strong>` + (detail ? ` · ${detail}` : "");
+}
 
-function updateOnlineChip(){
-  const dot = document.getElementById("onlineDot");
-  const txt = document.getElementById("onlineText");
-  if(navigator.onLine){
-    dot.className = "dot good";
-    txt.textContent = "Online";
-  }else{
-    dot.className = "dot bad";
-    txt.textContent = "Offline";
-  }
-}
-window.addEventListener("online", ()=>{ updateOnlineChip(); toast("Back online"); });
-window.addEventListener("offline", ()=>{ updateOnlineChip(); toast("Offline mode"); });
-updateOnlineChip();
+/* ================================
+   LISTS (editable in-page)
+================================== */
+const DEFAULTS = {
+  ls: ["Elias Ortega","Other LS"],
+  counselors: ["Jennifer","Sarah"],
+  sports: [
+    "Baseball","Men's Basketball","Women's Basketball","Beach Volleyball","Cross Country",
+    "Football","Men's Golf","Women's Golf","Gymnastics","Soccer","Softball",
+    "Men's Swimming & Diving","Women's Swimming & Diving","Men's Tennis","Women's Tennis",
+    "Track & Field","Triathlon","Volleyball"
+  ]
+};
 
-/* ============== DROPDOWNS ============== */
-function fillSelect(id, arr){
-  const el = document.getElementById(id);
-  el.innerHTML = `<option value="">Select</option>` + arr.map(x=>`<option>${escapeHtml(x)}</option>`).join("");
-}
-function escapeHtml(s){
-  return String(s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-fillSelect("counselor", DEFAULT_COUNSELORS);
-fillSelect("ls", DEFAULT_LS);
+function listStoreKey(name){ return `cats_lists_${name}`; }
 
-/* ============== RECORD KEY ============== */
+function loadLists(){
+  const ls = JSON.parse(localStorage.getItem(listStoreKey("ls")) || "null") || DEFAULTS.ls;
+  const counselors = JSON.parse(localStorage.getItem(listStoreKey("counselors")) || "null") || DEFAULTS.counselors;
+  const sports = JSON.parse(localStorage.getItem(listStoreKey("sports")) || "null") || DEFAULTS.sports;
+  return { ls, counselors, sports };
+}
+
+function saveListsToStorage(lists){
+  localStorage.setItem(listStoreKey("ls"), JSON.stringify(lists.ls));
+  localStorage.setItem(listStoreKey("counselors"), JSON.stringify(lists.counselors));
+  localStorage.setItem(listStoreKey("sports"), JSON.stringify(lists.sports));
+}
+
+function fillSelect(selectEl, items, placeholder){
+  selectEl.innerHTML = "";
+  const opt0 = document.createElement("option");
+  opt0.value = "";
+  opt0.textContent = placeholder || "Select";
+  selectEl.appendChild(opt0);
+  items.forEach(v=>{
+    const o=document.createElement("option");
+    o.value=v; o.textContent=v;
+    selectEl.appendChild(o);
+  });
+}
+
+function initListEditor(){
+  const lists = loadLists();
+  document.getElementById("lsList").value = lists.ls.join("\n");
+  document.getElementById("counselorList").value = lists.counselors.join("\n");
+  document.getElementById("sportList").value = lists.sports.join("\n");
+  applyListsToUI(lists);
+}
+
+function applyListsToUI(lists){
+  fillSelect(document.getElementById("ls"), lists.ls, "Select LS");
+  fillSelect(document.getElementById("counselor"), lists.counselors, "Select counselor");
+  fillSelect(document.getElementById("sport"), lists.sports, "Select sport");
+}
+
+/* ================================
+   RECORD KEY + LOCAL CACHE
+================================== */
 function stableKey(){
   const student = (document.getElementById("studentName").value || "").trim();
-  const weekStart = anchorDate ? ymd(anchorDate) : "";
-  return { student, weekStart, key: (student + "|" + weekStart).toLowerCase() };
+  const start = document.getElementById("startDate").value || "";
+  return { student, start, key: (student + "|" + start).toLowerCase() };
 }
-function hasKey(){
+function hasRequiredKey(){
   const sk = stableKey();
-  return !!(sk.student && sk.weekStart);
+  return !!(sk.student && sk.start);
 }
-function cacheKey(){ return "cats_pulse_" + stableKey().key; }
-function metaKey(){ return "cats_pulse_meta_" + stableKey().key; }
+function cacheKey(){ return "cats_week_data_" + stableKey().key; }
+function metaKey(){ return "cats_week_meta_" + stableKey().key; }
 
-/* ============== WEEK BUILDING ============== */
-function setAnchor(d){
-  anchorDate = new Date(d);
-  selectedDate = new Date(d);
-  document.getElementById("anchorMeta").textContent = `Start day: ${pretty(anchorDate)} (7-day run)`;
-  document.getElementById("weekText").textContent = `Week: ${pretty(anchorDate)} → ${pretty(addDays(anchorDate,6))}`;
-  renderWeekStrip();
-  renderDay();
-  onKeyChanged();
-}
-
-function renderWeekStrip(){
-  const strip = document.getElementById("weekStrip");
-  strip.innerHTML = "";
-  if(!anchorDate){
-    strip.innerHTML = `<div class="hint">Pick a start day to generate your week.</div>`;
-    return;
-  }
-
-  const today = new Date();
-  for(let i=0;i<7;i++){
-    const d = addDays(anchorDate,i);
-    const ds = ymd(d);
-
-    const chip = document.createElement("div");
-    chip.className = "dayChip" +
-      (selectedDate && sameYMD(d, selectedDate) ? " active" : "") +
-      (sameYMD(d, today) ? " today" : "");
-
-    const dow = document.createElement("div");
-    dow.className = "dow";
-    dow.textContent = d.toLocaleDateString(undefined,{weekday:"short"});
-
-    const date = document.createElement("div");
-    date.className = "date";
-    date.textContent = d.toLocaleDateString(undefined,{month:"short", day:"numeric"});
-
-    const badge = document.createElement("div");
-    badge.className = "badge";
-    const stats = countDoneTotal(ds);
-    badge.textContent = stats.total ? `${stats.done}/${stats.total}` : "—";
-
-    chip.appendChild(dow);
-    chip.appendChild(date);
-    chip.appendChild(badge);
-
-    chip.addEventListener("click", ()=>{
-      selectedDate = new Date(d);
-      renderWeekStrip();
-      renderDay();
-    });
-
-    strip.appendChild(chip);
-  }
-}
-
-/* ============== TASKS (drag reorder) ============== */
-function uid(){
-  return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-}
-
-function addTask(ds, text="", done=false, tag="—"){
-  const list = document.getElementById("taskList");
-  const id = uid();
-
-  const row = document.createElement("div");
-  row.className = "task taskRow";
-  row.setAttribute("data-day", ds);
-  row.setAttribute("draggable","true");
-
-  row.innerHTML = `
-    <input type="checkbox" data-key="t_${ds}_${id}_done" aria-label="Done">
-    <input type="text" data-key="t_${ds}_${id}_text" placeholder="Task" aria-label="Task">
-    <div class="tag" title="Click to tag (ex: DUE 2026-03-03, MISSING, LATE)">—</div>
-    <input type="hidden" data-key="t_${ds}_${id}_tag">
-    <span class="x" title="Remove">×</span>
-  `;
-
-  const cb = row.querySelector('input[type="checkbox"]');
-  const tx = row.querySelector('input[type="text"]');
-  const tg = row.querySelector('.tag');
-  const hid = row.querySelector('input[type="hidden"]');
-
-  cb.checked = !!done;
-  tx.value = text || "";
-  tg.textContent = (tag || "—").trim() || "—";
-  hid.value = tg.textContent;
-
-  tg.addEventListener("click", ()=>{
-    const next = prompt("Tag examples:\n• DUE 2026-03-03\n• QUIZ\n• PAPER\n• MISSING\n• LATE\n\nTag:", tg.textContent === "—" ? "" : tg.textContent);
-    if(next === null) return;
-    tg.textContent = (next.trim() || "—");
-    hid.value = tg.textContent;
-    updateKPIs();
-    debounceSave();
-  });
-
-  row.querySelector(".x").addEventListener("click", ()=>{
-    row.remove();
-    updateKPIs();
-    debounceSave();
-  });
-
-  // drag behavior
-  row.addEventListener("dragstart", ()=>row.classList.add("dragging"));
-  row.addEventListener("dragend", ()=>{
-    row.classList.remove("dragging");
-    updateKPIs();
-    debounceSave();
-  });
-
-  list.appendChild(row);
-  updateKPIs();
-}
-
-function enableDragSorting(){
-  const list = document.getElementById("taskList");
-  list.addEventListener("dragover", (e)=>{
-    e.preventDefault();
-    const dragging = list.querySelector(".dragging");
-    if(!dragging) return;
-    const after = getAfter(list, e.clientY);
-    if(after == null) list.appendChild(dragging);
-    else list.insertBefore(dragging, after);
-  });
-}
-function getAfter(container, y){
-  const els = [...container.querySelectorAll(".taskRow:not(.dragging)")];
-  return els.reduce((closest, child)=>{
-    const box = child.getBoundingClientRect();
-    const offset = y - box.top - box.height/2;
-    if(offset < 0 && offset > closest.offset){
-      return { offset, element: child };
-    }
-    return closest;
-  }, { offset: Number.NEGATIVE_INFINITY, element:null }).element;
-}
-enableDragSorting();
-
-/* ============== PRIORITIES ============== */
-function addPriority(text="", done=false){
-  const box = document.getElementById("priorityBox");
-  const id = uid();
-  const row = document.createElement("div");
-  row.className = "task";
-  row.innerHTML = `
-    <input type="checkbox" data-key="p_${id}_done">
-    <input type="text" data-key="p_${id}_text" placeholder="Priority">
-    <span class="x">×</span>
-  `;
-  row.querySelector(`[data-key="p_${id}_done"]`).checked = !!done;
-  row.querySelector(`[data-key="p_${id}_text"]`).value = text || "";
-  row.querySelector(".x").addEventListener("click", ()=>{
-    row.remove();
-    updateKPIs();
-    debounceSave();
-  });
-  box.appendChild(row);
-  updateKPIs();
-}
-function clearDonePriorities(){
-  const box = document.getElementById("priorityBox");
-  [...box.querySelectorAll(".task")].forEach(t=>{
-    const cb = t.querySelector('input[type="checkbox"]');
-    if(cb && cb.checked) t.remove();
-  });
-  updateKPIs();
-  debounceSave();
-}
-
-/* ============== RENDER DAY ============== */
-function renderDay(){
-  const list = document.getElementById("taskList");
-  list.innerHTML = "";
-
-  if(!selectedDate){
-    document.getElementById("dayTitle").textContent = "Day Plan";
-    return;
-  }
-
-  const ds = ymd(selectedDate);
-  document.getElementById("dayTitle").textContent = `${pretty(selectedDate)} Plan`;
-
-  const data = cacheLoad() || {};
-  const ids = new Set();
-
-  Object.keys(data).forEach(k=>{
-    const m = k.match(new RegExp(`^t_${ds}_(.+)_text$`));
-    if(m) ids.add(m[1]);
-  });
-
-  // rebuild tasks
-  [...ids].forEach(id=>{
-    const text = data[`t_${ds}_${id}_text`] || "";
-    const done = (data[`t_${ds}_${id}_done`] === true || String(data[`t_${ds}_${id}_done`]) === "true");
-    const tag  = data[`t_${ds}_${id}_tag`] || "—";
-    if(text || done || tag !== "—") addTask(ds, text, done, tag);
-  });
-
-  // seed minimal blanks if empty
-  if(!list.querySelector(".taskRow")){
-    addTask(ds,"",false,"—");
-    addTask(ds,"",false,"—");
-  }
-
-  updateKPIs();
-}
-
-/* ============== KPI + DUE NEXT ============== */
-function weekDates(){
-  if(!anchorDate) return [];
-  const out = [];
-  for(let i=0;i<7;i++) out.push(ymd(addDays(anchorDate,i)));
-  return out;
-}
-
-function collectDataFromDOM(){
-  const data = cacheLoad() || {};
-  document.querySelectorAll("[data-key], #studentName, #sport, #counselor, #ls").forEach(el=>{
-    const key = el.getAttribute("data-key") || el.id;
-    data[key] = (el.type === "checkbox") ? el.checked : el.value;
-  });
-
-  const sk = stableKey();
-  data["recordKey"] = sk.key;
-  data["Student Name"] = sk.student;
-  data["Week Start"] = sk.weekStart;
-
-  return data;
-}
-
-function countDoneTotal(ds){
-  const data = collectDataFromDOM();
-  let total=0, done=0;
-  Object.keys(data).forEach(k=>{
-    if(k.startsWith(`t_${ds}_`) && k.endsWith("_done")){
-      total++;
-      if(data[k] === true || String(data[k]) === "true") done++;
-    }
-  });
-  return { total, done };
-}
-
-function updateKPIs(){
-  if(!anchorDate){
-    document.getElementById("doneCount").textContent = "0";
-    document.getElementById("totalCount").textContent = "0";
-    document.getElementById("ring").style.setProperty("--deg","0deg");
-    document.getElementById("ringPct").textContent = "0%";
-    document.getElementById("momentum").textContent = "Building";
-    document.getElementById("momentumSub").textContent = "Pick a start day.";
-    document.getElementById("dueNext").textContent = "—";
-    return;
-  }
-
-  const data = collectDataFromDOM();
-  const dates = weekDates();
-
-  let total=0, done=0;
-  dates.forEach(ds=>{
-    Object.keys(data).forEach(k=>{
-      if(k.startsWith(`t_${ds}_`) && k.endsWith("_done")){
-        total++;
-        if(data[k] === true || String(data[k]) === "true") done++;
-      }
-    });
-  });
-
-  document.getElementById("doneCount").textContent = done;
-  document.getElementById("totalCount").textContent = total;
-
-  const pct = total ? Math.round((done/total)*100) : 0;
-  document.getElementById("ring").style.setProperty("--deg", (pct*3.6) + "deg");
-  document.getElementById("ringPct").textContent = pct + "%";
-
-  if(pct >= 80){
-    document.getElementById("momentum").textContent = "Strong";
-    document.getElementById("momentumSub").textContent = "Protect the streak.";
-  }else if(pct >= 45){
-    document.getElementById("momentum").textContent = "Steady";
-    document.getElementById("momentumSub").textContent = "One more push today.";
-  }else{
-    document.getElementById("momentum").textContent = "Building";
-    document.getElementById("momentumSub").textContent = "Start with the easiest win.";
-  }
-
-  // Due Next feed (from tags)
-  const dueItems = [];
-  dates.forEach(ds=>{
-    Object.keys(data).forEach(k=>{
-      if(k.startsWith(`t_${ds}_`) && k.endsWith("_tag")){
-        const tag = String(data[k] || "");
-        const m = tag.match(/DUE\s+(\d{4}-\d{2}-\d{2})/i);
-        if(m){
-          const due = m[1];
-          const base = k.replace("_tag","");
-          const text = data[base + "_text"] || "";
-          const isDone = (data[base + "_done"] === true || String(data[base + "_done"]) === "true");
-          if(text && !isDone) dueItems.push({ due, text });
-        }
-      }
-    });
-  });
-  dueItems.sort((a,b)=>a.due.localeCompare(b.due));
-
-  document.getElementById("dueNext").textContent =
-    dueItems.length ? dueItems.slice(0,10).map(x=>`• ${x.due}: ${x.text}`).join("\n")
-                    : "Nothing tagged with a due date.";
-
-  renderWeekStrip(); // refresh badges
-}
-
-/* ============== LOCAL CACHE ============== */
 function cacheSave(data){
   try{
     localStorage.setItem(cacheKey(), JSON.stringify(data));
-    localStorage.setItem(metaKey(), JSON.stringify({ localSavedAt: nowStamp() }));
+    localStorage.setItem(metaKey(), JSON.stringify({ savedAt: nowStamp() }));
   }catch(e){}
 }
 function cacheLoad(){
@@ -1058,402 +533,535 @@ function cacheLoad(){
   }catch(e){ return null; }
 }
 
-/* ============== AUTOSAVE ============== */
+/* ================================
+   WEEK GENERATION (7 days from selected start date)
+================================== */
+function buildWeekFrom(startISO){
+  const d0 = parseISO(startISO);
+  const dates = [];
+  for(let i=0;i<7;i++){
+    const d = new Date(d0);
+    d.setDate(d0.getDate()+i);
+    dates.push(iso(d));
+  }
+  return dates;
+}
+
+function ensureWeek(){
+  const startISO = document.getElementById("startDate").value;
+  if(!startISO) return;
+  weekDates = buildWeekFrom(startISO);
+  if(!selectedDateISO || !weekDates.includes(selectedDateISO)){
+    selectedDateISO = weekDates[0];
+  }
+  renderCalendarStrip();
+  renderTasksForSelectedDay();
+  updateProgressAndFlag();
+}
+
+/* ================================
+   TASKS MODEL (DOM as source of truth)
+   Stored fields:
+   - task_{ISO}_{id}_text
+   - task_{ISO}_{id}_done
+================================== */
+function uid(){
+  return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+
+function tasksArea(){ return document.getElementById("tasksArea"); }
+
+function addTaskRow(dateISO, text="", done=false){
+  const id = uid();
+  const row = document.createElement("div");
+  row.className = "taskRow";
+  row.dataset.date = dateISO;
+  row.dataset.tid = id;
+  row.innerHTML = `
+    <input type="checkbox" data-key="task_${dateISO}_${id}_done" aria-label="Done">
+    <input type="text" data-key="task_${dateISO}_${id}_text" placeholder="Task" aria-label="Task">
+    <span class="x" role="button" aria-label="Remove">×</span>
+  `;
+  row.querySelector(`[data-key="task_${dateISO}_${id}_done"]`).checked = !!done;
+  row.querySelector(`[data-key="task_${dateISO}_${id}_text"]`).value = text || "";
+  row.querySelector(".x").addEventListener("click", ()=>{
+    row.remove();
+    updateProgressAndFlag();
+    debounceSave();
+    renderCalendarStrip(); // update mini counts
+  });
+  tasksArea().appendChild(row);
+}
+
+function getAllTaskRows(){
+  return Array.from(document.querySelectorAll(".taskRow"));
+}
+
+function renderTasksForSelectedDay(){
+  // show only tasks for selected date (simple)
+  getAllTaskRows().forEach(r=>{
+    r.style.display = (r.dataset.date === selectedDateISO) ? "flex" : "none";
+  });
+
+  // if none exist, keep it clean (no filler text)
+  const visible = getAllTaskRows().some(r => r.dataset.date === selectedDateISO);
+  if(!visible){
+    // do nothing; empty state is fine (simplicity)
+  }
+}
+
+function seedNewRecordIfEmpty(){
+  // if there are no tasks at all, create 1 blank on day 1 to reduce friction
+  if(getAllTaskRows().length === 0 && weekDates.length){
+    addTaskRow(weekDates[0], "", false);
+  }
+}
+
+/* ================================
+   CALENDAR STRIP RENDER
+================================== */
+function countForDate(dateISO){
+  const rows = getAllTaskRows().filter(r => r.dataset.date === dateISO);
+  const total = rows.length;
+  const done = rows.filter(r => r.querySelector('input[type="checkbox"]').checked).length;
+  return { total, done };
+}
+
+function renderCalendarStrip(){
+  const strip = document.getElementById("calStrip");
+  strip.innerHTML = "";
+
+  weekDates.forEach(dateISO=>{
+    const d = parseISO(dateISO);
+    const { total, done } = countForDate(dateISO);
+
+    const card = document.createElement("div");
+    card.className = "dayCard" + (dateISO === selectedDateISO ? " active" : "");
+    card.innerHTML = `
+      <div class="dow">${fmtDow(d)}</div>
+      <div class="date">${fmtMD(d)}</div>
+      <div class="mini"><span>Done</span><strong>${done}/${total}</strong></div>
+    `;
+    card.addEventListener("click", ()=>{
+      selectedDateISO = dateISO;
+      renderCalendarStrip();
+      renderTasksForSelectedDay();
+      updateProgressAndFlag();
+      debounceSave();
+    });
+
+    strip.appendChild(card);
+  });
+}
+
+/* ================================
+   PROGRESS + FLAG
+================================== */
+function updateProgressAndFlag(){
+  const all = getAllTaskRows();
+  const checks = all.map(r => r.querySelector('input[type="checkbox"]'));
+  const total = checks.length;
+  const done = checks.filter(c => c.checked).length;
+
+  const pct = total ? Math.round((done/total)*100) : 0;
+  document.getElementById("kpiText").textContent = `${done}/${total}`;
+
+  const fill = document.getElementById("fillBar");
+  fill.style.width = pct + "%";
+
+  const pill = document.getElementById("flagPill");
+  pill.className = "flag";
+  if(total === 0){
+    pill.textContent = "—";
+    pill.classList.add();
+  } else if(pct >= 70){
+    pill.textContent = "On track";
+    pill.classList.add("good");
+  } else if(pct >= 35){
+    pill.textContent = "Watch";
+    pill.classList.add("warn");
+  } else {
+    pill.textContent = "Urgent";
+    pill.classList.add("bad");
+  }
+
+  // Update subtext
+  const sub = document.getElementById("subText");
+  sub.textContent = (mode === "staff") ? "Staff view" : "Student view";
+}
+
+/* ================================
+   DATA COLLECTION / APPLY
+================================== */
+function allFields(){
+  // include dynamic task inputs (data-key), plus core inputs
+  return document.querySelectorAll(
+    "[data-key], #studentName, #sport, #startDate, #ls, #counselor, #note"
+  );
+}
+
+function collectData(){
+  const data = {};
+  allFields().forEach(el=>{
+    const key = el.getAttribute("data-key") || el.id;
+    data[key] = (el.type === "checkbox") ? el.checked : el.value;
+  });
+
+  // meta
+  const sk = stableKey();
+  data["recordKey"] = sk.key;
+  data["Student Name"] = sk.student;
+  data["Start Date"] = sk.start;
+  data["selectedDateISO"] = selectedDateISO || "";
+  data["weekDates"] = JSON.stringify(weekDates || []);
+
+  return data;
+}
+
+function applyLoaded(obj){
+  isApplyingLoad = true;
+
+  // Core
+  document.getElementById("sport").value = obj.sport || "";
+  document.getElementById("ls").value = obj.ls || "";
+  document.getElementById("counselor").value = obj.counselor || "";
+  document.getElementById("note").value = obj.note || "";
+
+  // Week dates + selected date
+  try{
+    const w = JSON.parse(obj.weekDates || "[]");
+    if(Array.isArray(w) && w.length === 7) weekDates = w;
+  }catch(e){}
+  selectedDateISO = obj.selectedDateISO || (weekDates[0] || document.getElementById("startDate").value || "");
+
+  // Clear tasks and rebuild from keys
+  tasksArea().innerHTML = "";
+  Object.keys(obj).forEach(k=>{
+    const m = k.match(/^task_(\d{4}-\d{2}-\d{2})_(.+)_text$/);
+    if(m){
+      const dateISO = m[1];
+      const id = m[2];
+      const text = obj[k] || "";
+      const doneKey = `task_${dateISO}_${id}_done`;
+      const done = (obj[doneKey] === true || obj[doneKey] === "true");
+      // recreate with same id (to preserve)
+      const row = document.createElement("div");
+      row.className = "taskRow";
+      row.dataset.date = dateISO;
+      row.dataset.tid = id;
+      row.innerHTML = `
+        <input type="checkbox" data-key="task_${dateISO}_${id}_done" aria-label="Done">
+        <input type="text" data-key="task_${dateISO}_${id}_text" placeholder="Task" aria-label="Task">
+        <span class="x" role="button" aria-label="Remove">×</span>
+      `;
+      row.querySelector(`[data-key="task_${dateISO}_${id}_done"]`).checked = !!done;
+      row.querySelector(`[data-key="task_${dateISO}_${id}_text"]`).value = text || "";
+      row.querySelector(".x").addEventListener("click", ()=>{
+        row.remove();
+        updateProgressAndFlag();
+        debounceSave();
+        renderCalendarStrip();
+      });
+      tasksArea().appendChild(row);
+    }
+  });
+
+  // If weekDates missing, rebuild from startDate
+  const startISO = document.getElementById("startDate").value;
+  if(!weekDates.length && startISO) weekDates = buildWeekFrom(startISO);
+
+  // Ensure selection in range
+  if(!weekDates.includes(selectedDateISO)) selectedDateISO = weekDates[0] || selectedDateISO;
+
+  seedNewRecordIfEmpty();
+  renderCalendarStrip();
+  renderTasksForSelectedDay();
+  updateProgressAndFlag();
+
+  lastSavedHash = JSON.stringify(collectData());
+  isApplyingLoad = false;
+}
+
+/* ================================
+   SAVE / LOAD (server + local)
+================================== */
 function debounceSave(){
   if(isApplyingLoad) return;
-  if(!hasKey()){
-    setStatus("idle","Set student + pick a start day.");
+  if(!hasRequiredKey()){
+    setStatus("Idle","set Student + Start date");
     return;
   }
   clearTimeout(saveTimer);
   saveTimer = setTimeout(()=>saveAll(false), 650);
-  setStatus("typing…","Autosave on.");
+  setStatus("Typing","autosave");
 }
 
 async function saveAll(force=false){
-  if(!hasKey()){
-    setStatus("idle","Set student + pick a start day.");
+  if(!hasRequiredKey()){
+    setStatus("Idle","set Student + Start date");
     return;
   }
 
-  const data = collectDataFromDOM();
+  const data = collectData();
   const h = JSON.stringify(data);
-
   if(!force && h === lastSavedHash){
-    setStatus("saved","Up to date.");
+    setStatus("Saved","up to date");
     return;
   }
 
   cacheSave(data);
-  setStatus("saving…","Syncing to shared record.");
 
   try{
+    setStatus("Saving","syncing");
     await fetch(webAppURL, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify(data)
     });
     lastSavedHash = h;
-    document.getElementById("syncText").textContent = "Last sync: " + nowStamp();
-    setStatus("saved","Shared record updated.");
-    toast("Saved");
+    setStatus("Saved", nowStamp());
   }catch(err){
-    setStatus("offline","Saved locally on this device.");
-    toast("Saved locally");
+    setStatus("Offline","saved locally");
   }
 }
 
 async function loadRecord(silent=false){
-  if(!hasKey()){
-    setStatus("idle","Set student + pick a start day.");
+  if(!hasRequiredKey()){
+    setStatus("Idle","set Student + Start date");
+    if(!silent) toast("Set Student + Start date");
     return;
   }
 
-  setStatus("loading…","Pulling shared record.");
+  setStatus("Loading","shared");
   const sk = stableKey();
 
+  // server first
   try{
-    const url = webAppURL + "?studentName=" + encodeURIComponent(sk.student) + "&weekStart=" + encodeURIComponent(sk.weekStart);
+    const url = webAppURL + "?studentName=" + encodeURIComponent(sk.student) + "&weekOf=" + encodeURIComponent(sk.start);
     const res = await fetch(url, { method:"GET" });
     const obj = await res.json();
     if(obj && !obj.error){
       applyLoaded(obj);
-      document.getElementById("syncText").textContent = "Last sync: " + nowStamp();
-      setStatus("loaded","Shared record loaded.");
+      setStatus("Loaded", nowStamp());
       if(!silent) toast("Loaded");
       return;
     }
   }catch(e){}
 
+  // local fallback
   const cached = cacheLoad();
   if(cached){
     applyLoaded(cached);
-    setStatus("loaded (local)","Shared unavailable. Using local backup.");
+    setStatus("Loaded (local)", nowStamp());
     if(!silent) toast("Loaded (local)");
   }else{
-    setStatus("no record","No saved record found.");
+    setStatus("Not found","");
     if(!silent) toast("No record found");
   }
 }
 
-function applyLoaded(obj){
-  isApplyingLoad = true;
+/* ================================
+   MODE TOGGLE
+================================== */
+function setMode(next){
+  mode = next;
+  const sBtn = document.getElementById("studentModeBtn");
+  const tBtn = document.getElementById("staffModeBtn");
+  sBtn.classList.toggle("active", mode === "student");
+  tBtn.classList.toggle("active", mode === "staff");
 
-  document.getElementById("sport").value = obj["sport"] || "";
-  document.getElementById("counselor").value = obj["counselor"] || "";
-  document.getElementById("ls").value = obj["ls"] || "";
-
-  document.getElementById("focusNote").value = obj["focusNote"] || "";
-  document.getElementById("dueSoon").value = obj["dueSoon"] || "";
-  document.getElementById("upcoming").value = obj["upcoming"] || "";
-  document.getElementById("missing").value = obj["missing"] || "";
-  document.getElementById("log").value = obj["log"] || "";
-
-  cacheSave(obj);
-  renderDay();
-  updateKPIs();
-
-  lastSavedHash = JSON.stringify(collectDataFromDOM());
-  isApplyingLoad = false;
-}
-
-/* ============== CALENDAR MODAL ============== */
-function openCalendar(){
-  document.getElementById("calModal").classList.add("show");
-  calSelected = anchorDate ? new Date(anchorDate) : new Date();
-  calCursor = new Date(calSelected.getFullYear(), calSelected.getMonth(), 1);
-  renderCalendar();
-}
-function closeCalendar(){
-  document.getElementById("calModal").classList.remove("show");
-}
-
-function renderCalendar(){
-  const title = document.getElementById("calTitle");
-  const grid = document.getElementById("calGrid");
-  grid.innerHTML = "";
-
-  const y = calCursor.getFullYear();
-  const m = calCursor.getMonth();
-
-  title.textContent = new Date(y, m, 1).toLocaleDateString(undefined, { month:"long", year:"numeric" });
-
-  const first = new Date(y, m, 1);
-  const startOffset = first.getDay(); // 0=Sun
-  const start = addDays(first, -startOffset);
-
-  const today = new Date();
-
-  for(let i=0;i<42;i++){
-    const d = addDays(start, i);
-    const inMonth = d.getMonth() === m;
-
-    const cell = document.createElement("div");
-    cell.className = "calDay" +
-      (inMonth ? "" : " muted") +
-      (calSelected && sameYMD(d, calSelected) ? " selected" : "") +
-      (sameYMD(d, today) ? " today" : "");
-
-    cell.innerHTML = `<div class="n">${d.getDate()}</div>`;
-
-    cell.addEventListener("click", ()=>{
-      calSelected = new Date(d);
-      renderCalendar();
-    });
-
-    grid.appendChild(cell);
-  }
-}
-
-/* ============== QUICK TEMPLATE ============== */
-function applyQuickTemplate(){
-  if(!selectedDate) return toast("Pick a start day first.");
-  const ds = ymd(selectedDate);
-
-  const choice = prompt(
-`Quick Template:
-1) Study Hall (3 tasks)
-2) Paper Sprint (5 tasks)
-3) Exam Prep (4 tasks)
-
-Type 1, 2, or 3:`, "1"
-  );
-  if(choice === null) return;
-
-  if(choice.trim() === "1"){
-    ["Check LMS for due dates","Work 45 min (highest impact)","Submit + verify submission"].forEach(t=>addTask(ds, t, false, "—"));
-  }else if(choice.trim() === "2"){
-    ["Thesis (1 sentence)","Outline (3 sections)","Find 2 sources + notes","Draft (rough)","Polish + submit"].forEach(t=>addTask(ds, t, false, "—"));
-  }else if(choice.trim() === "3"){
-    ["Make a 10-question self-quiz","Review wrong answers","Timed practice (20–30 min)","Plan office hours/tutoring"].forEach(t=>addTask(ds, t, false, "—"));
-  }else{
-    return toast("No template applied.");
-  }
-
-  debounceSave();
-  toast("Template added");
-}
-
-/* ============== SUMMARY + SHARE + PRINT ============== */
-function buildSummary(){
-  const sk = stableKey();
-  const data = collectDataFromDOM();
-  const dates = weekDates();
-
-  let out = "";
-  out += `Student: ${sk.student}\n`;
-  out += `Week: ${pretty(anchorDate)} → ${pretty(addDays(anchorDate,6))}\n`;
-  out += `Sport: ${document.getElementById("sport").value || ""}\n`;
-  out += `Counselor: ${document.getElementById("counselor").value || ""}\n`;
-  out += `LS: ${document.getElementById("ls").value || ""}\n\n`;
-  out += `Focus: ${document.getElementById("focusNote").value || ""}\n`;
-  out += `Due soon: ${document.getElementById("dueSoon").value || ""}\n\n`;
-
-  out += `Priority Queue\n`;
-  document.querySelectorAll("#priorityBox .task").forEach(t=>{
-    const text = t.querySelector('input[type="text"]').value || "";
-    const done = t.querySelector('input[type="checkbox"]').checked ? "DONE" : "OPEN";
-    if(text) out += `${done} - ${text}\n`;
+  document.querySelectorAll(".staffOnly").forEach(el=>{
+    el.classList.toggle("show", mode === "staff");
   });
 
-  out += `\nUpcoming\n${document.getElementById("upcoming").value || ""}\n`;
-  out += `\nMissing\n${document.getElementById("missing").value || ""}\n\n`;
-
-  dates.forEach(ds=>{
-    out += `${ds}\n`;
-    Object.keys(data).forEach(k=>{
-      const m = k.match(new RegExp(`^t_${ds}_(.+)_text$`));
-      if(m){
-        const base = k.replace("_text","");
-        const text = data[k] || "";
-        const done = (data[base + "_done"] === true || String(data[base + "_done"]) === "true");
-        const tag  = data[base + "_tag"] || "";
-        if(text) out += `${done ? "DONE":"OPEN"} - ${text}${(tag && tag !== "—") ? " ("+tag+")" : ""}\n`;
-      }
-    });
-    out += "\n";
-  });
-
-  out += `Activity Log\n${document.getElementById("log").value || ""}\n`;
-  return out;
+  updateProgressAndFlag();
 }
 
-async function copySummary(){
-  if(hasKey()) await saveAll(true);
-  const txt = buildSummary();
-  try{
-    await navigator.clipboard.writeText(txt);
-    toast("Summary copied");
-  }catch(e){
-    toast("Copy failed");
-  }
-}
+document.getElementById("studentModeBtn").addEventListener("click", ()=>setMode("student"));
+document.getElementById("staffModeBtn").addEventListener("click", ()=>setMode("staff"));
 
-async function copyShareLink(){
+/* ================================
+   BUTTONS
+================================== */
+document.getElementById("loadWeekBtn").addEventListener("click", ()=>{
+  // set startDate to today; week begins today
+  const todayISO = iso(new Date());
+  document.getElementById("startDate").value = todayISO;
+  selectedDateISO = todayISO;
+  ensureWeek();
+  toast("Week loaded");
+  onKeyChanged();
+});
+
+document.getElementById("printBtn").addEventListener("click", ()=>{
+  window.print();
+});
+
+document.getElementById("shareBtn").addEventListener("click", async ()=>{
   const sk = stableKey();
-  if(!sk.student || !sk.weekStart){
-    toast("Set student + start day first");
-    return;
-  }
+  if(!sk.student || !sk.start){ toast("Set Student + Start date"); return; }
   const url = new URL(window.location.href);
   url.searchParams.set("student", sk.student);
-  url.searchParams.set("start", sk.weekStart);
+  url.searchParams.set("start", sk.start);
+  url.searchParams.set("day", selectedDateISO || "");
   try{
     await navigator.clipboard.writeText(url.toString());
-    toast("Share link copied");
+    toast("Copied");
   }catch(e){
     toast("Copy failed");
   }
-}
-
-/* ============== PULL BUTTONS ============== */
-function pullToBox(which){
-  if(!selectedDate) return toast("Pick a day first.");
-  const ds = ymd(selectedDate);
-  const data = collectDataFromDOM();
-
-  const items = [];
-  Object.keys(data).forEach(k=>{
-    const m = k.match(new RegExp(`^t_${ds}_(.+)_text$`));
-    if(m){
-      const base = k.replace("_text","");
-      const text = data[k] || "";
-      const done = (data[base + "_done"] === true || String(data[base + "_done"]) === "true");
-      const tag  = String(data[base + "_tag"] || "");
-
-      if(!text || done) return;
-
-      if(which === "upcoming"){
-        items.push("• " + text);
-      }else{
-        // missing: only if tagged missing/late
-        if(/missing|late/i.test(tag)) items.push("• " + text);
-      }
-    }
-  });
-
-  const box = document.getElementById(which);
-  const add = items.slice(0,8).join("\n");
-  if(add){
-    box.value = (box.value ? box.value.trimEnd() + "\n" : "") + add + "\n";
-    debounceSave();
-    toast("Pulled from day");
-  }else{
-    toast(which === "missing" ? "No tasks tagged MISSING/LATE" : "No open tasks to pull");
-  }
-}
-
-/* ============== KEY CHANGE ============== */
-function onKeyChanged(){
-  if(!hasKey()){
-    setStatus("idle","Set student + pick a start day.");
-    return;
-  }
-  setStatus("ready","Autosave is on.");
-  // seed priorities if empty
-  if(!document.querySelector("#priorityBox .task")){
-    addPriority("", false);
-    addPriority("", false);
-  }
-  updateKPIs();
-}
-
-/* ============== EVENTS ============== */
-document.getElementById("openCalendarBtn").addEventListener("click", openCalendar);
-document.getElementById("openCalMiniBtn").addEventListener("click", openCalendar);
-document.getElementById("pickStartBtn").addEventListener("click", openCalendar);
-
-document.getElementById("calClose").addEventListener("click", closeCalendar);
-document.getElementById("calPrev").addEventListener("click", ()=>{
-  calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()-1, 1);
-  renderCalendar();
 });
-document.getElementById("calNext").addEventListener("click", ()=>{
-  calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()+1, 1);
-  renderCalendar();
-});
-document.getElementById("calToday").addEventListener("click", ()=>{
-  const t = new Date();
-  calSelected = t;
-  calCursor = new Date(t.getFullYear(), t.getMonth(), 1);
-  renderCalendar();
-});
-document.getElementById("calSetStart").addEventListener("click", ()=>{
-  setAnchor(calSelected);
-  closeCalendar();
-  toast("Week start set");
-});
-
-document.getElementById("thisWeekBtn").addEventListener("click", ()=>setAnchor(new Date()));
-document.getElementById("prev7Btn").addEventListener("click", ()=>{
-  if(!anchorDate) return toast("Pick a start day first");
-  setAnchor(addDays(anchorDate, -7));
-});
-document.getElementById("next7Btn").addEventListener("click", ()=>{
-  if(!anchorDate) return toast("Pick a start day first");
-  setAnchor(addDays(anchorDate, 7));
-});
-
-document.getElementById("quickTemplateBtn").addEventListener("click", applyQuickTemplate);
 
 document.getElementById("addTaskBtn").addEventListener("click", ()=>{
-  if(!selectedDate) return toast("Pick a start day first");
-  addTask(ymd(selectedDate), "", false, "—");
+  if(!selectedDateISO){
+    toast("Pick a date");
+    return;
+  }
+  addTaskRow(selectedDateISO, "", false);
+  renderTasksForSelectedDay();
+  updateProgressAndFlag();
+  renderCalendarStrip();
   debounceSave();
 });
 
-document.getElementById("addPriorityBtn").addEventListener("click", ()=>{
-  addPriority("", false);
+document.getElementById("studyHallBtn").addEventListener("click", ()=>{
+  if(!selectedDateISO){ toast("Pick a date"); return; }
+  [
+    "Open LMS + check due dates",
+    "Work 25 minutes (no phone)",
+    "Submit + confirm submission"
+  ].forEach(t=>addTaskRow(selectedDateISO, t, false));
+  renderTasksForSelectedDay();
+  updateProgressAndFlag();
+  renderCalendarStrip();
   debounceSave();
+  toast("Added");
 });
-document.getElementById("prio3Btn").addEventListener("click", ()=>{
-  addPriority("", false); addPriority("", false); addPriority("", false);
-  debounceSave();
-});
-document.getElementById("clearDonePrioBtn").addEventListener("click", clearDonePriorities);
 
-document.getElementById("pullUpcomingBtn").addEventListener("click", ()=>pullToBox("upcoming"));
-document.getElementById("pullMissingBtn").addEventListener("click", ()=>pullToBox("missing"));
-
-document.getElementById("copySummaryBtn").addEventListener("click", copySummary);
-document.getElementById("shareBtn").addEventListener("click", copyShareLink);
-
-document.getElementById("printBtn").addEventListener("click", ()=>window.print());
-
-document.getElementById("saveBtn").addEventListener("click", ()=>saveAll(true));
-document.getElementById("saveMiniBtn").addEventListener("click", ()=>saveAll(true));
-document.getElementById("loadBtn").addEventListener("click", ()=>loadRecord(false));
-document.getElementById("loadMiniBtn").addEventListener("click", ()=>loadRecord(false));
+document.getElementById("saveNowBtn").addEventListener("click", ()=>saveAll(true));
 
 document.getElementById("resetBtn").addEventListener("click", ()=>{
-  if(confirm("Reset the page? (Saved records stay.)")) location.reload();
+  if(confirm("Reset page?")) location.reload();
 });
 
-document.addEventListener("input", ()=>{
-  updateKPIs();
+/* ================================
+   LIST EDITOR SAVE
+================================== */
+document.getElementById("saveListsBtn").addEventListener("click", ()=>{
+  const ls = document.getElementById("lsList").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  const counselors = document.getElementById("counselorList").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  const sports = document.getElementById("sportList").value.split("\n").map(s=>s.trim()).filter(Boolean);
+
+  const lists = {
+    ls: ls.length ? ls : DEFAULTS.ls,
+    counselors: counselors.length ? counselors : DEFAULTS.counselors,
+    sports: sports.length ? sports : DEFAULTS.sports
+  };
+  saveListsToStorage(lists);
+  applyListsToUI(lists);
+  toast("Lists saved");
+});
+
+/* ================================
+   KEY CHANGES
+================================== */
+function onKeyChanged(){
+  if(!hasRequiredKey()){
+    setStatus("Idle","set Student + Start date");
+    return;
+  }
+  ensureWeek();
+
+  // If local exists, load silently to reduce friction
+  const cached = cacheLoad();
+  if(cached){
+    applyLoaded(cached);
+    setStatus("Ready","local");
+  }else{
+    seedNewRecordIfEmpty();
+    renderCalendarStrip();
+    renderTasksForSelectedDay();
+    updateProgressAndFlag();
+    setStatus("Ready","new");
+  }
+
+  // try silent server load (freshness)
+  loadRecord(true);
+}
+
+/* ================================
+   INPUT / CHANGE HANDLERS
+================================== */
+document.addEventListener("input", (e)=>{
+  if(isApplyingLoad) return;
+
+  // ignore key fields in autosave until set
+  if(e.target && (e.target.id === "studentName" || e.target.id === "startDate")) return;
+
+  updateProgressAndFlag();
+  renderCalendarStrip();
   debounceSave();
 });
-document.addEventListener("change", ()=>{
-  updateKPIs();
+
+document.addEventListener("change", (e)=>{
+  if(isApplyingLoad) return;
+
+  if(e.target && (e.target.id === "studentName" || e.target.id === "startDate")){
+    // when start date changes, rebuild week from that date
+    if(e.target.id === "startDate"){
+      selectedDateISO = document.getElementById("startDate").value || "";
+    }
+    onKeyChanged();
+    return;
+  }
+
+  updateProgressAndFlag();
+  renderCalendarStrip();
   debounceSave();
 });
 
-/* ============== INIT + URL PREFILL ============== */
-(function init(){
-  document.getElementById("syncText").textContent = "Last sync: —";
-  setStatus("idle","Set student + pick a start day.");
-
-  // Prefill from URL: ?student=First%20Last&start=YYYY-MM-DD
+/* ================================
+   URL PREFILL (share)
+================================== */
+(function prefillFromURL(){
   const url = new URL(window.location.href);
-  const s = url.searchParams.get("student");
+  const student = url.searchParams.get("student");
   const start = url.searchParams.get("start");
-  if(s) document.getElementById("studentName").value = s;
+  const day = url.searchParams.get("day");
 
-  if(start && /^\d{4}-\d{2}-\d{2}$/.test(start)){
-    setAnchor(start);
-    loadRecord(true);
+  if(student) document.getElementById("studentName").value = student;
+  if(start) document.getElementById("startDate").value = start;
+
+  if(start){
+    weekDates = buildWeekFrom(start);
+    selectedDateISO = (day && weekDates.includes(day)) ? day : weekDates[0];
+    renderCalendarStrip();
+  }
+
+  // Initialize editor + selects
+  initListEditor();
+
+  // default mode student
+  setMode("student");
+
+  if(student && start){
+    onKeyChanged();
+  }else{
+    setStatus("Idle","set Student + Start date");
+    ensureWeek();
+    seedNewRecordIfEmpty();
+    renderCalendarStrip();
+    renderTasksForSelectedDay();
+    updateProgressAndFlag();
   }
 })();
+
+/* ================================
+   INITIAL BOOT (lists + selects)
+================================== */
+if(!document.getElementById("sport").options.length){
+  initListEditor();
+}
 </script>
 </body>
 </html>
