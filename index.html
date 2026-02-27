@@ -746,7 +746,8 @@
   }
 
   // When student/week changes: show local availability + start refresh
-  function onKeyChanged(){
+  function onKeyChanged(opts={}){
+    const silent = !!opts.silent;
     if(!hasRequiredKey()){
       stopAutoRefresh();
       setStatus("idle","Set Student + Week to enable autosave.");
@@ -761,7 +762,7 @@
     if(cached){
       setLocalText(m?.localSavedAt ? m.localSavedAt : "available");
       setStatus("ready","Local backup found for this student/week.");
-      toast("Record ready");
+      if(!silent) toast("Record ready");
     }else{
       setLocalText("none yet");
       setStatus("ready","New record. Start typing—autosave is on.");
@@ -844,8 +845,11 @@
   // ---------- autosave triggers ----------
   document.addEventListener("input", (e)=>{
     updateProgress();
-    // Avoid autosave spam while key isn't set
-    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")) return;
+    // Key fields: update record readiness while typing, but avoid autosave until set
+    if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")){
+      onKeyChanged({silent:true});
+      return;
+    }
     debounceSave();
   });
 
@@ -853,7 +857,7 @@
     updateProgress();
     // Key fields: handle record setup + refresh
     if(e.target && (e.target.id === "studentName" || e.target.id === "weekOf")){
-      onKeyChanged();
+      onKeyChanged({silent:true});
       return;
     }
     debounceSave();
@@ -867,7 +871,7 @@
     if(student) document.getElementById("studentName").value = student;
     if(week) document.getElementById("weekOf").value = week;
     if(student || week){
-      onKeyChanged();
+      onKeyChanged({silent:true});
       // If both exist, try loading immediately
       if(student && week) loadWeek({silent:true});
     }
