@@ -83,7 +83,7 @@
     color:var(--muted);
   }
 
-  /* Quick Note Banner */
+  /* Quick Note Banner (sticky) */
   .banner{
     display:none;
     align-items:flex-start;
@@ -98,6 +98,11 @@
     box-shadow:0 10px 25px rgba(171,5,32,.12);
     margin:0 0 10px;
     cursor:pointer;
+
+    position:sticky;
+    top:10px;
+    z-index:50;
+    backdrop-filter: blur(6px);
   }
   .banner.show{ display:flex; }
   .bannerLeft{
@@ -132,6 +137,26 @@
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
+  }
+  .bannerRight{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .tag{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid rgba(171,5,32,.22);
+    background:rgba(171,5,32,.10);
+    color:#7a0015;
+    font-size:12px;
+    font-weight:900;
+    white-space:nowrap;
+    user-select:none;
   }
 
   /* Controls */
@@ -385,7 +410,87 @@
   }
   .hint{ font-size:12px; color:var(--muted); }
 
-  /* Sticky */
+  /* Triage list */
+  .triageList{ display:flex; flex-direction:column; gap:8px; }
+  .triageItem{
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:#fff;
+    padding:10px;
+    cursor:pointer;
+  }
+  .triageTop{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .triageBadges{ display:flex; gap:6px; flex-wrap:wrap; }
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    padding:4px 8px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:900;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+  .badge.miss{ background:rgba(171,5,32,.12); border-color:transparent; color:var(--ua-red); }
+  .badge.up{ background:rgba(247,144,9,.14); border-color:transparent; color:#7a4b00; }
+  .badge.idle{ background:rgba(12,35,75,.10); border-color:transparent; color:var(--ua-blue); }
+  .triageText{
+    margin-top:6px;
+    font-size:13px;
+    font-weight:700;
+    color:var(--text);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .triageMeta{
+    margin-top:4px;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .triageEmpty{
+    border:1px dashed var(--line);
+    border-radius:14px;
+    padding:10px;
+    color:var(--muted);
+    font-size:13px;
+    background:#fbfcfe;
+  }
+
+  /* Study Hall Mode targets */
+  .shTarget{
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:#fff;
+    padding:10px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .shTarget .tText{
+    font-size:13px;
+    font-weight:700;
+    color:var(--text);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    max-width:520px;
+  }
+  .shTarget .tMeta{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:4px;
+  }
+
+  /* Sticky footer */
   .sticky{
     position:fixed; left:0; right:0; bottom:0;
     background:rgba(246,248,251,.92);
@@ -410,7 +515,8 @@
     .bar, .sticky, #toggleSettingsBtn, #toggleCalBtn, #shareBtn, #todayBtn, #printBtn, #loadBtn, #saveBtn, #resetBtn { display:none !important; }
     body{ padding:0; background:#fff; }
     .card{ box-shadow:none; }
-    .banner{ border:1px solid #ddd !important; box-shadow:none !important; }
+    .banner{ border:1px solid #ddd !important; box-shadow:none !important; position:static !important; }
+    #studyHallPanel{ display:none !important; }
   }
 </style>
 </head>
@@ -446,7 +552,10 @@
         <div class="bannerMsg" id="noteBannerText">—</div>
       </div>
     </div>
-    <button class="btn red" id="dismissBannerBtn" type="button">Dismiss</button>
+    <div class="bannerRight">
+      <span class="tag" id="noteBannerTag">FLAGGED</span>
+      <button class="btn red" id="dismissBannerBtn" type="button">Dismiss</button>
+    </div>
   </div>
 
   <!-- SETTINGS (compact + collapsible) -->
@@ -524,6 +633,45 @@
 
       <div class="taskList" id="taskList"></div>
 
+      <!-- Study Hall Mode (replaces old behavior) -->
+      <div id="studyHallPanel" class="card pad" style="display:none; margin-top:10px; border:1px solid rgba(12,35,75,.18); background:linear-gradient(135deg, rgba(12,35,75,.06), rgba(171,5,32,.04)), #fff;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:900; color:var(--ua-blue); letter-spacing:.2px;">Study Hall Mode</div>
+            <div class="hint" id="studyHallHint" style="margin-top:3px;">Pick 1–3 targets and run a focus block.</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" id="shCloseBtn" type="button">Close</button>
+          </div>
+        </div>
+
+        <div style="height:10px;"></div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn primary" id="shPreset25" type="button">25 / 5</button>
+          <button class="btn primary" id="shPreset45" type="button">45 / 10</button>
+          <button class="btn" id="shPickTargetsBtn" type="button">Auto-pick targets</button>
+        </div>
+
+        <div style="height:10px;"></div>
+
+        <div class="sectionTitle" style="margin:0 0 8px;">Today’s targets</div>
+        <div id="shTargets" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+        <div style="height:12px;"></div>
+
+        <div class="sectionTitle" style="margin:0 0 8px;">Timer</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div style="font-size:28px; font-weight:900; color:var(--ua-blue);" id="shClock">00:00</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn primary" id="shStartBtn" type="button">Start</button>
+            <button class="btn" id="shPauseBtn" type="button" disabled>Pause</button>
+            <button class="btn red" id="shStopBtn" type="button" disabled>End session</button>
+          </div>
+        </div>
+        <div class="hint" id="shPhaseLine" style="margin-top:6px;">Idle</div>
+      </div>
+
       <div style="margin-top:10px;">
         <div class="sectionTitle">Quick add</div>
         <input id="quickAdd" type="text" placeholder="Example: MIS111 PAR 11 due 2/25 9am DONE JD" />
@@ -539,8 +687,29 @@
 
     <!-- SIDE -->
     <div class="card pad">
+      <div class="sectionTitle">Today’s Focus</div>
+      <div class="hint" id="triageHint" style="margin:-2px 0 8px;">Auto-built from Missing / Due soon / Idle.</div>
+      <div class="triageList" id="triageList"></div>
+
+      <div style="height:14px;"></div>
+
       <div class="sectionTitle">Quick note</div>
-      <textarea id="quickNote" placeholder="Type here. If this has text, it flags at the top."></textarea>
+      <div class="row" style="margin-bottom:8px;">
+        <div class="col" style="min-width:140px; flex:0 0 160px;">
+          <label>Flag at top</label>
+          <select id="quickNoteFlag">
+            <option value="1">Flagged</option>
+            <option value="0">Not flagged</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Actions</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn red" id="clearQuickNoteBtn" type="button">Clear</button>
+          </div>
+        </div>
+      </div>
+      <textarea id="quickNote" placeholder="Type here. Use Flag to pin it at the top."></textarea>
       <div class="hint" style="margin-top:6px;">
         Keep it short. This is the first thing staff should see.
       </div>
@@ -554,6 +723,15 @@
 
       <div class="sectionTitle">Missing (auto)</div>
       <textarea id="missingBox" placeholder="Auto-generated from missed / past-due tasks"></textarea>
+
+      <div style="height:12px;"></div>
+
+      <!-- Lightweight log peek (last 5) -->
+      <div class="sectionTitle">Study Hall Log (recent)</div>
+      <textarea id="studyHallLogBox" placeholder="Auto-saved when sessions end" readonly></textarea>
+      <div class="hint" style="margin-top:6px;">
+        This stores locally for now. Later we can push it to a shared backend.
+      </div>
     </div>
   </div>
 </div>
@@ -579,6 +757,9 @@
   // Quick note banner dismiss (per record)
   let bannerDismissed = false;
 
+  // Last activity (per record)
+  let lastActivityMS = 0;
+
   // ---------- Helpers ----------
   const $ = (id)=>document.getElementById(id);
 
@@ -602,6 +783,14 @@
   }
   function uid(){
     return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+  function clampText(s, n){
+    const t = (s||"").trim();
+    if(t.length <= n) return t;
+    return t.slice(0, n-1) + "…";
+  }
+  function noteIsFlagged(){
+    return String($("quickNoteFlag").value || "1") === "1";
   }
 
   // ---------- Prefs ----------
@@ -635,10 +824,18 @@
     const k = recordKey();
     return k ? (k + "_banner_dismissed") : null;
   }
+  function studyHallLogKey(){
+    const k = recordKey();
+    return k ? (k + "_studyhall_log") : null;
+  }
 
   function setStatus(text){
     $("syncPill").textContent = text;
     $("statusLine").textContent = text + " · " + (recordKey() ? "ready" : "set Student + Start date");
+  }
+
+  function touchActivity(){
+    lastActivityMS = Date.now();
   }
 
   function saveLocal(){
@@ -652,7 +849,9 @@
       weekStartISO: weekStart ? toISO(weekStart) : "",
       activeISO: activeDate ? toISO(activeDate) : "",
       tasksByISO,
-      quickNote: $("quickNote").value || ""
+      quickNote: $("quickNote").value || "",
+      quickNoteFlag: noteIsFlagged(),
+      lastActivityMS: lastActivityMS || 0
     };
     localStorage.setItem(k, JSON.stringify(payload));
 
@@ -682,6 +881,9 @@
       tasksByISO = obj.tasksByISO || {};
 
       $("quickNote").value = obj.quickNote || "";
+      $("quickNoteFlag").value = (obj.quickNoteFlag === false || obj.quickNoteFlag === "0") ? "0" : "1";
+
+      lastActivityMS = Number(obj.lastActivityMS || 0) || 0;
 
       // restore dismiss
       const dk = dismissKey();
@@ -693,6 +895,8 @@
       updateProgressPill();
       buildAutoUpcomingMissing();
       renderNoteBanner();
+      buildTriage();
+      renderStudyHallLogPeek();
 
       setStatus("Loaded");
       return true;
@@ -725,11 +929,15 @@
   // ---------- Note banner ----------
   function renderNoteBanner(){
     const text = ($("quickNote").value || "").trim();
+    const flagged = noteIsFlagged();
+
     const banner = $("noteBanner");
     const bannerText = $("noteBannerText");
+    const tag = $("noteBannerTag");
 
-    if(text && !bannerDismissed){
-      bannerText.textContent = text;
+    if(text && flagged && !bannerDismissed){
+      bannerText.textContent = clampText(text, 140);
+      tag.textContent = "FLAGGED";
       banner.classList.add("show");
     }else{
       banner.classList.remove("show");
@@ -783,6 +991,7 @@
       $("taskList").innerHTML = "";
       updateProgressPill();
       buildAutoUpcomingMissing();
+      buildTriage();
       return;
     }
     if(!activeDate) activeDate = new Date(weekStart);
@@ -804,9 +1013,12 @@
       cb.checked = !!t.done;
       cb.addEventListener("change", ()=>{
         t.done = cb.checked;
+        touchActivity();
         saveLocal();
         updateProgressPill();
         buildAutoUpcomingMissing();
+        renderNoteBanner();
+        buildTriage();
       });
 
       const text = document.createElement("input");
@@ -815,8 +1027,10 @@
       text.value = t.text || "";
       text.addEventListener("input", ()=>{
         t.text = text.value;
+        touchActivity();
         saveLocal();
         buildAutoUpcomingMissing();
+        buildTriage();
       });
 
       const x = document.createElement("span");
@@ -825,10 +1039,12 @@
       x.title="Remove";
       x.addEventListener("click", ()=>{
         tasksByISO[iso] = (tasksByISO[iso]||[]).filter(z=>z.id!==t.id);
+        touchActivity();
         saveLocal();
         renderTasks();
         updateProgressPill();
         buildAutoUpcomingMissing();
+        buildTriage();
       });
 
       div.appendChild(cb);
@@ -839,16 +1055,8 @@
 
     updateProgressPill();
     buildAutoUpcomingMissing();
-  }
-
-  function addStudyHall(){
-    if(!activeDate) return;
-    const iso = toISO(activeDate);
-    addTaskToISO(iso, "Study Hall: open LMS + check due dates", false);
-    addTaskToISO(iso, "Work on highest-impact assignment", false);
-    addTaskToISO(iso, "Submit + confirm submission", false);
-    saveLocal();
-    renderTasks();
+    renderNoteBanner();
+    buildTriage();
   }
 
   // ---------- Quick add parsing ----------
@@ -923,6 +1131,7 @@
 
     activeDate = fromISO(targetISO);
     $("quickAdd").value = "";
+    touchActivity();
     saveLocal();
     rebuildWeekButtons();
     renderTasks();
@@ -969,6 +1178,131 @@
 
     $("upcomingBox").value = up.join("\n");
     $("missingBox").value = miss.join("\n");
+  }
+
+  // ---------- Triage (Today’s Focus) ----------
+  function buildTriage(){
+    const host = $("triageList");
+    host.innerHTML = "";
+
+    const now = new Date();
+    const cutoffUpcomingMS = 48 * 60 * 60 * 1000; // 48 hours
+    const idleCutoffMS = 48 * 60 * 60 * 1000; // 48 hours
+
+    const items = [];
+
+    function addItem(kind, isoKey, text, dueDateObj){
+      let score = 0;
+      if(kind === "missing"){
+        const end = new Date(dueDateObj);
+        end.setHours(23,59,59,999);
+        const hoursOver = Math.max(0, Math.round((now - end)/36e5));
+        score = 1000 + hoursOver;
+      }else if(kind === "upcoming"){
+        const end = new Date(dueDateObj);
+        end.setHours(23,59,59,999);
+        const hoursUntil = Math.round((end - now)/36e5);
+        score = 500 - hoursUntil;
+      }else{
+        const hoursIdle = Math.round((now.getTime() - (lastActivityMS||0))/36e5);
+        score = 100 + hoursIdle;
+      }
+
+      items.push({
+        kind,
+        isoKey,
+        text: (text||"").trim(),
+        due: dueDateObj ? new Date(dueDateObj) : null,
+        score
+      });
+    }
+
+    Object.keys(tasksByISO).forEach(iso=>{
+      (tasksByISO[iso]||[]).forEach(t=>{
+        if(t.done) return;
+        const text = (t.text||"").trim();
+        if(!text) return;
+
+        const embedded = parseDateFromLine(text);
+        if(!embedded) return;
+
+        const end = new Date(embedded);
+        end.setHours(23,59,59,999);
+
+        if(end.getTime() < now.getTime()){
+          addItem("missing", iso, text, embedded);
+        }else{
+          const delta = end.getTime() - now.getTime();
+          if(delta <= cutoffUpcomingMS){
+            addItem("upcoming", iso, text, embedded);
+          }
+        }
+      });
+    });
+
+    const isIdle = lastActivityMS && (now.getTime() - lastActivityMS) >= idleCutoffMS;
+    if(isIdle){
+      addItem("idle", activeDate ? toISO(activeDate) : (weekStart ? toISO(weekStart) : ""), "No activity logged recently", null);
+    }
+
+    items.sort((a,b)=> b.score - a.score);
+    const top = items.slice(0, 6);
+
+    if(top.length === 0){
+      const div = document.createElement("div");
+      div.className = "triageEmpty";
+      div.textContent = "Nothing urgent right now. Add due dates to tasks (ex: 3/3) and this will auto-populate.";
+      host.appendChild(div);
+      return;
+    }
+
+    top.forEach(it=>{
+      const div = document.createElement("div");
+      div.className = "triageItem";
+
+      const topRow = document.createElement("div");
+      topRow.className = "triageTop";
+
+      const badges = document.createElement("div");
+      badges.className = "triageBadges";
+
+      const b = document.createElement("span");
+      b.className = "badge " + (it.kind === "missing" ? "miss" : it.kind === "upcoming" ? "up" : "idle");
+      b.textContent = it.kind === "missing" ? "Missing" : it.kind === "upcoming" ? "Due soon" : "Idle";
+      badges.appendChild(b);
+
+      topRow.appendChild(badges);
+
+      const text = document.createElement("div");
+      text.className = "triageText";
+      text.textContent = it.kind === "idle" ? "Idle: no updates in 48 hours" : clampText(it.text, 120);
+
+      const meta = document.createElement("div");
+      meta.className = "triageMeta";
+      if(it.kind === "idle"){
+        const hours = Math.round((now.getTime() - (lastActivityMS||0))/36e5);
+        meta.textContent = `Last activity: ${lastActivityMS ? (hours + "h ago") : "—"}`;
+      }else{
+        const due = it.due ? it.due.toLocaleDateString() : "—";
+        meta.textContent = `From: ${it.isoKey} • Due: ${due}`;
+      }
+
+      div.appendChild(topRow);
+      div.appendChild(text);
+      div.appendChild(meta);
+
+      div.addEventListener("click", ()=>{
+        if(it.isoKey){
+          try{
+            activeDate = fromISO(it.isoKey);
+            renderTasks();
+            highlightWeekButtons();
+          }catch(e){}
+        }
+      });
+
+      host.appendChild(div);
+    });
   }
 
   // ---------- Calendar rendering ----------
@@ -1022,24 +1356,363 @@
         renderCalendarMonth();
         updateProgressPill();
         buildAutoUpcomingMissing();
+        renderNoteBanner();
+        buildTriage();
         setStatus("Ready");
 
-        // if user clicks a date, keep the calendar state as-is (don’t auto-open/close)
+        touchActivity();
         saveLocal();
+
+        // collapse after selecting (nice on mobile)
+        const prefs = loadPrefs();
+        if(prefs.autoCollapseCalOnPick !== false){
+          $("calBody").classList.add("collapsed");
+          const p = loadPrefs();
+          p.calCollapsed = true;
+          savePrefs(p);
+        }
       });
 
       grid.appendChild(el);
     }
   }
 
+  // ---------- Study Hall Mode (replaces old Study Hall behavior) ----------
+  let sh = {
+    open:false,
+    targets:[],          // [{iso, id, text}]
+    phase:"idle",        // "focus" | "break" | "idle"
+    focusMin:25,
+    breakMin:5,
+    remainingSec:0,
+    timerId:null,
+    running:false
+  };
+
+  function shShow(open){
+    sh.open = !!open;
+    $("studyHallPanel").style.display = sh.open ? "block" : "none";
+    if(sh.open){
+      shEnsureTargets();
+      shRenderTargets();
+      shRenderClock();
+    }
+  }
+
+  function shSetPreset(focusMin, breakMin){
+    sh.focusMin = focusMin;
+    sh.breakMin = breakMin;
+    sh.phase = "idle";
+    sh.running = false;
+    shClearTimer();
+    sh.remainingSec = focusMin * 60;
+    $("shPhaseLine").textContent = `Ready: ${focusMin} min focus / ${breakMin} min break`;
+    shRenderClock();
+    $("shStartBtn").disabled = false;
+    $("shPauseBtn").disabled = true;
+    $("shStopBtn").disabled = true;
+  }
+
+  function shClearTimer(){
+    if(sh.timerId){
+      clearInterval(sh.timerId);
+      sh.timerId = null;
+    }
+  }
+
+  function shFmt(sec){
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+  }
+
+  function shRenderClock(){
+    $("shClock").textContent = shFmt(Math.max(0, sh.remainingSec|0));
+  }
+
+  function shEnsureTargets(){
+    if(!sh.targets || sh.targets.length === 0) shAutoPickTargets();
+  }
+
+  function shAutoPickTargets(){
+    sh.targets = [];
+
+    const openTasks = [];
+    Object.keys(tasksByISO).forEach(iso=>{
+      (tasksByISO[iso]||[]).forEach(t=>{
+        if(!t || t.done) return;
+        const text = (t.text||"").trim();
+        if(!text) return;
+        openTasks.push({iso, id:t.id, text});
+      });
+    });
+
+    const now = new Date();
+
+    const missing = [];
+    openTasks.forEach(x=>{
+      const d = parseDateFromLine(x.text);
+      if(!d) return;
+      const end = new Date(d);
+      end.setHours(23,59,59,999);
+      if(end.getTime() < now.getTime()) missing.push({ ...x, due:end });
+    });
+    missing.sort((a,b)=> a.due - b.due);
+
+    const dueSoon = [];
+    const cutoff = 48*60*60*1000;
+    openTasks.forEach(x=>{
+      const d = parseDateFromLine(x.text);
+      if(!d) return;
+      const end = new Date(d);
+      end.setHours(23,59,59,999);
+      const delta = end.getTime() - now.getTime();
+      if(delta >= 0 && delta <= cutoff) dueSoon.push({ ...x, due:end });
+    });
+    dueSoon.sort((a,b)=> a.due - b.due);
+
+    const activeISO = activeDate ? toISO(activeDate) : "";
+    const activeDayOpen = openTasks.filter(x=> x.iso === activeISO);
+
+    function addIfNew(item){
+      if(sh.targets.length >= 3) return;
+      if(sh.targets.some(t=> t.iso === item.iso && t.id === item.id)) return;
+      sh.targets.push({iso:item.iso, id:item.id, text:item.text});
+    }
+
+    missing.forEach(addIfNew);
+    dueSoon.forEach(addIfNew);
+    activeDayOpen.forEach(addIfNew);
+
+    if(sh.targets.length < 3){
+      openTasks.forEach(addIfNew);
+    }
+
+    $("studyHallHint").textContent = sh.targets.length
+      ? "Targets selected. Run a focus block."
+      : "No open tasks found. Add tasks first.";
+  }
+
+  function shRenderTargets(){
+    const host = $("shTargets");
+    host.innerHTML = "";
+
+    if(!sh.targets || sh.targets.length === 0){
+      const div = document.createElement("div");
+      div.className = "triageEmpty";
+      div.textContent = "No targets yet. Click Auto-pick targets.";
+      host.appendChild(div);
+      return;
+    }
+
+    sh.targets.forEach((t, idx)=>{
+      const wrap = document.createElement("div");
+      wrap.className = "shTarget";
+
+      const left = document.createElement("div");
+      left.style.flex = "1";
+      left.style.minWidth = "0";
+
+      const title = document.createElement("div");
+      title.className = "tText";
+      title.textContent = `${idx+1}. ${t.text}`;
+
+      const meta = document.createElement("div");
+      meta.className = "tMeta";
+      meta.textContent = `Day: ${t.iso}`;
+
+      left.appendChild(title);
+      left.appendChild(meta);
+
+      const right = document.createElement("div");
+      right.style.display = "flex";
+      right.style.gap = "8px";
+      right.style.flexWrap = "wrap";
+      right.style.alignItems = "center";
+
+      const jump = document.createElement("button");
+      jump.className = "btn";
+      jump.type = "button";
+      jump.textContent = "Open";
+      jump.addEventListener("click", ()=>{
+        try{
+          activeDate = fromISO(t.iso);
+          renderTasks();
+          highlightWeekButtons();
+          $("taskList").scrollIntoView({behavior:"smooth", block:"start"});
+        }catch(e){}
+      });
+
+      const doneBtn = document.createElement("button");
+      doneBtn.className = "btn primary";
+      doneBtn.type = "button";
+      doneBtn.textContent = "Mark done";
+      doneBtn.addEventListener("click", ()=>{
+        const arr = tasksByISO[t.iso] || [];
+        const hit = arr.find(x=> x.id === t.id);
+        if(hit){
+          hit.done = true;
+          touchActivity();
+          saveLocal();
+          renderTasks();
+          buildAutoUpcomingMissing();
+          renderNoteBanner();
+          buildTriage();
+          sh.targets = sh.targets.filter(z=> !(z.iso===t.iso && z.id===t.id));
+          shRenderTargets();
+        }
+      });
+
+      const remove = document.createElement("button");
+      remove.className = "btn red";
+      remove.type = "button";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", ()=>{
+        sh.targets = sh.targets.filter(z=> !(z.iso===t.iso && z.id===t.id));
+        shRenderTargets();
+      });
+
+      right.appendChild(jump);
+      right.appendChild(doneBtn);
+      right.appendChild(remove);
+
+      wrap.appendChild(left);
+      wrap.appendChild(right);
+      host.appendChild(wrap);
+    });
+  }
+
+  function shStart(){
+    if(!recordKey()){
+      alert("Set Student + Start date first so the session can save.");
+      return;
+    }
+    if(!sh.targets || sh.targets.length === 0){
+      alert("Pick at least one target first.");
+      return;
+    }
+    if(sh.running) return;
+
+    if(sh.phase === "idle"){
+      sh.phase = "focus";
+      sh.remainingSec = sh.focusMin * 60;
+    }
+
+    sh.running = true;
+    $("shStartBtn").disabled = true;
+    $("shPauseBtn").disabled = false;
+    $("shStopBtn").disabled = false;
+    $("shPhaseLine").textContent = sh.phase === "focus" ? "Focus block running" : "Break running";
+
+    shClearTimer();
+    sh.timerId = setInterval(()=>{
+      sh.remainingSec -= 1;
+      shRenderClock();
+
+      if(sh.remainingSec <= 0){
+        if(sh.phase === "focus"){
+          sh.phase = "break";
+          sh.remainingSec = sh.breakMin * 60;
+          $("shPhaseLine").textContent = "Break (reset and breathe)";
+        }else{
+          sh.phase = "focus";
+          sh.remainingSec = sh.focusMin * 60;
+          $("shPhaseLine").textContent = "Focus block running";
+        }
+      }
+    }, 1000);
+  }
+
+  function shPause(){
+    if(!sh.running) return;
+    sh.running = false;
+    shClearTimer();
+    $("shStartBtn").disabled = false;
+    $("shPauseBtn").disabled = true;
+    $("shPhaseLine").textContent = "Paused";
+  }
+
+  function shEndSession(){
+    sh.running = false;
+    shClearTimer();
+    $("shStartBtn").disabled = false;
+    $("shPauseBtn").disabled = true;
+    $("shStopBtn").disabled = true;
+
+    const finished = prompt("What did you finish in Study Hall? (short)");
+    const note = (finished || "").trim();
+
+    const lk = studyHallLogKey();
+    if(lk){
+      let log = [];
+      try{
+        const raw = localStorage.getItem(lk);
+        log = raw ? JSON.parse(raw) : [];
+      }catch(e){ log = []; }
+
+      log.unshift({
+        ts: Date.now(),
+        activeISO: activeDate ? toISO(activeDate) : "",
+        focusMin: sh.focusMin,
+        breakMin: sh.breakMin,
+        targets: (sh.targets||[]).map(x=>({iso:x.iso, id:x.id, text:x.text})),
+        finishedNote: note
+      });
+
+      log = log.slice(0, 30);
+      try{ localStorage.setItem(lk, JSON.stringify(log)); }catch(e){}
+    }
+
+    sh.phase = "idle";
+    sh.remainingSec = sh.focusMin * 60;
+    $("shPhaseLine").textContent = "Session ended. You can run another block.";
+    shRenderClock();
+
+    touchActivity();
+    saveLocal();
+    buildTriage();
+    renderStudyHallLogPeek();
+  }
+
+  function renderStudyHallLogPeek(){
+    const box = $("studyHallLogBox");
+    if(!box) return;
+
+    const lk = studyHallLogKey();
+    if(!lk){
+      box.value = "";
+      return;
+    }
+
+    let log = [];
+    try{
+      const raw = localStorage.getItem(lk);
+      log = raw ? JSON.parse(raw) : [];
+    }catch(e){ log = []; }
+
+    const top = (log || []).slice(0, 5);
+    if(top.length === 0){
+      box.value = "";
+      return;
+    }
+
+    const lines = top.map(s=>{
+      const when = new Date(s.ts);
+      const dateStr = when.toLocaleString();
+      const targets = (s.targets||[]).map(t=> t.text).slice(0,3).join(" | ");
+      const note = (s.finishedNote||"").trim();
+      return `${dateStr}\nTargets: ${targets}\nFinished: ${note || "—"}\n`;
+    });
+
+    box.value = lines.join("\n");
+  }
+
   // ---------- Actions ----------
   const prefs = loadPrefs();
 
-  // Settings open default (first-time helpful)
   let settingsOpen = (prefs.settingsOpen !== undefined) ? !!prefs.settingsOpen : true;
   $("settingsBody").classList.toggle("show", settingsOpen);
 
-  // Calendar collapsed preference (2B)
   let calCollapsed = (prefs.calCollapsed !== undefined) ? !!prefs.calCollapsed : true;
   $("calBody").classList.toggle("collapsed", calCollapsed);
 
@@ -1079,7 +1752,11 @@
     renderCalendarMonth();
     updateProgressPill();
     buildAutoUpcomingMissing();
+    renderNoteBanner();
+    buildTriage();
+    touchActivity();
     saveLocal();
+    renderStudyHallLogPeek();
     setStatus("Ready");
   });
 
@@ -1088,12 +1765,23 @@
   $("addTaskBtn").addEventListener("click", ()=>{
     if(!activeDate){ alert("Set Start date first."); return; }
     addTaskToISO(toISO(activeDate), "", false);
+    touchActivity();
     saveLocal();
     renderTasks();
     updateProgressPill();
+    buildTriage();
   });
 
-  $("studyHallBtn").addEventListener("click", addStudyHall);
+  // IMPORTANT: Study Hall button now opens Study Hall Mode (replaces old behavior)
+  $("studyHallBtn").addEventListener("click", ()=>{
+    if(!weekStart || !activeDate){
+      alert("Set Start date first.");
+      return;
+    }
+    shShow(true);
+    if(!sh.remainingSec) shSetPreset(25,5);
+    $("studyHallPanel").scrollIntoView({behavior:"smooth", block:"start"});
+  });
 
   $("quickAdd").addEventListener("keydown", (e)=>{
     if(e.key === "Enter"){
@@ -1107,9 +1795,11 @@
     const sport = $("sport").value||"";
     const start = $("startDate").value||"";
     const note = ($("quickNote").value||"").trim();
+    const flagged = noteIsFlagged();
 
     let out = `Student: ${student}\nSport: ${sport}\nStart date: ${start}\n`;
-    if(note) out += `Quick note: ${note}\n`;
+    if(note && flagged) out += `Quick note (flagged): ${note}\n`;
+    else if(note) out += `Quick note: ${note}\n`;
     out += `\n`;
 
     if(weekStart){
@@ -1165,9 +1855,8 @@
 
   // Note banner interactions
   $("noteBanner").addEventListener("click", (e)=>{
-    // ignore if clicking dismiss button
     if(e.target && e.target.id === "dismissBannerBtn") return;
-    // open settings so they can see the note area, then scroll note into view
+
     settingsOpen = true;
     $("settingsBody").classList.add("show");
     const p = loadPrefs();
@@ -1186,13 +1875,44 @@
     setStatus("Dismissed");
   });
 
-  $("quickNote").addEventListener("input", ()=>{
-    const text = ($("quickNote").value||"").trim();
-    // If they typed/changed the note, show banner again
-    if(text) bannerDismissed = false;
+  $("clearQuickNoteBtn").addEventListener("click", ()=>{
+    $("quickNote").value = "";
+    bannerDismissed = false;
+    touchActivity();
     renderNoteBanner();
     saveLocal();
+    buildTriage();
+    setStatus("Cleared");
   });
+
+  $("quickNoteFlag").addEventListener("change", ()=>{
+    bannerDismissed = false;
+    touchActivity();
+    renderNoteBanner();
+    saveLocal();
+    buildTriage();
+  });
+
+  $("quickNote").addEventListener("input", ()=>{
+    const text = ($("quickNote").value||"").trim();
+    if(text) bannerDismissed = false;
+    touchActivity();
+    renderNoteBanner();
+    saveLocal();
+    buildTriage();
+  });
+
+  // Study Hall Mode buttons
+  $("shCloseBtn").addEventListener("click", ()=> shShow(false));
+  $("shPreset25").addEventListener("click", ()=> shSetPreset(25,5));
+  $("shPreset45").addEventListener("click", ()=> shSetPreset(45,10));
+  $("shPickTargetsBtn").addEventListener("click", ()=>{
+    shAutoPickTargets();
+    shRenderTargets();
+  });
+  $("shStartBtn").addEventListener("click", shStart);
+  $("shPauseBtn").addEventListener("click", shPause);
+  $("shStopBtn").addEventListener("click", shEndSession);
 
   // Settings changes
   $("startDate").addEventListener("change", ()=>{
@@ -1208,21 +1928,42 @@
     renderCalendarMonth();
     updateProgressPill();
     buildAutoUpcomingMissing();
+    renderNoteBanner();
+    buildTriage();
+    touchActivity();
     saveLocal();
+    renderStudyHallLogPeek();
     setStatus("Ready");
   });
 
   $("studentName").addEventListener("change", ()=>{
-    // when key changes, reload dismiss state if present
     const dk = dismissKey();
     bannerDismissed = (dk && localStorage.getItem(dk) === "true") ? true : false;
+
+    const k = recordKey();
+    if(k){
+      try{
+        const raw = localStorage.getItem(k);
+        if(raw){
+          const obj = JSON.parse(raw);
+          lastActivityMS = Number(obj.lastActivityMS || 0) || 0;
+        }
+      }catch(e){}
+    }
+
     renderNoteBanner();
+    buildTriage();
+    renderStudyHallLogPeek();
     setStatus("Ready");
   });
 
-  $("sport").addEventListener("change", ()=>{ saveLocal(); setStatus("Ready"); });
+  $("sport").addEventListener("change", ()=>{
+    touchActivity();
+    saveLocal();
+    setStatus("Ready");
+  });
 
-  // Prefill from URL
+  // ---------- Init ----------
   (function init(){
     const url = new URL(window.location.href);
     const student = url.searchParams.get("student");
@@ -1239,16 +1980,20 @@
       calView = new Date(t.getFullYear(), t.getMonth(), 1);
     }
 
+    // default preset for study hall
+    shSetPreset(25,5);
+
     renderCalendarMonth();
     rebuildWeekButtons();
     renderTasks();
     updateProgressPill();
     buildAutoUpcomingMissing();
 
-    // Attempt record load if key exists
     if(recordKey()) loadLocal();
 
     renderNoteBanner();
+    buildTriage();
+    renderStudyHallLogPeek();
     setStatus("Idle");
   })();
 </script>
