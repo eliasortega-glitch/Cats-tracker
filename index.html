@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CATS Weekly Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
   :root{
     /* UA colors */
@@ -510,6 +511,27 @@
   .status{ font-size:12px; color:var(--muted); }
   .status strong{ color:var(--text); }
 
+  /* Charts section */
+  .chartsGrid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+  }
+  @media(max-width:600px){ .chartsGrid{ grid-template-columns:1fr; } }
+  .chartPane{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .chartLabel{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:8px;
+    font-weight:700;
+    letter-spacing:.2px;
+    text-align:center;
+  }
+
   /* Print */
   @media print{
     .bar, .sticky, #toggleSettingsBtn, #toggleCalBtn, #shareBtn, #todayBtn, #printBtn, #loadBtn, #saveBtn, #resetBtn { display:none !important; }
@@ -517,6 +539,7 @@
     .card{ box-shadow:none; }
     .banner{ border:1px solid #ddd !important; box-shadow:none !important; position:static !important; }
     #studyHallPanel{ display:none !important; }
+    #chartsSection{ display:none !important; }
   }
 </style>
 </head>
@@ -736,6 +759,27 @@
   </div>
 </div>
 
+  <!-- WEEKLY CHARTS -->
+  <div class="card pad" id="chartsSection" style="margin-top:10px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+      <div>
+        <div class="sectionTitle" style="margin:0;">Weekly Charts</div>
+        <div class="hint" style="margin-top:3px;">Task completion at a glance</div>
+      </div>
+      <button class="btn" id="toggleChartsBtn" type="button">Hide</button>
+    </div>
+    <div class="chartsGrid" id="chartsBody">
+      <div class="chartPane">
+        <div class="chartLabel">Daily Completion (done vs. open)</div>
+        <canvas id="dailyChart" style="max-height:220px; width:100%;"></canvas>
+      </div>
+      <div class="chartPane">
+        <div class="chartLabel">Weekly Overview</div>
+        <canvas id="weeklyChart" style="max-height:220px; width:100%;"></canvas>
+      </div>
+    </div>
+  </div>
+
 <div class="sticky">
   <div class="inner">
     <div class="status" id="statusLine">Idle · set Student + Start date</div>
@@ -897,6 +941,7 @@
       renderNoteBanner();
       buildTriage();
       renderStudyHallLogPeek();
+      renderCharts();
 
       setStatus("Loaded");
       return true;
@@ -1057,6 +1102,7 @@
     buildAutoUpcomingMissing();
     renderNoteBanner();
     buildTriage();
+    renderCharts();
   }
 
   // ---------- Quick add parsing ----------
@@ -1963,6 +2009,135 @@
     setStatus("Ready");
   });
 
+  // ---------- Charts ----------
+  let dailyChartInst = null;
+  let weeklyChartInst = null;
+  let chartsVisible = true;
+
+  function renderCharts(){
+    if(!chartsVisible) return;
+    renderDailyChart();
+    renderWeeklyChart();
+  }
+
+  function getDailyData(){
+    const labels = [];
+    const done = [];
+    const open = [];
+    if(!weekStart){
+      return { labels, done, open };
+    }
+    for(let i=0;i<7;i++){
+      const d = addDays(weekStart,i);
+      const iso = toISO(d);
+      labels.push(weekNames[d.getDay()]);
+      const tasks = tasksByISO[iso] || [];
+      let doneCount = 0, openCount = 0;
+      tasks.forEach(t=>{ if(t.done) doneCount++; else openCount++; });
+      done.push(doneCount);
+      open.push(openCount);
+    }
+    return { labels, done, open };
+  }
+
+  function renderDailyChart(){
+    const ctx = $("dailyChart").getContext("2d");
+    const { labels, done, open } = getDailyData();
+    if(dailyChartInst) dailyChartInst.destroy();
+    dailyChartInst = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Done",
+            data: done,
+            backgroundColor: "rgba(18,183,106,0.75)",
+            borderColor: "rgba(18,183,106,1)",
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+          {
+            label: "Open",
+            data: open,
+            backgroundColor: "rgba(12,35,75,0.18)",
+            borderColor: "rgba(12,35,75,0.4)",
+            borderWidth: 1,
+            borderRadius: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { position: "bottom", labels: { font: { size: 11 } } },
+          tooltip: { mode: "index", intersect: false },
+        },
+        scales: {
+          x: { stacked: false, grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: { beginAtZero: true, ticks: { precision: 0, font: { size: 11 } }, grid: { color: "rgba(0,0,0,0.05)" } },
+        },
+      },
+    });
+  }
+
+  function renderWeeklyChart(){
+    const ctx = $("weeklyChart").getContext("2d");
+    let totalDone = 0, totalOpen = 0;
+    if(weekStart){
+      for(let i=0;i<7;i++){
+        const iso = toISO(addDays(weekStart,i));
+        (tasksByISO[iso]||[]).forEach(t=>{ if(t.done) totalDone++; else totalOpen++; });
+      }
+    }
+    if(weeklyChartInst) weeklyChartInst.destroy();
+    const isEmpty = (totalDone + totalOpen) === 0;
+    weeklyChartInst = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: isEmpty ? ["No tasks yet"] : ["Done", "Open"],
+        datasets: [{
+          data: isEmpty ? [1] : [totalDone, totalOpen],
+          backgroundColor: isEmpty
+            ? ["rgba(0,0,0,0.08)"]
+            : ["rgba(18,183,106,0.8)", "rgba(12,35,75,0.18)"],
+          borderColor: isEmpty
+            ? ["rgba(0,0,0,0.1)"]
+            : ["rgba(18,183,106,1)", "rgba(12,35,75,0.35)"],
+          borderWidth: 2,
+          hoverOffset: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: "65%",
+        plugins: {
+          legend: { position: "bottom", labels: { font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label(ctx){
+                if(isEmpty) return " No tasks yet";
+                const total = totalDone + totalOpen;
+                const pct = total ? Math.round((ctx.parsed / total) * 100) : 0;
+                return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+              }
+            }
+          },
+        },
+      },
+    });
+  }
+
+  // toggle charts visibility
+  $("toggleChartsBtn").addEventListener("click", ()=>{
+    chartsVisible = !chartsVisible;
+    $("chartsBody").style.display = chartsVisible ? "" : "none";
+    $("toggleChartsBtn").textContent = chartsVisible ? "Hide" : "Show";
+    if(chartsVisible) renderCharts();
+  });
+
   // ---------- Init ----------
   (function init(){
     const url = new URL(window.location.href);
@@ -1994,6 +2169,7 @@
     renderNoteBanner();
     buildTriage();
     renderStudyHallLogPeek();
+    renderCharts();
     setStatus("Idle");
   })();
 </script>
