@@ -3878,7 +3878,7 @@ function App() {
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#F8F9FB", minHeight: "100vh", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
       {showOnboarding && <OnboardingModal onDone={() => setShowOnboarding(false)} />}
-      {!isMobile && <Sidebar role={role} activePage={page} onNavigate={p => setPage(p)} user={currentUser} onLogout={async () => { await signOutUser(); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} collapsed={collapsed} setCollapsed={setCollapsed} />}
+      {!isMobile && <Sidebar role={role} activePage={page} onNavigate={p => setPage(p)} user={currentUser} onLogout={async () => { await signOutUser(); localStorage.removeItem("cats_role"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} collapsed={collapsed} setCollapsed={setCollapsed} />}
       <div style={{ flex: 1, overflow: "auto", paddingBottom: isMobile ? 64 : 0 }}>
         <div style={{ height: isMobile ? 56 : 52, borderBottom: "1px solid #E8EAF0", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 14px" : "0 18px", position: "sticky", top: 0, zIndex: 5 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -3890,7 +3890,7 @@ function App() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 12, color: UA.textMuted, padding: "6px 10px", borderRadius: 999, background: UA.bg, border: `1px solid ${UA.border}` }}>{sessionUser.email}</div>
-            <button onClick={async () => { await signOutUser(); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, color: UA.textSecondary }}>Sign out</button>
+            <button onClick={async () => { await signOutUser(); localStorage.removeItem("cats_role"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, color: UA.textSecondary }}>Sign out</button>
           </div>
         </div>
         {backendBanner}
