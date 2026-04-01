@@ -243,58 +243,6 @@ const SESSION_LOGS = {};
 
 const ALL_NOTES_FEED = [];
 
-// --- UA DESIGN TOKENS ---------------------------------------------------------
-const UA = {
-  red: "#CC0033",
-  redDark: "#A50029",
-  redLight: "#FFF0F3",
-  redBorder: "#FFCCD6",
-  navy: "#003366",
-  navyLight: "#EEF2F8",
-  navyBorder: "#C5D3E8",
-  white: "#FFFFFF",
-  bg: "#F8F9FB",
-  bgCard: "#FFFFFF",
-  border: "#E8EAF0",
-  borderStrong: "#D0D4E0",
-  text: "#0F1623",
-  textSecondary: "#4A5068",
-  textMuted: "#8890A8",
-  green: "#16A34A", greenBg: "#F0FDF4", greenBorder: "#BBF7D0",
-  yellow: "#D97706", yellowBg: "#FFFBEB", yellowBorder: "#FDE68A",
-  orange: "#EA580C", orangeBg: "#FFF7ED", orangeBorder: "#FED7AA",
-  shadow: "0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)",
-  shadowMd: "0 4px 24px rgba(0,0,0,0.08)",
-  radius: 12,
-  radiusSm: 8,
-};
-
-// --- RESPONSIVE HOOK ----------------------------------------------------------
-// Returns true when viewport is 768px or narrower (phone/small tablet)
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth <= 768);
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, []);
-  return isMobile;
-}
-
-// --- MOCK DATA -----------------------------------------------------------------
-// ADDED: courses array, weeklyPlan, and nextSession per student
-let STUDENTS = [];
-
-const ASSIGNMENTS = [];
-
-const STAFF_NOTES = {};
-
-const EFFORT_TREND = [];
-
-const SESSION_LOGS = {};
-
-const ALL_NOTES_FEED = [];
-
 // --- AI-POWERED GUIDED PROMPTS ------------------------------------------------
 // CHANGED: Replaced static breakdown() functions with aiPrompt strings.
 // Each prompt now has an aiPrompt that is sent to the Anthropic API along with
