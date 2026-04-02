@@ -2518,7 +2518,15 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
 
   const handleDelete = async (docId) => {
     if (!window.confirm("Delete this document?")) return;
-    if (isRealUUID(docId)) await supabase.from("documents").delete().eq("id", docId);
+    if (isRealUUID(docId)) {
+      const { error } = await supabase.from("documents").delete().eq("id", docId);
+      if (error) {
+        console.error("Delete failed:", error.message);
+        alert("Delete failed: " + error.message);
+        return;
+      }
+      console.log("✅ Document deleted from Supabase:", docId);
+    }
     setDocs(prev => prev.filter(d => d.id !== docId));
     if (expandedDoc === docId) setExpandedDoc(null);
   };
