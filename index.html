@@ -1392,13 +1392,45 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   const [noteCategory, setNoteCategory] = useState("Session Note");
   const [notes, setNotes] = useState(STAFF_NOTES[student.id] || []);
   const [noteSaved, setNoteSaved] = useState(false);
-  // ADDED: course filter for assignments tab
   const [selectedCourse, setSelectedCourse] = useState("all");
-  // ADDED: weekly plan edit state
   const [weeklyPlan, setWeeklyPlan] = useState(student.weeklyPlan || "");
   const [planSaved, setPlanSaved] = useState(false);
-  // ADDED: local assignments state so quick-add entries appear immediately
-  const [localAssignments, setLocalAssignments] = useState(ASSIGNMENTS);
+  const [localAssignments, setLocalAssignments] = useState([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(true);
+
+  // Load this student's real assignments from Supabase
+  useEffect(() => {
+    const loadAssignments = async () => {
+      setAssignmentsLoading(true);
+      const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
+      if (isRealUUID) {
+        const { data, error } = await supabase
+          .from("assignments")
+          .select("*")
+          .eq("student_id", student.id)
+          .order("due_date", { ascending: true });
+        if (!error && data) {
+          setLocalAssignments(data.map(a => ({
+            id: a.id,
+            title: a.title || "",
+            course: a.course || "",
+            courseCode: a.course_code || "",
+            dueDate: a.due_date ? new Date(a.due_date) : new Date(),
+            points: a.points || 0,
+            status: a.status || "not_started",
+            urgency: a.urgency || "green",
+            description: a.description || "",
+            instructions: a.instructions || "",
+            rubric: a.rubric || "",
+            d2lLink: a.d2l_link || "",
+            studentId: a.student_id,
+          })));
+        }
+      }
+      setAssignmentsLoading(false);
+    };
+    loadAssignments();
+  }, [student.id]);
 
   const handlePlanSave = () => { setPlanSaved(true); setTimeout(() => setPlanSaved(false), 2500); };
 
@@ -1514,17 +1546,17 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
 
       {activeTab === "assignments" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* ADDED: Quick add inline row entry */}
+          {assignmentsLoading ? (
+            <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 14 }}>Loading assignments...</div>
+          ) : (<>
           <QuickAddAssignments
             courses={student.courses}
             onAdd={a => setLocalAssignments(prev => [...prev, a])}
           />
-          {/* ADDED: Course filter pills */}
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Filter by Course</div>
             <CourseList courses={student.courses} selectedCourse={selectedCourse} onSelect={setSelectedCourse} />
           </div>
-          {/* Assignment list filtered by course */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {localAssignments
               .filter(a => selectedCourse === "all" || a.courseCode === selectedCourse)
@@ -1533,15 +1565,16 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                   <UrgencyBar urgency={a.urgency} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: UA.text }}>{a.title}</div>
-                    <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.courseCode} · Due {a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+                    <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.courseCode} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate}</div>
                   </div>
                   <StatusBadge status={a.status} />
                 </div>
               ))}
             {localAssignments.filter(a => selectedCourse === "all" || a.courseCode === selectedCourse).length === 0 && (
-              <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 14 }}>No assignments for this course</div>
+              <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 14 }}>No assignments yet — add via Entry Hub or have the student import from D2L</div>
             )}
           </div>
+          </>)}
         </div>
       )}
 
