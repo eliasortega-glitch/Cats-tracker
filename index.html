@@ -2867,8 +2867,23 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          text += content.items.map(item => item.str).join(" ") + "\n";
+          // Group items by their Y position to preserve line breaks
+          const lines = {};
+          content.items.forEach(item => {
+            const y = Math.round(item.transform[5]);
+            if (!lines[y]) lines[y] = [];
+            lines[y].push(item.str);
+          });
+          // Sort by Y position descending (top to bottom) and join
+          const sortedYs = Object.keys(lines).map(Number).sort((a, b) => b - a);
+          sortedYs.forEach(y => {
+            const lineText = lines[y].join(" ").trim();
+            if (lineText) text += lineText + "\n";
+          });
+          text += "\n";
         }
+        // Clean up hyphenated words split across lines (PDF artifact)
+        text = text.replace(/(\w)- \n(\w)/g, "$1$2\n");
         setSyllabusText(text.trim());
       } catch (e) {
         setSyllabusText("Could not extract text automatically. Please paste the syllabus text manually.");
@@ -2945,47 +2960,101 @@ ${text.slice(0, 4000)}`
     try {
       const found = [];
       const seen = new Set();
-      const datePattern = /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s*\d{4})?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/gi;
+
+      // Broader date pattern — catches dates anywhere in a line
+      const datePattern = /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/gi;
+
+      // Assignment keywords — look for these near dates
+      const assignmentKeywords = /\b(paper|essay|exam|quiz|test|midterm|final|project|presentation|discussion|journal|entry|entries|assignment|homework|report|response|draft|submission|due|submit|turn in|deadline)\b/i;
+
       const typeMap = {
         exam: "Exam", test: "Exam", midterm: "Exam", final: "Exam", quiz: "Quiz",
-        essay: "Essay", paper: "Essay", report: "Essay", response: "Essay",
-        project: "Project", presentation: "Project", homework: "Homework",
-        assignment: "Homework", discussion: "Discussion", lab: "Lab",
-        reading: "Reading", worksheet: "Homework",
+        essay: "Essay", paper: "Essay", report: "Essay", response: "Essay", draft: "Essay",
+        project: "Project", presentation: "Project",
+        homework: "Homework", assignment: "Homework", submission: "Homework",
+        discussion: "Discussion", journal: "Discussion", entry: "Discussion", entries: "Discussion",
+        lab: "Lab", reading: "Reading",
       };
+
+      // Strategy 1: Look for lines containing "due" keyword with a date
       const lines = text.split("\n");
       for (const line of lines) {
         const trimmed = line.trim();
-        if (trimmed.length < 5 || trimmed.length > 200) continue;
-        const dateMatch = trimmed.match(datePattern);
-        if (!dateMatch) continue;
+        if (trimmed.length < 5 || trimmed.length > 400) continue;
+        const hasDate = trimmed.match(datePattern);
+        if (!hasDate) continue;
+
+        // Parse date
         let dueDate = null;
-        try {
-          const raw = dateMatch[0];
-          const parsed = new Date(raw.includes("/") ? raw : raw + (raw.match(/\d{4}/) ? "" : ", 2026"));
-          if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2024) {
-            dueDate = parsed.toISOString().split("T")[0];
-          }
-        } catch (e) { continue; }
+        for (const match of trimmed.matchAll(new RegExp(datePattern.source, "gi"))) {
+          try {
+            const raw = match[0];
+            const parsed = new Date(raw.includes("/") ? raw : raw + (raw.match(/\d{4}/) ? "" : ", 2026"));
+            if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2025) {
+              dueDate = parsed.toISOString().split("T")[0];
+              break;
+            }
+          } catch(e) { continue; }
+        }
         if (!dueDate) continue;
-        let title = trimmed.replace(dateMatch[0], "").replace(/[:\-–—|]+/g, " ").replace(/\s+/g, " ").trim().replace(/^[,.\s]+|[,.\s]+$/g, "");
+
+        // Check if this line has an assignment keyword
+        if (!assignmentKeywords.test(trimmed)) continue;
+
+        // Build title — extract the assignment type and context
+        let title = trimmed;
+        // Remove bracketed section headers like [Short paper is due...]
+        title = title.replace(/\[([^\]]+)\]/g, "$1");
+        // Clean up date from title
+        title = title.replace(new RegExp(datePattern.source, "gi"), "").trim();
+        // Clean up common prefixes/suffixes
+        title = title.replace(/^(is due on?|due on?|due|:|-|–|—)\s*/i, "").replace(/\s*(is due|due).*$/i, "").trim();
+        title = title.replace(/^[,.\s\[\]]+|[,.\s\[\]]+$/g, "").trim();
+
         if (!title || title.length < 3 || seen.has(title.toLowerCase())) continue;
         seen.add(title.toLowerCase());
+
+        // Detect type
         const lower = title.toLowerCase();
         let type = "Homework";
         for (const [kw, t] of Object.entries(typeMap)) { if (lower.includes(kw)) { type = t; break; } }
-        const pointsMatch = trimmed.match(/(\d+)\s*(?:pts?|points?)/i);
+
+        const pointsMatch = trimmed.match(/(\d+)%/);
         const points = pointsMatch ? parseInt(pointsMatch[1]) : (type === "Exam" ? 100 : 25);
+
         found.push({ title, dueDate, points, type });
         if (found.length >= 20) break;
       }
+
+      // Strategy 2: If nothing found from line scan, look for week headers with dates
+      if (found.length === 0) {
+        const weekPattern = /Week\s+\d+.*?\(([^)]+)\)/gi;
+        let weekMatch;
+        while ((weekMatch = weekPattern.exec(text)) !== null) {
+          const dateStr = weekMatch[1];
+          const dateMatch = dateStr.match(datePattern);
+          if (!dateMatch) continue;
+          try {
+            // Use the last date in the range as due date
+            const allDates = [...dateStr.matchAll(new RegExp(datePattern.source, "gi"))];
+            const lastDate = allDates[allDates.length - 1]?.[0];
+            if (!lastDate) continue;
+            const parsed = new Date(lastDate + (lastDate.match(/\d{4}/) ? "" : ", 2026"));
+            if (isNaN(parsed.getTime())) continue;
+            const dueDate = parsed.toISOString().split("T")[0];
+            found.push({ title: `Week ${found.length + 1} Readings`, dueDate, points: 0, type: "Reading" });
+          } catch(e) { continue; }
+        }
+      }
+
       if (found.length > 0) {
         const sel = {};
         found.forEach((_, i) => sel[i] = true);
         setSelectedExtracted(sel);
         setExtractedItems(found);
       } else {
-        setExtractedItems([{ title: "No assignments found — try pasting more of the syllabus text", dueDate: new Date(Date.now() + 30*86400000).toISOString().split("T")[0], points: 0, type: "Homework" }]);
+        setExtractedItems([{ title: "Could not auto-extract — check dates are in Month Day format", dueDate: new Date(Date.now() + 30*86400000).toISOString().split("T")[0], points: 0, type: "Homework" }]);
+        console.warn("No assignments found. Syllabus may use unusual date formatting.");
       }
     } catch (e) {
       console.error("Extraction error:", e);
