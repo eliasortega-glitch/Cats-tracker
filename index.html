@@ -68,7 +68,7 @@ function normalizeStudentRecord(row, idx = 0) {
     avgUnderstanding: row.avgUnderstanding ?? 0,
     totalHours: row.totalHours ?? 0,
     counselor: row.counselor || "",
-    courses: row.courses || [],
+    courses: Array.isArray(row.courses) ? row.courses : (typeof row.courses === "string" ? JSON.parse(row.courses || "[]") : row.courses || []),
     weeklyPlan: row.weeklyPlan || "",
     nextSession: row.nextSession || "TBD",
     schedule: row.schedule || [],
@@ -148,6 +148,25 @@ async function updateAssignmentStatus(assignmentId, status) {
     .single();
   if (error) { console.warn("Status update failed:", error.message); return null; }
   console.log("✅ Assignment status updated:", idStr, "→", status);
+  return data;
+}
+
+// Save session log to Supabase
+async function insertSessionLog(log) {
+  const { data, error } = await supabase.from("session_logs").insert({
+    student_id: log.studentId,
+    assignment_id: log.assignmentId || null,
+    assignment_title: log.assignmentTitle || "",
+    course_code: log.courseCode || "",
+    effort: log.effort || null,
+    understanding: log.understanding || null,
+    completion_type: log.completionType || null,
+    notes: log.notes || "",
+    duration_minutes: log.durationMinutes || null,
+    logged_by: log.loggedBy || null,
+  }).select().single();
+  if (error) { console.warn("Session log insert failed:", error.message); return null; }
+  console.log("✅ Session log saved:", data.id);
   return data;
 }
 
@@ -444,83 +463,24 @@ function SupabaseAuthPage({ onSignedIn, initialEmail = "", errorMessage = "" }) 
 }
 
 
-function LoginPage({ onLogin }) {
-  const [role, setRole] = useState(null);
-  const [hovRole, setHovRole] = useState(null);
-
-  const roles = [
-    { id: "student", label: "Student", icon: "🎓", desc: "Access your assignments, work sessions, and progress tracking" },
-    { id: "staff", label: "Staff / Learning Specialist", icon: "👩‍💼", desc: "Monitor students, manage notes, view risk assessments and reports" },
-    { id: "coach", label: "Coach", icon: "🏆", desc: "View student academic status and progress summaries" },
-    { id: "admin", label: "Administrator", icon: "⚙️", desc: "Full system access, department-wide analytics and settings" },
-  ];
-
-  return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${UA.navy} 0%, #001a33 60%, #1a0010 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      {/* Logo area */}
-      <div style={{ textAlign: "center", marginBottom: 48 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: UA.red, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 900, color: "white", boxShadow: `0 4px 20px ${UA.red}66` }}>A</div>
-          <div style={{ textAlign: "left" }}>
-            <div style={{ fontSize: 22, fontWeight: 900, color: "white", letterSpacing: "-0.02em" }}>CATS Academic</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", textTransform: "uppercase" }}>University of Arizona</div>
-          </div>
-        </div>
-        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 15, maxWidth: 380, margin: "0 auto", lineHeight: 1.6 }}>
-          Academic support platform for student-athletes and learning specialists
-        </p>
-      </div>
-
-      {/* Role selection */}
-      <div style={{ background: "rgba(255,255,255,0.04)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 32, width: "100%", maxWidth: 540 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.7)", marginBottom: 16, letterSpacing: "0.06em", textTransform: "uppercase" }}>Sign in as</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-          {roles.map(r => (
-            <div key={r.id} onClick={() => setRole(r.id)} onMouseEnter={() => setHovRole(r.id)} onMouseLeave={() => setHovRole(null)}
-              style={{ padding: "14px 18px", borderRadius: 12, border: `1.5px solid ${role === r.id ? UA.red : hovRole === r.id ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)"}`, background: role === r.id ? `${UA.red}22` : hovRole === r.id ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.15s" }}>
-              <span style={{ fontSize: 24, flexShrink: 0 }}>{r.icon}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "white" }}>{r.label}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2, lineHeight: 1.4 }}>{r.desc}</div>
-              </div>
-              {role === r.id && <span style={{ color: UA.red, fontSize: 18 }}>✓</span>}
-            </div>
-          ))}
-        </div>
-        <button onClick={() => role && onLogin(role)} disabled={!role}
-          style={{ width: "100%", padding: "14px 0", borderRadius: 10, border: "none", background: role ? UA.red : "rgba(255,255,255,0.1)", color: role ? "white" : "rgba(255,255,255,0.3)", fontSize: 15, fontWeight: 700, cursor: role ? "pointer" : "not-allowed", transition: "all 0.2s", fontFamily: "inherit", letterSpacing: "0.01em" }}>
-          {role ? `Continue as ${roles.find(r=>r.id===role)?.label.split(" /")[0]} →` : "Select a role to continue"}
-        </button>
-        <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
-          SSO authentication will be enabled when connected to UA systems
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- SIDEBAR -------------------------------------------------------------------
 function Sidebar({ role, activePage, onNavigate, user, onLogout, collapsed, setCollapsed }) {
   const studentNav = [
     { id: "dashboard", label: "Dashboard", icon: "⊞" },
     { id: "assignments", label: "Assignments", icon: "📚" },
-    { id: "entryhub", label: "Entry Hub", icon: "📥" },
-    { id: "analytics", label: "My Progress", icon: "📊" },
+    { id: "entryhub", label: "Import", icon: "📥" },
     { id: "settings", label: "Settings", icon: "⚙" },
   ];
   const adminNav = [
-    { id: "admin", label: "Admin Panel", icon: "⚙️" },
-    { id: "roster", label: "All Students", icon: "👥" },
-    { id: "analytics", label: "Progress Report", icon: "📊" },
+    { id: "dashboard", label: "Dashboard", icon: "⊞" },
+    { id: "roster", label: "Students", icon: "👥" },
+    { id: "entryhub", label: "Entry Hub", icon: "📥" },
     { id: "settings", label: "Settings", icon: "⚙" },
   ];
   const staffNav = [
-    { id: "roster", label: "Student Roster", icon: "👥" },
     { id: "dashboard", label: "Dashboard", icon: "⊞" },
+    { id: "roster", label: "Students", icon: "👥" },
     { id: "entryhub", label: "Entry Hub", icon: "📥", staffOnly: true },
-    { id: "analytics", label: "Progress Report", icon: "📊", staffOnly: true },
-    { id: "notes", label: "Notes Feed", icon: "📝", staffOnly: true },
-    { id: "risk", label: "Risk Markers", icon: "⚠️", staffOnly: true },
+    { id: "notes", label: "Session Notes", icon: "📝", staffOnly: true },
     { id: "settings", label: "Settings", icon: "⚙" },
   ];
   const nav = role === "student" ? studentNav : role === "admin" ? adminNav : staffNav;
@@ -596,17 +556,37 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
           <p style={{ color: UA.textMuted, marginTop: 4, fontSize: 14 }}>Here's where you stand this week</p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {onViewProfile && (
-            <button onClick={onViewProfile}
-              style={{ padding: "7px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-              👤 My Profile
-            </button>
-          )}
+
           <div style={{ fontSize: 13, color: UA.textMuted, background: UA.bg, padding: "8px 16px", borderRadius: UA.radiusSm, border: `1px solid ${UA.border}` }}>
             📅 Week of {ws.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
           </div>
         </div>
       </div>
+
+      {/* Top urgent assignments preview */}
+      {(() => {
+        const urgent = assignments.filter(a => a.status !== "completed" && (a.urgency === "red" || a.urgency === "yellow")).slice(0, 3);
+        if (!urgent.length) return null;
+        return (
+          <Card style={{ padding: "18px 20px", border: `1.5px solid ${UA.redBorder}`, background: UA.redLight }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: UA.red, marginBottom: 12 }}>🔴 Needs Attention</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {urgent.map(a => (
+                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: UA.radiusSm, background: "white", border: `1px solid ${UA.redBorder}` }}>
+                  <UrgencyBar urgency={a.urgency} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: UA.text }}>{a.title}</div>
+                    <div style={{ fontSize: 11, color: UA.textMuted }}>{a.course} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: a.urgency === "red" ? UA.red : UA.yellow, background: a.urgency === "red" ? UA.redLight : UA.yellowBg, padding: "3px 8px", borderRadius: 99, border: `1px solid ${a.urgency === "red" ? UA.redBorder : UA.yellowBorder}` }}>
+                    {a.urgency === "red" ? "Due Soon" : "Upcoming"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
@@ -775,29 +755,31 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
 // Everything saves to Supabase under the selected student's account.
 
 
-function WorkModePage({ assignment: a, onBack, onSessionSaved }) {
+function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [time, setTime] = useState(0);
-  const [timerOn, setTimerOn] = useState(false);
   const [effort, setEffort] = useState(3);
   const [understanding, setUnderstanding] = useState(3);
   const [notes, setNotes] = useState("");
   const [completionType, setCompletionType] = useState("in_progress");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [activePrompt, setActivePrompt] = useState(null);
   const [promptResponses, setPromptResponses] = useState({});
   const [expandedBreakdown, setExpandedBreakdown] = useState({});
   const [isLoadingBreakdown, setIsLoadingBreakdown] = useState({});
-  // CHANGED: Added aiBreakdownText to store real AI responses keyed by promptId
   const [aiBreakdownText, setAiBreakdownText] = useState({});
   const timerRef = useRef(null);
+  const startTimeRef = useRef(Date.now());
 
+  // Auto-track time silently from the moment Work Mode opens
   useEffect(() => {
-    if (timerOn) timerRef.current = setInterval(() => setTime(p=>p+1), 1000);
-    else clearInterval(timerRef.current);
+    startTimeRef.current = Date.now();
+    timerRef.current = setInterval(() => setTime(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000);
     return () => clearInterval(timerRef.current);
-  }, [timerOn]);
+  }, []);
 
   const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+  const minutesSpent = Math.max(1, Math.round(time / 60));
 
   // CHANGED: Removed direct Anthropic API call from frontend.
   // Now calls /api/ai-breakdown on the backend which holds the API key securely.
@@ -976,14 +958,10 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved }) {
         {/* RIGHT: Workspace */}
         <div style={{ overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
 
-          {/* Timer */}
-          <Card style={{ padding: "20px 24px" }}>
-            <div style={{ fontWeight: 800, fontSize: 15, color: UA.text, marginBottom: 14 }}>⏱ Time Tracker</div>
-            <div style={{ fontSize: 48, fontWeight: 900, color: timerOn ? UA.red : UA.navy, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em", marginBottom: 14, lineHeight: 1 }}>{fmt(time)}</div>
-            <Btn variant={timerOn ? "danger" : "navy"} fullWidth onClick={() => setTimerOn(!timerOn)}>
-              {timerOn ? "⏹  Stop Timer" : "▶  Start Timer"}
-            </Btn>
-          </Card>
+          {/* Silent time tracker — shows time spent without requiring interaction */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: UA.radiusSm, background: UA.navyLight, border: `1px solid ${UA.navyBorder}`, fontSize: 12, color: UA.navy, fontWeight: 700 }}>
+            ⏱ Time on task: {fmt(time)}
+          </div>
 
           {/* Notes */}
           <Card>
@@ -1032,8 +1010,32 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved }) {
             </div>
           </Card>
 
-          <Btn variant="primary" size="lg" fullWidth onClick={() => { setTimerOn(false); if (onSessionSaved) onSessionSaved({ title: a.title, effort, understanding, time }); setSaved(true); }}>
-            💾 Save Work Session
+          <Btn variant="primary" size="lg" fullWidth disabled={saving} onClick={async () => {
+            setSaving(true);
+            clearInterval(timerRef.current);
+            const logData = {
+              studentId: a.studentId || null,
+              assignmentId: typeof a.id === "string" && a.id.includes("-") ? a.id : null,
+              assignmentTitle: a.title,
+              courseCode: a.courseCode || "",
+              effort,
+              understanding,
+              completionType,
+              notes,
+              durationMinutes: minutesSpent,
+              loggedBy: sessionUser?.id || null,
+            };
+            // Save to Supabase
+            await insertSessionLog(logData);
+            // Update assignment status if completed
+            if ((completionType === "independent" || completionType === "with_support") && typeof a.id === "string" && a.id.includes("-")) {
+              await updateAssignmentStatus(a.id, "completed");
+            }
+            if (onSessionSaved) onSessionSaved({ title: a.title, effort, understanding, time, durationMinutes: minutesSpent });
+            setSaved(true);
+            setSaving(false);
+          }}>
+            {saving ? "Saving..." : saved ? "✓ Session Saved" : "💾 Save Work Session"}
           </Btn>
         </div>
       </div>
@@ -1052,7 +1054,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved }) {
 // --- STAFF DASHBOARD ----------------------------------------------------------
 // Weekly schedule view — shows today's appointments prominently,
 // full week below, and caseload health summary at a glance.
-function StaffDashboard({ onSelectStudent }) {
+function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const today = new Date();
   // 0=Sun,1=Mon...6=Sat — map to our 1-5 day index
@@ -1088,10 +1090,10 @@ function StaffDashboard({ onSelectStudent }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 900, color: UA.text, margin: 0, letterSpacing: "-0.02em" }}>
-            Good morning, Dr. Martinez 👋
+            {`${new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, ${(currentUserName || "").split(" ")[0] || "there"} 👋`}
           </h1>
           <p style={{ color: UA.textMuted, marginTop: 4, fontSize: 14 }}>
-            {isWeekend ? "No sessions scheduled today — enjoy your weekend" : `${todayAppts.length} appointment${todayAppts.length !== 1 ? "s" : ""} today · ${today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}`}
+            {isWeekend ? "No sessions scheduled today — enjoy your weekend" : `${today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}`}
           </p>
         </div>
       </div>
@@ -1101,8 +1103,8 @@ function StaffDashboard({ onSelectStudent }) {
         {[
           { label: "Total Students", value: STUDENTS.length, color: UA.navy, icon: "👥", sub: "in your caseload" },
           { label: "High Risk", value: STUDENTS.filter(s => s.dynamicRisk === "high").length, color: UA.red, icon: "🔴", sub: "need attention" },
-          { label: "Sessions Today", value: isWeekend ? 0 : todayAppts.length, color: UA.navy, icon: "📅", sub: "appointments" },
-          { label: "Missing Work", value: STUDENTS.reduce((sum, s) => sum + s.missedAssignments, 0), color: UA.orange, icon: "⚠️", sub: "across caseload" },
+          { label: "Appointments Today", value: isWeekend ? 0 : todayAppts.length, color: UA.navy, icon: "📅", sub: isWeekend ? "enjoy your weekend" : "scheduled today" },
+          { label: "Low Risk", value: STUDENTS.filter(s => s.dynamicRisk === "low").length, color: UA.green, icon: "🟢", sub: "on track" },
         ].map((s, i) => (
           <Card key={i} style={{ padding: "18px 20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -1494,7 +1496,7 @@ function QuickAddAssignments({ courses, onAdd }) {
 }
 
 // --- STAFF STUDENT PROFILE -----------------------------------------------------
-function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sessionUser }) {
+function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sessionUser, currentUserName = "Staff" }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
   const [noteCategory, setNoteCategory] = useState("Session Note");
@@ -1542,6 +1544,8 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
 
   const handlePlanSave = () => { setPlanSaved(true); setTimeout(() => setPlanSaved(false), 2500); };
 
+  // Determine if this is being viewed by staff or student
+  const isStudentView = !currentUserName || currentUserName === "there";
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "assignments", label: "Assignments" },
@@ -1549,11 +1553,11 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
     { id: "risk", label: "Risk Markers", staffOnly: true },
     { id: "notes", label: "Notes", staffOnly: true, count: notes.length },
     { id: "documents", label: "Documents", staffOnly: true },
-  ];
+  ].filter(t => !t.staffOnly || !isStudentView);
 
   const handleAddNote = () => {
     if (!newNote.trim()) return;
-    const note = { id: Date.now(), author: "Dr. Martinez", authorInitials: "DM", date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), category: noteCategory, text: newNote };
+    const note = { id: Date.now(), author: currentUserName || "Staff", authorInitials: initialsFromName(currentUserName || "Staff"), date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), category: noteCategory, text: newNote };
     setNotes([note, ...notes]);
     setNewNote("");
     setNoteSaved(true);
@@ -1657,10 +1661,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
           {assignmentsLoading ? (
             <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 14 }}>Loading assignments...</div>
           ) : (<>
-          <QuickAddAssignments
-            courses={student.courses}
-            onAdd={a => setLocalAssignments(prev => [...prev, a])}
-          />
+
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>Filter by Course</div>
             <CourseList courses={student.courses} selectedCourse={selectedCourse} onSelect={setSelectedCourse} />
@@ -1760,7 +1761,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
           {/* Existing notes */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {notes.map(note => <NoteCard key={note.id} note={note} />)}
-            {notes.length === 0 && <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted, fontSize: 14 }}>No notes yet for this student</div>}
+            {notes.length === 0 && <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted }}><div style={{ fontSize: 32, marginBottom: 8 }}>📝</div><div style={{ fontSize: 14, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No notes yet</div><div style={{ fontSize: 13 }}>Add a session note above after meeting with this student.</div></div>}
           </div>
         </div>
       )}
@@ -1992,7 +1993,7 @@ function AnalyticsPage({ role, assignments = ASSIGNMENTS }) {
 }
 
 // --- SETTINGS -----------------------------------------------------------------
-function SettingsPage({ role }) {
+function SettingsPage({ role, currentUser = {} }) {
   const [saved, setSaved] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState({
     highRisk: true, missedSession: true, missingAssignment: true,
@@ -2026,7 +2027,7 @@ function SettingsPage({ role }) {
   };
 
   const profileFields = isStaff
-    ? [["Full Name", "Dr. Martinez"], ["Email", "d.martinez@arizona.edu"], ["Title", "Learning Specialist"], ["Department", "CATS Academics"], ["Room", "ALS 201"]]
+    ? [["Full Name", currentUser?.name || "—"], ["Email", currentUser?.email || "—"], ["Title", "Learning Specialist"], ["Department", "CATS Academics"], ["University", "University of Arizona"]]
     : [["Full Name", "Alex Rivera"], ["Email", "a.rivera@arizona.edu"], ["Sport", "Track & Field"], ["Academic Year", "Sophomore"]];
 
   return (
@@ -2928,24 +2929,66 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
   const handleD2LImport = async () => {
     if (!icsUrl.trim()) return;
     setImporting(true); setIcsResult(null);
-    await new Promise(r => setTimeout(r, 1800));
-    const parsed = [
-      { title: "ENGL 101 Essay Draft", courseCode: "ENGL101", dueDate: new Date(Date.now() + 3*86400000), points: 100 },
-      { title: "MIS 111 Module Quiz", courseCode: "MIS111", dueDate: new Date(Date.now() + 5*86400000), points: 20 },
-      { title: "AFAS 380 Discussion Post", courseCode: "AFAS380", dueDate: new Date(Date.now() + 7*86400000), points: 15 },
-    ];
-    let saved = 0;
-    for (const a of parsed) {
-      const days = (a.dueDate - Date.now()) / 86400000;
-      const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
-      if (onAddAssignment) onAddAssignment({ ...a, course: a.courseCode, urgency, status: "not_started", description: "", instructions: "", rubric: "", d2lLink: "https://d2l.arizona.edu", studentId: effectiveStudentId });
-      if (effectiveStudentId && typeof effectiveStudentId === "string" && effectiveStudentId.includes("-")) {
-        const r = await insertAssignment({ ...a, course: a.courseCode, urgency, status: "not_started", description: "", instructions: "", rubric: "", d2lLink: "" }, effectiveStudentId, sessionUser?.id);
-        if (r) saved++;
+
+    try {
+      // Call Supabase Edge Function to fetch and parse the real ICS feed
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/parse-ics`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ icsUrl: icsUrl.trim() }),
+        }
+      );
+
+      if (!response.ok) throw new Error(`Edge Function error: ${response.status}`);
+      const result = await response.json();
+
+      if (result.error) throw new Error(result.error);
+
+      const parsed = result.assignments || [];
+      if (parsed.length === 0) {
+        setIcsResult({ count: 0, saved: 0, error: "No assignments found in this calendar feed. Make sure you copied the full D2L calendar URL." });
+        setImporting(false);
+        return;
       }
+
+      // Save each assignment to Supabase
+      let saved = 0;
+      for (const a of parsed) {
+        const dueDate = new Date(a.dueDate);
+        const days = (dueDate - Date.now()) / 86400000;
+        const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
+        const item = {
+          title: a.title,
+          course: a.courseCode || a.title.split(" ").slice(0,2).join(" "),
+          courseCode: a.courseCode || "",
+          dueDate,
+          points: a.points || 0,
+          urgency,
+          status: "not_started",
+          description: a.description || "",
+          instructions: "",
+          rubric: "",
+          d2lLink: a.d2lLink || "https://d2l.arizona.edu",
+          studentId: effectiveStudentId,
+        };
+        if (onAddAssignment) await onAddAssignment(item);
+        saved++;
+      }
+
+      setIcsResult({ count: parsed.length, saved });
+
+    } catch (e) {
+      console.error("D2L import failed:", e.message);
+      setIcsResult({ count: 0, saved: 0, error: `Import failed: ${e.message}` });
     }
-    setIcsResult({ count: parsed.length, saved });
-    setImporting(false); setIcsUrl("");
+
+    setImporting(false);
+    setIcsUrl("");
   };
 
   // Quick add (staff only)
@@ -3291,7 +3334,7 @@ ${text.slice(0, 4000)}`
         <Card style={{ border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
           <div style={{ fontWeight: 800, fontSize: 14, color: UA.navy, marginBottom: 4 }}>🔗 Import from D2L Calendar</div>
           <div style={{ fontSize: 12, color: UA.textMuted, marginBottom: 14, lineHeight: 1.6 }}>
-            In D2L: <strong>Calendar → Subscribe → Copy feed URL</strong>. Paste it below to import all assignments automatically.
+            In D2L: <strong>Calendar → Subscribe → Copy feed URL</strong>. Paste it below to import all your assignments automatically.
             {!isStudent && " Assignments will be saved under the selected student's account."}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, marginBottom: 10 }}>
@@ -3302,7 +3345,8 @@ ${text.slice(0, 4000)}`
               {importing ? "⏳ Importing..." : "Import →"}
             </Btn>
           </div>
-          {icsResult && <div style={{ fontSize: 13, color: UA.green, fontWeight: 700, marginBottom: 10 }}>✓ {icsResult.count} assignments imported{icsResult.saved > 0 ? ` — ${icsResult.saved} saved to Supabase` : " (saved locally)"}</div>}
+          {icsResult && !icsResult.error && <div style={{ fontSize: 13, color: UA.green, fontWeight: 700, marginBottom: 10 }}>✓ {icsResult.count} assignments imported from your D2L calendar and saved to your account.</div>}
+          {icsResult?.error && <div style={{ fontSize: 13, color: UA.red, fontWeight: 600, marginBottom: 10 }}>⚠️ {icsResult.error}</div>}
           <div style={{ padding: "10px 14px", borderRadius: UA.radiusSm, background: "rgba(0,51,102,0.06)", fontSize: 12, color: UA.navy, lineHeight: 1.6 }}>
             <strong>D2L Sync Status:</strong> Not yet connected — IT is working on the CATSCloud integration. Manual ICS import available in the meantime.
           </div>
@@ -3659,7 +3703,34 @@ function GlobalNotesFeed() {
 // Shows on student profile — every Work Mode session the student has logged.
 // This is what the LS reviews before a meeting.
 function SessionLogTab({ studentId }) {
-  const logs = SESSION_LOGS[studentId] || [];
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const isRealUUID = studentId && typeof studentId === "string" && studentId.includes("-");
+    if (!isRealUUID) { setLoading(false); return; }
+    supabase.from("session_logs")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setLogs(data.map(l => ({
+            id: l.id,
+            date: new Date(l.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+            assignment: l.assignment_title || "—",
+            timeSpent: l.duration_minutes || 0,
+            effort: l.effort || 0,
+            understanding: l.understanding || 0,
+            completionType: l.completion_type || "in_progress",
+            notes: l.notes || "",
+          })));
+        }
+        setLoading(false);
+      });
+  }, [studentId]);
+
+  if (loading) return <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 13 }}>Loading session logs...</div>;
   const effortColor = (v) => v >= 4 ? UA.green : v >= 3 ? UA.yellow : UA.red;
 
   if (logs.length === 0) return (
@@ -4151,19 +4222,19 @@ function App() {
     if (page === "admin") return <AdminPage key={`admin-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "roster") return <RosterPage key={`roster-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "studentProfile" && selectedStudent) return (
-      <StudentProfile key={`student-profile-${selectedStudent.id}-${dataVersion}`} student={selectedStudent} onBack={() => setPage("roster")} onExportReport={(student, notes) => exportStudentReport(student, notes, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} />
+      <StudentProfile key={`student-profile-${selectedStudent.id}-${dataVersion}`} student={selectedStudent} onBack={() => setPage("roster")} onExportReport={(student, notes) => exportStudentReport(student, notes, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} currentUserName={currentUser.name} />
     );
     if (page === "entryhub") return <EntryHubPage key={`entryhub-${dataVersion}`} onAddAssignment={addAssignment} sessionUser={sessionUser} role={role} students={STUDENTS} />;
     if (page === "analytics" && role !== "student") return <ProgressReportPage key={`analytics-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "analytics" && role === "student") return <AnalyticsPage role={role} assignments={assignments} />;
-    if (page === "settings") return <SettingsPage role={role} />;
+    if (page === "settings") return <SettingsPage role={role} currentUser={currentUser} />;
     if (page === "notes") return <GlobalNotesFeed />;
     if (page === "risk") return <RiskMarkersPage key={`risk-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "assignments") return <AssignmentsPage onNavigate={navigate} assignments={assignments} onAddAssignment={addAssignment} onUpdateStatus={async (id, status) => {
       setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
       await updateAssignmentStatus(id, status);
     }} />;
-    if (page === "dashboard" && role !== "student") return <StaffDashboard key={`dashboard-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
+    if (page === "dashboard" && role !== "student") return <StaffDashboard key={`dashboard-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={currentUser.name} />;
     // Student can access their own profile
     if (page === "myprofile" && role === "student") {
       const myStudent = STUDENTS.find(s => s.email === sessionUser?.email) || STUDENTS[0];
@@ -4171,14 +4242,14 @@ function App() {
     }
     return role === "student"
       ? <StudentDashboard onNavigate={navigate} assignments={assignments} user={currentUser} onViewProfile={() => setPage("myprofile")} />
-      : <StaffDashboard key={`staff-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
+      : <StaffDashboard key={`staff-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={currentUser.name} />;
   };
 
   const mobileNav = role === "student"
-    ? [{ id: "dashboard", icon: "⊞", label: "Home" }, { id: "assignments", icon: "📚", label: "Tasks" }, { id: "analytics", icon: "📊", label: "Progress" }, { id: "settings", icon: "⚙", label: "Settings" }]
+    ? [{ id: "dashboard", icon: "⊞", label: "Home" }, { id: "assignments", icon: "📚", label: "Tasks" }, { id: "entryhub", icon: "📥", label: "Import" }, { id: "settings", icon: "⚙", label: "Settings" }]
     : role === "admin"
-    ? [{ id: "admin", icon: "⚙️", label: "Admin" }, { id: "roster", icon: "👥", label: "Students" }, { id: "analytics", icon: "📊", label: "Reports" }, { id: "settings", icon: "⚙", label: "Settings" }]
-    : [{ id: "roster", icon: "👥", label: "Roster" }, { id: "dashboard", icon: "⊞", label: "Schedule" }, { id: "analytics", icon: "📊", label: "Reports" }, { id: "notes", icon: "📝", label: "Notes" }];
+    ? [{ id: "dashboard", icon: "⊞", label: "Dashboard" }, { id: "roster", icon: "👥", label: "Students" }, { id: "entryhub", icon: "📥", label: "Entry Hub" }, { id: "settings", icon: "⚙", label: "Settings" }]
+    : [{ id: "dashboard", icon: "⊞", label: "Dashboard" }, { id: "roster", icon: "👥", label: "Students" }, { id: "entryhub", icon: "📥", label: "Entry Hub" }, { id: "notes", icon: "📝", label: "Notes" }];
 
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#F8F9FB", minHeight: "100vh", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
