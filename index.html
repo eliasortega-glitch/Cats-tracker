@@ -2563,17 +2563,42 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
     return found;
   };
 
-  const handleExtract = (doc) => {
+  const handleExtract = async (doc) => {
     const ds = getDocState(doc.id);
     const text = ds.pasteText || "";
     if (!text.trim()) { setDs(doc.id, { showPaste: true }); return; }
     setDs(doc.id, { extracting: true });
-    setTimeout(() => {
-      const found = localExtract(text, doc.course_code);
-      const selected = {};
-      found.forEach((_, i) => selected[i] = true);
-      setDs(doc.id, { items: found, selected, extracting: false, showPaste: false });
-    }, 600);
+
+    let found = [];
+    // Try Claude API first
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          messages: [{
+            role: "user",
+            content: `Extract ALL assignments, exams, quizzes, and deadlines from this syllabus. Return ONLY valid JSON, no markdown:\n{"assignments":[{"title":"name","dueDate":"2026-04-15","points":100,"type":"Essay"}]}\n\nRules: type is one of Essay/Exam/Quiz/Project/Homework/Discussion/Lab/Reading. dueDate in YYYY-MM-DD format, assume 2026 if no year. points=0 if not mentioned.\n\nSyllabus:\n${text.slice(0, 4000)}`
+          }]
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const raw = (data.content?.[0]?.text || "").replace(/```json|```/g, "").trim();
+        found = JSON.parse(raw).assignments || [];
+      }
+    } catch (e) {
+      console.log("Claude API unavailable — using local parser");
+    }
+
+    // Fallback to regex if API failed
+    if (found.length === 0) found = localExtract(text, doc.course_code);
+
+    const selected = {};
+    found.forEach((_, i) => selected[i] = true);
+    setDs(doc.id, { items: found, selected, extracting: false, showPaste: false });
   };
 
   const handleAddAssignments = async (doc) => {
@@ -2863,74 +2888,104 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
     if (!syllabusText.trim()) return;
     setExtracting(true); setExtractedItems([]);
 
-    await new Promise(r => setTimeout(r, 500)); // brief pause so UI shows loading
+    const text = syllabusText;
+    const courseContext = syllabusCourseName || syllabusCode || "this course";
 
+    // Try Claude API first (works on GitHub Pages, blocked locally)
     try {
-      const text = syllabusText;
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          messages: [{
+            role: "user",
+            content: `You are an academic assistant helping extract assignments from a college course syllabus.
+
+Extract ALL assignments, exams, quizzes, projects, papers, and deadlines from this syllabus for ${courseContext}.
+
+Return ONLY valid JSON with no other text, no markdown, no backticks:
+{"assignments":[{"title":"Assignment name","dueDate":"2026-04-15","points":100,"type":"Essay"}]}
+
+Rules:
+- type must be one of: Essay, Exam, Quiz, Project, Homework, Discussion, Lab, Reading
+- dueDate must be in YYYY-MM-DD format, assume year 2026 if not specified
+- points should be numeric (use 0 if not mentioned)
+- Include every graded item mentioned
+- Make titles descriptive and clear
+- If a date range is given use the last date as dueDate
+
+Syllabus text:
+${text.slice(0, 4000)}`
+          }]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const raw = (data.content?.[0]?.text || "").replace(/```json|```/g, "").trim();
+        const parsed = JSON.parse(raw);
+        const items = parsed.assignments || [];
+        if (items.length > 0) {
+          // Pre-select all
+          const sel = {};
+          items.forEach((_, i) => sel[i] = true);
+          setSelectedExtracted(sel);
+          setExtractedItems(items);
+          setExtracting(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.log("Claude API unavailable — using local parser:", e.message);
+    }
+
+    // Fallback: local regex parser
+    try {
       const found = [];
       const seen = new Set();
-
-      // Date patterns: "April 15", "Apr 15", "04/15", "04/15/2026", "April 15, 2026"
       const datePattern = /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s*\d{4})?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/gi;
-
-      // Assignment type keywords
       const typeMap = {
         exam: "Exam", test: "Exam", midterm: "Exam", final: "Exam", quiz: "Quiz",
         essay: "Essay", paper: "Essay", report: "Essay", response: "Essay",
         project: "Project", presentation: "Project", homework: "Homework",
-        assignment: "Homework", discussion: "Homework", lab: "Homework",
-        reading: "Homework", worksheet: "Homework",
+        assignment: "Homework", discussion: "Discussion", lab: "Lab",
+        reading: "Reading", worksheet: "Homework",
       };
-
-      // Split into lines and look for lines with dates
       const lines = text.split("\n");
       for (const line of lines) {
         const trimmed = line.trim();
         if (trimmed.length < 5 || trimmed.length > 200) continue;
-
         const dateMatch = trimmed.match(datePattern);
         if (!dateMatch) continue;
-
-        // Parse the date
         let dueDate = null;
         try {
           const raw = dateMatch[0];
           const parsed = new Date(raw.includes("/") ? raw : raw + (raw.match(/\d{4}/) ? "" : ", 2026"));
-          if (!isNaN(parsed.getTime())) dueDate = parsed.toISOString().split("T")[0];
+          if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2024) {
+            dueDate = parsed.toISOString().split("T")[0];
+          }
         } catch (e) { continue; }
         if (!dueDate) continue;
-
-        // Extract title — remove the date from the line
-        let title = trimmed.replace(dateMatch[0], "").replace(/[:\-–—|]+/g, " ").replace(/\s+/g, " ").trim();
-        if (title.length < 3) continue;
-        // Clean up leading/trailing punctuation
-        title = title.replace(/^[,.\s]+|[,.\s]+$/g, "").trim();
-        if (!title || seen.has(title.toLowerCase())) continue;
+        let title = trimmed.replace(dateMatch[0], "").replace(/[:\-–—|]+/g, " ").replace(/\s+/g, " ").trim().replace(/^[,.\s]+|[,.\s]+$/g, "");
+        if (!title || title.length < 3 || seen.has(title.toLowerCase())) continue;
         seen.add(title.toLowerCase());
-
-        // Detect type from keywords
         const lower = title.toLowerCase();
         let type = "Homework";
-        for (const [kw, t] of Object.entries(typeMap)) {
-          if (lower.includes(kw)) { type = t; break; }
-        }
-
-        // Extract points if mentioned
+        for (const [kw, t] of Object.entries(typeMap)) { if (lower.includes(kw)) { type = t; break; } }
         const pointsMatch = trimmed.match(/(\d+)\s*(?:pts?|points?)/i);
-        const points = pointsMatch ? parseInt(pointsMatch[1]) : (type === "Exam" ? 100 : type === "Essay" ? 100 : 25);
-
+        const points = pointsMatch ? parseInt(pointsMatch[1]) : (type === "Exam" ? 100 : 25);
         found.push({ title, dueDate, points, type });
-        if (found.length >= 20) break; // cap at 20
+        if (found.length >= 20) break;
       }
-
       if (found.length > 0) {
+        const sel = {};
+        found.forEach((_, i) => sel[i] = true);
+        setSelectedExtracted(sel);
         setExtractedItems(found);
       } else {
-        // Nothing found with dates — show helpful message
-        setExtractedItems([
-          { title: `${syllabusCode || "Course"} — No dates found automatically`, dueDate: new Date(Date.now() + 30*86400000).toISOString().split("T")[0], points: 0, type: "Homework" },
-        ]);
-        console.warn("No assignments with dates found in syllabus text. Try pasting a section with due dates.");
+        setExtractedItems([{ title: "No assignments found — try pasting more of the syllabus text", dueDate: new Date(Date.now() + 30*86400000).toISOString().split("T")[0], points: 0, type: "Homework" }]);
       }
     } catch (e) {
       console.error("Extraction error:", e);
@@ -3809,6 +3864,35 @@ function App() {
     });
     return () => listener?.subscription?.unsubscribe?.();
   }, []);
+
+  // Request notification permission on load
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Check for due assignments and fire push notifications
+  useEffect(() => {
+    if (!assignments.length) return;
+    const now = Date.now();
+    const soon = 24 * 60 * 60 * 1000; // 24 hours
+    assignments.forEach(a => {
+      if (a.status === "completed") return;
+      const due = a.dueDate instanceof Date ? a.dueDate.getTime() : new Date(a.dueDate).getTime();
+      const diff = due - now;
+      if (diff > 0 && diff <= soon) {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("📚 Assignment Due Soon", {
+            body: `${a.title} is due in less than 24 hours`,
+            icon: "https://www.arizona.edu/sites/default/files/2019-11/ua_stack_rgb_4.png"
+          });
+        }
+        // Also add to in-app notification bell
+        pushNotification(`${a.title} is due within 24 hours`, "⏰");
+      }
+    });
+  }, [assignments]);
 
   const navigate = (target, data) => {
     if (target === "workmode") setWorkAssignment(data);
