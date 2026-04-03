@@ -1208,6 +1208,7 @@ function StaffDashboard({ onSelectStudent }) {
                       const riskColor = s.dynamicRisk === "high" ? UA.red : s.dynamicRisk === "medium" ? UA.yellow : UA.green;
                       return (
                         <div key={j} onClick={() => onSelectStudent(s)}
+
                           style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: UA.radiusSm, background: isToday ? UA.redLight : UA.bg, border: `1px solid ${isToday ? UA.redBorder : UA.border}`, cursor: "pointer", transition: "all 0.15s" }}
                           onMouseEnter={e => { e.currentTarget.style.background = UA.navyLight; e.currentTarget.style.borderColor = UA.navyBorder; }}
                           onMouseLeave={e => { e.currentTarget.style.background = isToday ? UA.redLight : UA.bg; e.currentTarget.style.borderColor = isToday ? UA.redBorder : UA.border; }}>
@@ -1230,11 +1231,89 @@ function StaffDashboard({ onSelectStudent }) {
           })}
         </div>
       </Card>
+
+      {/* Today's student activity */}
+      <TodayActivityFeed onSelectStudent={onSelectStudent} />
+
     </div>
   );
 }
 
-// --- STAFF ROSTER --------------------------------------------------------------
+// --- TODAY ACTIVITY FEED ------------------------------------------------------
+function TodayActivityFeed({ onSelectStudent }) {
+  const [activity, setActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from("assignments")
+        .select("id, title, course, status, updated_at, student_id")
+        .gte("updated_at", today.toISOString())
+        .order("updated_at", { ascending: false });
+
+      if (!error && data) {
+        // Enrich with student names
+        const enriched = data.map(a => {
+          const student = STUDENTS.find(s => s.id === a.student_id);
+          return { ...a, studentName: student?.name || "Unknown", studentInitials: student?.initials || "?", studentRisk: student?.dynamicRisk || "low" };
+        });
+        setActivity(enriched);
+      }
+      setLoading(false);
+    };
+    load();
+    // Refresh every 60 seconds
+    const interval = setInterval(load, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <Card style={{ padding: "22px 24px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>
+          ⚡ Today's Activity
+        </div>
+        <div style={{ fontSize: 12, color: UA.textMuted }}>
+          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })} · auto-refreshes every minute
+        </div>
+      </div>
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "24px 0", color: UA.textMuted, fontSize: 13 }}>Loading activity...</div>
+      ) : activity.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "24px 0", color: UA.textMuted }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>📭</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No activity yet today</div>
+          <div style={{ fontSize: 12 }}>When students mark assignments complete, it will appear here in real time.</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {activity.map((a, i) => {
+            const riskColor = a.studentRisk === "high" ? UA.red : a.studentRisk === "medium" ? UA.yellow : UA.green;
+            const statusColor = a.status === "completed" ? UA.green : a.status === "in_progress" ? UA.navy : UA.textMuted;
+            const statusLabel = a.status === "completed" ? "✓ Completed" : a.status === "in_progress" ? "In Progress" : a.status === "missing" ? "Missing" : "Not Started";
+            const timeStr = new Date(a.updated_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: UA.radiusSm, background: a.status === "completed" ? UA.greenBg : UA.bg, border: `1px solid ${a.status === "completed" ? UA.greenBorder : UA.border}` }}>
+                <Avatar initials={a.studentInitials} size={34} color={riskColor} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: UA.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
+                  <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.studentName} · {a.course}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: statusColor }}>{statusLabel}</div>
+                  <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>{timeStr}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
 function RosterPage({ onSelectStudent }) {
   const [search, setSearch] = useState("");
   const [filterRisk, setFilterRisk] = useState("all");
