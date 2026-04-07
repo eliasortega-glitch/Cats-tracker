@@ -413,7 +413,27 @@ const NoteCard = ({ note }) => {
   );
 };
 
-// --- SUPABASE AUTH PAGE ---------------------------------------------------------
+// --- SUPABASE AUTH PAGE ---------------------------------------------------------async function callExtractSyllabus(text, courseCode, courseName) {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-syllabus`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ text, courseCode, courseName }),
+    });
+    if (!response.ok) throw new Error(`Edge function error: ${response.status}`);
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data.assignments || [];
+  } catch (e) {
+    console.warn("Extract edge function failed:", e.message);
+    return null;
+  }
+}
+
+
 function SupabaseAuthPage({ onSignedIn, initialEmail = "", errorMessage = "" }) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
@@ -2679,31 +2699,14 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
     setDs(doc.id, { extracting: true });
 
     let found = [];
-    // Try Claude API first
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 2000,
-          messages: [{
-            role: "user",
-            content: `Extract ALL assignments, exams, quizzes, and deadlines from this syllabus. Return ONLY valid JSON, no markdown:\n{"assignments":[{"title":"name","dueDate":"2026-04-15","points":100,"type":"Essay"}]}\n\nRules: type is one of Essay/Exam/Quiz/Project/Homework/Discussion/Lab/Reading. dueDate in YYYY-MM-DD format, assume 2026 if no year. points=0 if not mentioned.\n\nSyllabus:\n${text.slice(0, 4000)}`
-          }]
-        })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const raw = (data.content?.[0]?.text || "").replace(/```json|```/g, "").trim();
-        found = JSON.parse(raw).assignments || [];
-      }
-    } catch (e) {
-      console.log("Claude API unavailable — using local parser");
+    // Call Edge Function (server-side, no CORS)
+    const edgeResult = await callExtractSyllabus(text, doc.course_code, doc.course_name);
+    if (edgeResult && edgeResult.length > 0) {
+      found = edgeResult;
+    } else {
+      // Fallback to regex
+      found = localExtract(text, doc.course_code);
     }
-
-    // Fallback to regex if API failed
-    if (found.length === 0) found = localExtract(text, doc.course_code);
 
     const selected = {};
     found.forEach((_, i) => selected[i] = true);
@@ -3048,66 +3051,34 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
 
   const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); readFile(e.dataTransfer.files[0]); };
 
-  // Extract assignments from syllabus using local regex parser
-  // Works offline and locally — no API needed
+  // Extract assignments — calls Supabase Edge Function which uses Claude API server-side
   const handleExtract = async () => {
     if (!syllabusText.trim()) return;
     setExtracting(true); setExtractedItems([]);
 
     const text = syllabusText;
-    const courseContext = syllabusCourseName || syllabusCode || "this course";
 
-    // Try Claude API first (works on GitHub Pages, blocked locally)
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 2000,
-          messages: [{
-            role: "user",
-            content: `You are an academic assistant helping extract assignments from a college course syllabus.
-
-Extract ALL assignments, exams, quizzes, projects, papers, and deadlines from this syllabus for ${courseContext}.
-
-Return ONLY valid JSON with no other text, no markdown, no backticks:
-{"assignments":[{"title":"Assignment name","dueDate":"2026-04-15","points":100,"type":"Essay"}]}
-
-Rules:
-- type must be one of: Essay, Exam, Quiz, Project, Homework, Discussion, Lab, Reading
-- dueDate must be in YYYY-MM-DD format, assume year 2026 if not specified
-- points should be numeric (use 0 if not mentioned)
-- Include every graded item mentioned
-- Make titles descriptive and clear
-- If a date range is given use the last date as dueDate
-
-Syllabus text:
-${text.slice(0, 4000)}`
-          }]
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const raw = (data.content?.[0]?.text || "").replace(/```json|```/g, "").trim();
-        const parsed = JSON.parse(raw);
-        const items = parsed.assignments || [];
-        if (items.length > 0) {
-          // Pre-select all
-          const sel = {};
-          items.forEach((_, i) => sel[i] = true);
-          setSelectedExtracted(sel);
-          setExtractedItems(items);
-          setExtracting(false);
-          return;
-        }
-      }
-    } catch (e) {
-      console.log("Claude API unavailable — using local parser:", e.message);
+    // Try Edge Function first
+    const edgeResult = await callExtractSyllabus(text, syllabusCode, syllabusCourseName);
+    if (edgeResult && edgeResult.length > 0) {
+      const sel = {};
+      edgeResult.forEach((_, i) => sel[i] = true);
+      setSelectedExtracted(sel);
+      setExtractedItems(edgeResult);
+      setExtracting(false);
+      return;
     }
 
     // Fallback: local regex parser
+    const courseContext = syllabusCourseName || syllabusCode || "this course";
+    // [regex fallback below]
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "SKIP", // This block is now unreachable — kept for reference only
+      });
+    } catch(e) {}
+
+    // Local regex parser fallback
     try {
       const found = [];
       const seen = new Set();
@@ -4087,15 +4058,52 @@ function App() {
     }
 
     // Load assignments from Supabase
-    const liveAssignments = await fetchAllAssignments();
+    // For students: only load their own assignments
+    // For staff: load all assignments
+    const resolvedRole = normalizeRole(resolvedProfile.role);
+    let liveAssignments = null;
+
+    if (resolvedRole === "student") {
+      // Find this student's UUID from the students table by email
+      const { data: studentRow } = await supabase
+        .from("students")
+        .select("students")
+        .eq("email", user.email)
+        .maybeSingle();
+
+      if (studentRow?.students) {
+        const { data, error } = await supabase
+          .from("assignments")
+          .select("*")
+          .eq("student_id", studentRow.students)
+          .order("due_date", { ascending: true });
+        if (!error && data) {
+          liveAssignments = data.map(a => ({
+            id: a.id, title: a.title || "", course: a.course || "",
+            courseCode: a.course_code || "",
+            dueDate: a.due_date ? new Date(a.due_date) : new Date(),
+            points: a.points || 0, status: a.status || "not_started",
+            urgency: a.urgency || "green", description: a.description || "",
+            instructions: a.instructions || "", rubric: a.rubric || "",
+            d2lLink: a.d2l_link || "https://d2l.arizona.edu",
+            studentId: a.student_id,
+          }));
+        }
+      } else {
+        liveAssignments = []; // Student exists but no student record matched
+      }
+    } else {
+      liveAssignments = await fetchAllAssignments();
+    }
+
     if (liveAssignments === null) {
-      // fetch failed — keep mock data
-      console.warn("Assignments fetch failed — using mock data.");
+      console.warn("Assignments fetch failed — using empty list.");
+      setAssignments([]);
       setAssignmentsMode("demo");
     } else if (liveAssignments.length === 0) {
-      // table connected but empty — keep mock data as fallback so UI isn't blank
-      console.log("Assignments table connected but empty — using mock data until real assignments are added.");
-      setAssignmentsMode("demo");
+      console.log("No assignments found for this user.");
+      setAssignments([]);
+      setAssignmentsMode("live"); // Connected, just empty
     } else {
       setAssignments(liveAssignments);
       setAssignmentsMode("live");
