@@ -413,7 +413,9 @@ const NoteCard = ({ note }) => {
   );
 };
 
-// --- SUPABASE AUTH PAGE ---------------------------------------------------------async function callExtractSyllabus(text, courseCode, courseName) {
+// --- SUPABASE AUTH PAGE ---------------------------------------------------------
+
+async function callExtractSyllabus(text, courseCode, courseName) {
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-syllabus`, {
       method: "POST",
