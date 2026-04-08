@@ -417,15 +417,28 @@ const NoteCard = ({ note }) => {
 
 async function callExtractSyllabus(text, courseCode, courseName) {
   try {
-    // Sanitize text client-side to remove characters that break JSON
+    // Sanitize and clean PDF extraction artifacts
     const sanitized = text
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ")
       .replace(/[^\x20-\x7E\n\r\t]/g, " ")
+      // Fix broken words from PDF extraction (e.g. "A PRIL" → "APRIL", "Qui z" → "Quiz")
+      .replace(/([A-Z])\s([A-Z]{2,})/g, "$1$2")
+      .replace(/([A-Za-z])\s([a-z]{1,2})\s/g, "$1$2 ")
       .replace(/\s+/g, " ")
       .trim();
 
-    // Send first 3000 chars only
-    const truncated = sanitized.slice(0, 3000);
+    // Send the schedule section — due dates are usually in the middle/end of syllabi
+    // Try to find where the schedule starts
+    const scheduleKeywords = ["schedule", "unit one", "unit 1", "week 1", "due date", "deadline", "assignment"];
+    let startIdx = 0;
+    const lowerSanitized = sanitized.toLowerCase();
+    for (const kw of scheduleKeywords) {
+      const idx = lowerSanitized.indexOf(kw);
+      if (idx > 200 && idx < sanitized.length * 0.7) { startIdx = Math.max(0, idx - 100); break; }
+    }
+    const truncated = startIdx > 0
+      ? sanitized.slice(startIdx, startIdx + 3000)
+      : sanitized.slice(0, 3000);
 
     console.log("Calling extract-syllabus edge function, text length:", truncated.length);
 
