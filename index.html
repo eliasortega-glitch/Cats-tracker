@@ -417,13 +417,19 @@ const NoteCard = ({ note }) => {
 
 async function callExtractSyllabus(text, courseCode, courseName) {
   try {
+    // Truncate aggressively — only send the most relevant portion
+    // Focus on the last 3000 chars which usually has the schedule/due dates
+    const truncated = text.length > 4000
+      ? text.slice(0, 2000) + "\n...\n" + text.slice(-2000)
+      : text;
+
     const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-syllabus`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ text, courseCode, courseName }),
+      body: JSON.stringify({ text: truncated, courseCode, courseName }),
     });
     if (!response.ok) throw new Error(`Edge function error: ${response.status}`);
     const data = await response.json();
