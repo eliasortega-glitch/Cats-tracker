@@ -427,18 +427,16 @@ async function callExtractSyllabus(text, courseCode, courseName) {
       .replace(/\s+/g, " ")
       .trim();
 
-    // Send the schedule section — due dates are usually in the middle/end of syllabi
-    // Try to find where the schedule starts
-    const scheduleKeywords = ["schedule", "unit one", "unit 1", "week 1", "due date", "deadline", "assignment"];
-    let startIdx = 0;
+    // Find the schedule/deadline section — due dates are usually after "schedule" or "unit"
     const lowerSanitized = sanitized.toLowerCase();
-    for (const kw of scheduleKeywords) {
+    let startIdx = 0;
+    const markers = ["reading and assignment schedule", "unit one", "unit 1", "week 1 ", "due dates", "assignment schedule"];
+    for (const kw of markers) {
       const idx = lowerSanitized.indexOf(kw);
-      if (idx > 200 && idx < sanitized.length * 0.7) { startIdx = Math.max(0, idx - 100); break; }
+      if (idx > 0) { startIdx = Math.max(0, idx - 50); break; }
     }
-    const truncated = startIdx > 0
-      ? sanitized.slice(startIdx, startIdx + 3000)
-      : sanitized.slice(0, 3000);
+    // Send up to 4000 chars from where the schedule starts
+    const truncated = sanitized.slice(startIdx, startIdx + 4000);
 
     console.log("Calling extract-syllabus edge function, text length:", truncated.length);
 
