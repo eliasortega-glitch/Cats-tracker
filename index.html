@@ -2813,7 +2813,9 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
     const ds = getDocState(doc.id);
     const toAdd = ds.items.filter((_, i) => ds.selected[i]);
     if (!toAdd.length) return;
-    for (const a of toAdd) {
+    
+    // Use Promise.all for faster insertion
+    await Promise.all(toAdd.map(async (a) => {
       const dueDateObj = a.dueDate instanceof Date ? a.dueDate : new Date(a.dueDate);
       const days = (dueDateObj - Date.now()) / 86400000;
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
@@ -2826,13 +2828,12 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
         d2lLink: "https://d2l.arizona.edu", studentId: effectiveStudentId,
       };
       if (onAddAssignment) {
-        // onAddAssignment handles both state update AND Supabase insert
         await onAddAssignment(item);
       } else if (isRealUUID(effectiveStudentId)) {
-        // No callback — insert directly as fallback
         await insertAssignment(item, effectiveStudentId, sessionUser?.id);
       }
-    }
+    }));
+    
     setDs(doc.id, { added: true });
     setTimeout(() => setDs(doc.id, { added: false }), 3000);
   };
@@ -4271,6 +4272,7 @@ function App() {
       setWorkAssignment(data);
       setPage("workmode");
       localStorage.setItem("cats_page", "workmode");
+      if (data) localStorage.setItem("cats_work_assignment", JSON.stringify(data));
     } else if (target === "studentProfile") {
       setSelectedStudent(data);
       setPage("studentProfile");
@@ -4397,7 +4399,15 @@ function App() {
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#F8F9FB", minHeight: "100vh", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
       {showOnboarding && <OnboardingModal onDone={() => setShowOnboarding(false)} />}
-      {!isMobile && <Sidebar role={role} activePage={page} onNavigate={p => { setPage(p); localStorage.setItem("cats_page", p); }} user={sessionUser} onLogout={async () => { await signOutUser(); localStorage.removeItem("cats_role"); localStorage.removeItem("cats_page"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} collapsed={collapsed} setCollapsed={setCollapsed} />}
+      {!isMobile && <Sidebar role={role} activePage={page} onNavigate={navigate} user={currentUser} onLogout={async () => { 
+        await signOutUser(); 
+        localStorage.removeItem("cats_role"); 
+        localStorage.removeItem("cats_page"); 
+        localStorage.removeItem("cats_selected_student");
+        localStorage.removeItem("cats_work_assignment");
+        localStorage.removeItem("cats_weekly_plans");
+        setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); 
+      }} collapsed={collapsed} setCollapsed={setCollapsed} />}
       <div style={{ flex: 1, overflow: "auto", paddingBottom: isMobile ? 64 : 0 }}>
         <div style={{ height: isMobile ? 56 : 52, borderBottom: "1px solid #E8EAF0", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 14px" : "0 18px", position: "sticky", top: 0, zIndex: 5 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -4408,8 +4418,16 @@ function App() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <NotificationBell notifications={notifications} onClear={() => setNotifications(prev => prev.map(n => ({...n, read: true})))} />
             <div style={{ fontSize: 12, color: UA.textMuted, padding: "6px 10px", borderRadius: 999, background: UA.bg, border: `1px solid ${UA.border}` }}>{sessionUser.email}</div>
-            <button onClick={async () => { await signOutUser(); localStorage.removeItem("cats_role"); localStorage.removeItem("cats_page"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, color: UA.textSecondary }}>Sign out</button>
+            <button onClick={async () => { 
+              await signOutUser(); 
+              localStorage.removeItem("cats_role"); 
+              localStorage.removeItem("cats_page"); 
+              localStorage.removeItem("cats_selected_student");
+              localStorage.removeItem("cats_work_assignment");
+              setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); 
+            }} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, color: UA.textSecondary }}>Sign out</button>
           </div>
         </div>
         {backendBanner}
@@ -4420,7 +4438,7 @@ function App() {
           {mobileNav.map(item => {
             const active = page === item.id;
             return (
-              <button key={item.id} onClick={() => setPage(item.id)} style={{ border: "none", background: active ? UA.redLight : "white", color: active ? UA.red : UA.textMuted, fontFamily: "inherit", fontSize: 11, fontWeight: active ? 700 : 500, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
+              <button key={item.id} onClick={() => navigate(item.id)} style={{ border: "none", background: active ? UA.redLight : "white", color: active ? UA.red : UA.textMuted, fontFamily: "inherit", fontSize: 11, fontWeight: active ? 700 : 500, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
                 <span style={{ fontSize: 18 }}>{item.icon}</span>{item.label}
               </button>
             );
