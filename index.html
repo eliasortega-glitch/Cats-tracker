@@ -3093,17 +3093,37 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
 
   // Quick add (staff only)
   const updateRow = (i, k, v) => setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
-  const handleSaveRows = () => {
+  const handleSaveRows = async () => {
     const valid = rows.filter(r => r.title.trim() && r.dueDate);
     if (!valid.length) return;
-    valid.forEach(r => {
+    
+    // Use Promise.all for faster insertion
+    await Promise.all(valid.map(async (r) => {
       const days = (new Date(r.dueDate) - Date.now()) / 86400000;
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
       const course = student?.courses?.find(c => c.code === r.courseCode);
-      if (onAddAssignment) onAddAssignment({ id: Date.now() + Math.random(), title: r.title, course: course?.name || r.courseCode || "Other", courseCode: r.courseCode, dueDate: new Date(r.dueDate), points: parseInt(r.points) || 0, status: "not_started", urgency, description: "", instructions: "", rubric: "", d2lLink: "", studentId: effectiveStudentId });
-    });
+      if (onAddAssignment) {
+        await onAddAssignment({ 
+          id: `quick-${Date.now()}-${Math.random()}`, 
+          title: r.title, 
+          course: course?.name || r.courseCode || "Other", 
+          courseCode: r.courseCode, 
+          dueDate: new Date(r.dueDate), 
+          points: parseInt(r.points) || 0, 
+          status: "not_started", 
+          urgency, 
+          description: "", 
+          instructions: "", 
+          rubric: "", 
+          d2lLink: "", 
+          studentId: effectiveStudentId 
+        });
+      }
+    }));
+    
     setRows([{ title: "", courseCode: "", dueDate: "", points: "" }]);
-    setQuickSaved(true); setTimeout(() => setQuickSaved(false), 2500);
+    setQuickSaved(true); 
+    setTimeout(() => setQuickSaved(false), 2500);
   };
 
   // PDF/file reading
@@ -3282,37 +3302,33 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
   const selectedCount = Object.values(selectedExtracted).filter(Boolean).length;
 
   // Add selected extracted assignments to the student's list
-  const handleAddExtractedAssignments = async () => {
+  const handleAddExtracted = async () => {
     const toAdd = extractedItems.filter((_, i) => selectedExtracted[i]);
     if (!toAdd.length) return;
-    for (const a of toAdd) {
+    
+    // Use Promise.all for faster insertion
+    await Promise.all(toAdd.map(async (a) => {
       const dueDateObj = a.dueDate instanceof Date ? a.dueDate : new Date(a.dueDate);
       const days = (dueDateObj - Date.now()) / 86400000;
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
       const item = {
-        id: `extracted-${Date.now()}-${Math.random()}`,
-        title: a.title,
-        course: syllabusCourseName || syllabusCode || "Course",
-        courseCode: syllabusCode || "",
-        dueDate: dueDateObj,
-        points: a.points || 0,
-        urgency,
-        status: "not_started",
-        description: "",
-        instructions: "",
-        rubric: "",
-        d2lLink: "https://d2l.arizona.edu",
-        studentId: effectiveStudentId,
+        id: `ext-${Date.now()}-${Math.random()}`,
+        title: a.title, course: syllabusCourseName || syllabusCode || "Course",
+        courseCode: syllabusCode || "", dueDate: dueDateObj,
+        points: a.points || 0, urgency, status: "not_started",
+        description: "", instructions: "", rubric: "",
+        d2lLink: "https://d2l.arizona.edu", studentId: effectiveStudentId,
       };
-      // onAddAssignment handles both state update AND Supabase insert — don't double-insert
       if (onAddAssignment) {
         await onAddAssignment(item);
       } else if (effectiveStudentId && typeof effectiveStudentId === "string" && effectiveStudentId.includes("-")) {
         await insertAssignment(item, effectiveStudentId, sessionUser?.id);
       }
-    }
+    }));
+    
     setAssignmentsAdded(true);
     setTimeout(() => setAssignmentsAdded(false), 3000);
+    setExtractedItems([]);
   };
 
   // Save syllabus document record to Supabase (assignments added separately via handleAddExtractedAssignments)
