@@ -422,6 +422,7 @@ async function callExtractSyllabus(text, courseCode, courseName, courseStart, co
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
@@ -2047,6 +2048,17 @@ function SettingsPage({ role, currentUser = {} }) {
   const [editingCourses, setEditingCourses] = useState(null); // studentId
   const [newCourse, setNewCourse] = useState({ code: "", name: "" });
 
+  const handleSaveChanges = async () => {
+    setSaved(true);
+    // Persist notification preferences to profile if staff
+    if (isStaff && currentUser?.id) {
+      await supabase.from("profiles").update({ 
+        notification_prefs: notifPrefs 
+      }).eq("id", currentUser.id);
+    }
+    setTimeout(() => setSaved(false), 3000);
+  };
+
   const handleAddStudent = async () => {
     if (!newStudent.name.trim() || !newStudent.sport.trim()) return;
     const initials = newStudent.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2);
@@ -2245,7 +2257,7 @@ function SettingsPage({ role, currentUser = {} }) {
         </Card>
       )}
 
-      <Btn fullWidth size="lg" onClick={()=>setSaved(true)}>Save Changes</Btn>
+      <Btn fullWidth size="lg" onClick={handleSaveChanges}>Save Changes</Btn>
       {saved && <div style={{ background: UA.greenBg, border: `1px solid ${UA.greenBorder}`, borderRadius: UA.radiusSm, padding: "12px 18px", fontSize: 13, color: UA.green, fontWeight: 700 }}>✓ Settings saved</div>}
     </div>
   );
