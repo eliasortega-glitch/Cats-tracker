@@ -279,6 +279,8 @@ const SESSION_LOGS = {};
 
 const ALL_NOTES_FEED = [];
 
+const STAFF_MEMBERS = [];
+
 // --- AI-POWERED GUIDED PROMPTS ------------------------------------------------
 // CHANGED: Replaced static breakdown() functions with aiPrompt strings.
 // Each prompt now has an aiPrompt that is sent to the Anthropic API along with
@@ -417,36 +419,30 @@ const NoteCard = ({ note }) => {
 
 async function callExtractSyllabus(text, courseCode, courseName, courseStart, courseEnd) {
   try {
-    console.log("Calling extract-syllabus for:", courseCode, courseName);
+
     const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-syllabus`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
         text,
-        courseCode: courseCode || "",
-        courseName: courseName || "",
+        courseCode,
+        courseName,
         courseStart: courseStart || '2026-01-13',
         courseEnd: courseEnd || '2026-12-15',
       }),
     });
-    
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Edge function error (${response.status}): ${errText}`);
-    }
-    
+
+    console.log("Edge function response status:", response.status);
+    if (!response.ok) throw new Error(`Edge function error: ${response.status}`);
     const data = await response.json();
-    console.log('Edge function result:', data);
-    
+    console.log("Edge function result:", data);
     if (data.error) throw new Error(data.error);
     return data.assignments || [];
   } catch (e) {
-    console.error('Syllabus extraction failed:', e.message);
-    alert("Syllabus extraction failed: " + e.message);
+    console.warn("Extract edge function failed:", e.message);
     return null;
   }
 }
@@ -1534,7 +1530,7 @@ function QuickAddAssignments({ courses, onAdd }) {
 }
 
 // --- STAFF STUDENT PROFILE -----------------------------------------------------
-function StudentProfile({ student, onBack, onExportReport, onAddAssignment, onSavePlan, sessionUser, currentUserName = "Staff" }) {
+function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sessionUser, currentUserName = "Staff" }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
   const [noteCategory, setNoteCategory] = useState("Session Note");
@@ -1580,11 +1576,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, onSa
     loadAssignments();
   }, [student.id]);
 
-  const handlePlanSave = () => { 
-    onSavePlan(student.id, weeklyPlan);
-    setPlanSaved(true); 
-    setTimeout(() => setPlanSaved(false), 2500); 
-  };
+  const handlePlanSave = () => { setPlanSaved(true); setTimeout(() => setPlanSaved(false), 2500); };
 
   // Determine if this is being viewed by staff or student
   const isStudentView = !currentUserName || currentUserName === "there";
@@ -2049,58 +2041,23 @@ function SettingsPage({ role, currentUser = {} }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: "", sport: "", year: "Freshman", email: "", counselor: "" });
   const [studentSaved, setStudentSaved] = useState(false);
-  const [editingCourses, setEditingCourses] = useState(null); // studentId
-  const [newCourse, setNewCourse] = useState({ code: "", name: "" });
 
-  const handleSaveChanges = async () => {
-    setSaved(true);
-    // Persist notification preferences to profile if staff
-    if (isStaff && currentUser?.id) {
-      await supabase.from("profiles").update({ 
-        notification_prefs: notifPrefs 
-      }).eq("id", currentUser.id);
-    }
-    setTimeout(() => setSaved(false), 3000);
-  };
-
-  const handleAddStudent = async () => {
+  const handleAddStudent = () => {
     if (!newStudent.name.trim() || !newStudent.sport.trim()) return;
     const initials = newStudent.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2);
     const student = {
-      name: newStudent.name, email: newStudent.email,
+      id: Date.now(), name: newStudent.name, email: newStudent.email,
       sport: newStudent.sport, initials, year: newStudent.year,
       gpa: 0, intakeRisk: "medium", dynamicRisk: "medium", riskScore: 50,
       lastSession: "Not yet", missedAssignments: 0, avgEffort: 0,
       avgUnderstanding: 0, totalHours: 0, counselor: newStudent.counselor || "TBD",
       courses: [], weeklyPlan: "", nextSession: "Not scheduled", schedule: [],
     };
-    
-    // Save to Supabase
-    const { data, error } = await supabase.from("students").insert(student).select().single();
-    if (!error && data) {
-      const normalized = normalizeStudentRecord(data);
-      setCaseload(prev => [...prev, normalized]);
-      STUDENTS.push(normalized);
-    } else {
-      // Fallback to local if DB fails
-      const localStudent = { ...student, id: Date.now() };
-      setCaseload(prev => [...prev, localStudent]);
-    }
-
+    setCaseload(prev => [...prev, student]);
     setNewStudent({ name: "", sport: "", year: "Freshman", email: "", counselor: "" });
     setShowAddStudent(false);
     setStudentSaved(true);
     setTimeout(() => setStudentSaved(false), 3000);
-  };
-
-  const handleUpdateCourses = async (studentId, courses) => {
-    setCaseload(prev => prev.map(s => s.id === studentId ? { ...s, courses } : s));
-    STUDENTS = STUDENTS.map(s => s.id === studentId ? { ...s, courses } : s);
-    
-    // Persist to Supabase if UUID
-    if (typeof studentId === "string" && studentId.includes("-")) {
-      await supabase.from("students").update({ courses }).eq("students", studentId);
-    }
   };
 
   const profileFields = isStaff
@@ -2206,62 +2163,23 @@ function SettingsPage({ role, currentUser = {} }) {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {caseload.map(s => (
-              <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <Avatar initials={s.initials} size={32} color={s.dynamicRisk === "high" ? UA.red : s.dynamicRisk === "medium" ? UA.yellow : UA.navy} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: UA.text }}>{s.name}</div>
-                    <div style={{ fontSize: 12, color: UA.textMuted }}>{s.sport} · {s.year}</div>
-                  </div>
-                  <Btn size="sm" variant="outline" onClick={() => setEditingCourses(editingCourses === s.id ? null : s.id)}>
-                    {editingCourses === s.id ? "Close" : "Manage Classes"}
-                  </Btn>
-                  <button onClick={async () => {
-                    if (confirm(`Remove ${s.name} from caseload?`)) {
-                      setCaseload(prev => prev.filter(st => st.id !== s.id));
-                      if (typeof s.id === "string" && s.id.includes("-")) {
-                        await supabase.from("students").delete().eq("students", s.id);
-                      }
-                    }
-                  }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: UA.textMuted, fontSize: 16, padding: "2px 6px", borderRadius: 4 }}
-                    title="Remove from caseload">✕</button>
+              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
+                <Avatar initials={s.initials} size={32} color={s.dynamicRisk === "high" ? UA.red : s.dynamicRisk === "medium" ? UA.yellow : UA.navy} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: UA.text }}>{s.name}</div>
+                  <div style={{ fontSize: 12, color: UA.textMuted }}>{s.sport} · {s.year}</div>
                 </div>
-                
-                {editingCourses === s.id && (
-                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${UA.border}` }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: UA.textMuted, marginBottom: 8, textTransform: "uppercase" }}>Enrolled Classes</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-                      {s.courses.length === 0 && <div style={{ fontSize: 12, color: UA.textMuted, fontStyle: "italic" }}>No classes added yet.</div>}
-                      {s.courses.map((c, idx) => (
-                        <div key={idx} style={{ background: "white", border: `1px solid ${UA.border}`, borderRadius: 6, padding: "4px 8px", display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: UA.navy }}>{c.code || c.courseCode}</span>
-                          <span style={{ fontSize: 12, color: UA.textSecondary }}>{c.name || c.courseName}</span>
-                          <button onClick={() => handleUpdateCourses(s.id, s.courses.filter((_, i) => i !== idx))}
-                            style={{ border: "none", background: "none", color: UA.red, cursor: "pointer", fontSize: 14, padding: 0 }}>×</button>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <input placeholder="Code (e.g. SPAN201)" value={newCourse.code} onChange={e => setNewCourse(p => ({...p, code: e.target.value}))}
-                        style={{ flex: 1, padding: "6px 10px", borderRadius: 6, border: `1px solid ${UA.border}`, fontSize: 12, outline: "none" }} />
-                      <input placeholder="Name (e.g. Spanish III)" value={newCourse.name} onChange={e => setNewCourse(p => ({...p, name: e.target.value}))}
-                        style={{ flex: 2, padding: "6px 10px", borderRadius: 6, border: `1px solid ${UA.border}`, fontSize: 12, outline: "none" }} />
-                      <Btn size="sm" onClick={() => {
-                        if (!newCourse.code.trim()) return;
-                        handleUpdateCourses(s.id, [...s.courses, { code: newCourse.code, name: newCourse.name }]);
-                        setNewCourse({ code: "", name: "" });
-                      }}>Add</Btn>
-                    </div>
-                  </div>
-                )}
+                <RiskBadge level={s.dynamicRisk} />
+                <button onClick={() => setCaseload(prev => prev.filter(st => st.id !== s.id))}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: UA.textMuted, fontSize: 16, padding: "2px 6px", borderRadius: 4 }}
+                  title="Remove from caseload">✕</button>
               </div>
             ))}
           </div>
         </Card>
       )}
 
-      <Btn fullWidth size="lg" onClick={handleSaveChanges}>Save Changes</Btn>
+      <Btn fullWidth size="lg" onClick={()=>setSaved(true)}>Save Changes</Btn>
       {saved && <div style={{ background: UA.greenBg, border: `1px solid ${UA.greenBorder}`, borderRadius: UA.radiusSm, padding: "12px 18px", fontSize: 13, color: UA.green, fontWeight: 700 }}>✓ Settings saved</div>}
     </div>
   );
@@ -2813,9 +2731,7 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
     const ds = getDocState(doc.id);
     const toAdd = ds.items.filter((_, i) => ds.selected[i]);
     if (!toAdd.length) return;
-    
-    // Use Promise.all for faster insertion
-    await Promise.all(toAdd.map(async (a) => {
+    for (const a of toAdd) {
       const dueDateObj = a.dueDate instanceof Date ? a.dueDate : new Date(a.dueDate);
       const days = (dueDateObj - Date.now()) / 86400000;
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
@@ -2828,12 +2744,13 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
         d2lLink: "https://d2l.arizona.edu", studentId: effectiveStudentId,
       };
       if (onAddAssignment) {
+        // onAddAssignment handles both state update AND Supabase insert
         await onAddAssignment(item);
       } else if (isRealUUID(effectiveStudentId)) {
+        // No callback — insert directly as fallback
         await insertAssignment(item, effectiveStudentId, sessionUser?.id);
       }
-    }));
-    
+    }
     setDs(doc.id, { added: true });
     setTimeout(() => setDs(doc.id, { added: false }), 3000);
   };
@@ -3093,37 +3010,17 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
 
   // Quick add (staff only)
   const updateRow = (i, k, v) => setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
-  const handleSaveRows = async () => {
+  const handleSaveRows = () => {
     const valid = rows.filter(r => r.title.trim() && r.dueDate);
     if (!valid.length) return;
-    
-    // Use Promise.all for faster insertion
-    await Promise.all(valid.map(async (r) => {
+    valid.forEach(r => {
       const days = (new Date(r.dueDate) - Date.now()) / 86400000;
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
       const course = student?.courses?.find(c => c.code === r.courseCode);
-      if (onAddAssignment) {
-        await onAddAssignment({ 
-          id: `quick-${Date.now()}-${Math.random()}`, 
-          title: r.title, 
-          course: course?.name || r.courseCode || "Other", 
-          courseCode: r.courseCode, 
-          dueDate: new Date(r.dueDate), 
-          points: parseInt(r.points) || 0, 
-          status: "not_started", 
-          urgency, 
-          description: "", 
-          instructions: "", 
-          rubric: "", 
-          d2lLink: "", 
-          studentId: effectiveStudentId 
-        });
-      }
-    }));
-    
+      if (onAddAssignment) onAddAssignment({ id: Date.now() + Math.random(), title: r.title, course: course?.name || r.courseCode || "Other", courseCode: r.courseCode, dueDate: new Date(r.dueDate), points: parseInt(r.points) || 0, status: "not_started", urgency, description: "", instructions: "", rubric: "", d2lLink: "", studentId: effectiveStudentId });
+    });
     setRows([{ title: "", courseCode: "", dueDate: "", points: "" }]);
-    setQuickSaved(true); 
-    setTimeout(() => setQuickSaved(false), 2500);
+    setQuickSaved(true); setTimeout(() => setQuickSaved(false), 2500);
   };
 
   // PDF/file reading
@@ -3176,7 +3073,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
     const text = syllabusText;
 
     // Try Edge Function first
-    const edgeResult = await callExtractSyllabus(text, syllabusCode, syllabusCourseName, "2026-01-13", "2026-12-15");
+    const edgeResult = await callExtractSyllabus(text, syllabusCode, syllabusCourseName);
     if (edgeResult && edgeResult.length > 0) {
       const sel = {};
       edgeResult.forEach((_, i) => sel[i] = true);
@@ -3302,33 +3199,37 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
   const selectedCount = Object.values(selectedExtracted).filter(Boolean).length;
 
   // Add selected extracted assignments to the student's list
-  const handleAddExtracted = async () => {
+  const handleAddExtractedAssignments = async () => {
     const toAdd = extractedItems.filter((_, i) => selectedExtracted[i]);
     if (!toAdd.length) return;
-    
-    // Use Promise.all for faster insertion
-    await Promise.all(toAdd.map(async (a) => {
+    for (const a of toAdd) {
       const dueDateObj = a.dueDate instanceof Date ? a.dueDate : new Date(a.dueDate);
       const days = (dueDateObj - Date.now()) / 86400000;
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
       const item = {
-        id: `ext-${Date.now()}-${Math.random()}`,
-        title: a.title, course: syllabusCourseName || syllabusCode || "Course",
-        courseCode: syllabusCode || "", dueDate: dueDateObj,
-        points: a.points || 0, urgency, status: "not_started",
-        description: "", instructions: "", rubric: "",
-        d2lLink: "https://d2l.arizona.edu", studentId: effectiveStudentId,
+        id: `extracted-${Date.now()}-${Math.random()}`,
+        title: a.title,
+        course: syllabusCourseName || syllabusCode || "Course",
+        courseCode: syllabusCode || "",
+        dueDate: dueDateObj,
+        points: a.points || 0,
+        urgency,
+        status: "not_started",
+        description: "",
+        instructions: "",
+        rubric: "",
+        d2lLink: "https://d2l.arizona.edu",
+        studentId: effectiveStudentId,
       };
+      // onAddAssignment handles both state update AND Supabase insert — don't double-insert
       if (onAddAssignment) {
         await onAddAssignment(item);
       } else if (effectiveStudentId && typeof effectiveStudentId === "string" && effectiveStudentId.includes("-")) {
         await insertAssignment(item, effectiveStudentId, sessionUser?.id);
       }
-    }));
-    
+    }
     setAssignmentsAdded(true);
     setTimeout(() => setAssignmentsAdded(false), 3000);
-    setExtractedItems([]);
   };
 
   // Save syllabus document record to Supabase (assignments added separately via handleAddExtractedAssignments)
@@ -3449,9 +3350,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
               <select value={row.courseCode} onChange={e => updateRow(i, "courseCode", e.target.value)}
                 style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: "white" }}>
                 <option value="">Course...</option>
-                {selectedStudent?.courses?.map((c, idx) => (
-                  <option key={idx} value={c.code || c.courseCode}>{c.code || c.courseCode}</option>
-                ))}
+                {(student?.courses || []).map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
               </select>
               <input type="date" value={row.dueDate} onChange={e => updateRow(i, "dueDate", e.target.value)}
                 style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none" }} />
@@ -4089,28 +3988,10 @@ function OnboardingModal({ onDone }) {
 // --- MAIN APP -----------------------------------------------------------------
 function App() {
   const [role, setRole] = useState(null);
-  const [page, setPage] = useState(() => {
-    const saved = localStorage.getItem("cats_page");
-    if (saved) return saved;
-    const role = localStorage.getItem("cats_role");
-    if (role === "student") return "dashboard";
-    if (role === "admin") return "admin";
-    return "roster";
-  });
+  const [page, setPage] = useState(() => localStorage.getItem("cats_page") || "dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [workAssignment, setWorkAssignment] = useState(null);
-  const [selectedStudent, setSelectedStudent] = useState(() => {
-    const saved = localStorage.getItem("cats_selected_student");
-    try { return saved ? JSON.parse(saved) : null; } catch { return null; }
-  });
-  const [weeklyPlans, setWeeklyPlans] = useState(() => {
-    const saved = localStorage.getItem("cats_weekly_plans");
-    try { return saved ? JSON.parse(saved) : {}; } catch { return {}; }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("cats_weekly_plans", JSON.stringify(weeklyPlans));
-  }, [weeklyPlans]);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [notifications, setNotifications] = useState([
     { id: 1, icon: "⚠️", message: "Alex Rivera's risk score moved to High — 2 missing assignments", time: "2 hours ago", read: false },
@@ -4130,15 +4011,9 @@ function App() {
   const applyRoleRouting = (resolvedRole) => {
     setRole(resolvedRole);
     localStorage.setItem("cats_role", resolvedRole);
-    
-    // Only route if no saved page exists
-    if (!localStorage.getItem("cats_page")) {
-      let target = "roster";
-      if (resolvedRole === "student") { target = "dashboard"; setShowOnboarding(true); }
-      else if (resolvedRole === "admin") target = "admin";
-      setPage(target);
-      localStorage.setItem("cats_page", target);
-    }
+    if (resolvedRole === "student") { setPage("dashboard"); setShowOnboarding(true); }
+    else if (resolvedRole === "admin") setPage("admin");
+    else setPage("roster");
   };
 
   const hydrateAuthenticatedState = async (user) => {
@@ -4284,20 +4159,9 @@ function App() {
   }, [assignments]);
 
   const navigate = (target, data) => {
-    if (target === "workmode") {
-      setWorkAssignment(data);
-      setPage("workmode");
-      localStorage.setItem("cats_page", "workmode");
-      if (data) localStorage.setItem("cats_work_assignment", JSON.stringify(data));
-    } else if (target === "studentProfile") {
-      setSelectedStudent(data);
-      setPage("studentProfile");
-      localStorage.setItem("cats_page", "studentProfile");
-      localStorage.setItem("cats_selected_student", JSON.stringify(data));
-    } else {
-      setPage(target);
-      localStorage.setItem("cats_page", target);
-    }
+    if (target === "workmode") setWorkAssignment(data);
+    if (target === "studentProfile") { setSelectedStudent(data); setPage("studentProfile"); return; }
+    setPage(target);
     window.scrollTo(0, 0);
   };
 
@@ -4374,16 +4238,7 @@ function App() {
     if (page === "admin") return <AdminPage key={`admin-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "roster") return <RosterPage key={`roster-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "studentProfile" && selectedStudent) return (
-      <StudentProfile 
-        key={`student-profile-${selectedStudent.id}-${dataVersion}`} 
-        student={{...selectedStudent, weeklyPlan: weeklyPlans[selectedStudent.id] || selectedStudent.weeklyPlan}} 
-        onBack={() => setPage("roster")} 
-        onSavePlan={(id, plan) => setWeeklyPlans(prev => ({...prev, [id]: plan}))}
-        onExportReport={(student, notes) => exportStudentReport(student, notes, assignments)} 
-        onAddAssignment={addAssignment} 
-        sessionUser={sessionUser} 
-        currentUserName={profile?.full_name || "Staff"} 
-      />
+      <StudentProfile key={`student-profile-${selectedStudent.id}-${dataVersion}`} student={selectedStudent} onBack={() => setPage("roster")} onExportReport={(student, notes) => exportStudentReport(student, notes, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} currentUserName={currentUser.name} />
     );
     if (page === "entryhub") return <EntryHubPage key={`entryhub-${dataVersion}`} onAddAssignment={addAssignment} sessionUser={sessionUser} role={role} students={STUDENTS} />;
     if (page === "analytics" && role !== "student") return <ProgressReportPage key={`analytics-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
@@ -4395,15 +4250,15 @@ function App() {
       setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
       await updateAssignmentStatus(id, status);
     }} />;
-    if (page === "dashboard" && role !== "student") return <StaffDashboard key={`dashboard-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={profile?.full_name || "Staff"} />;
+    if (page === "dashboard" && role !== "student") return <StaffDashboard key={`dashboard-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={currentUser.name} />;
     // Student can access their own profile
     if (page === "myprofile" && role === "student") {
       const myStudent = STUDENTS.find(s => s.email === sessionUser?.email) || STUDENTS[0];
       return <StudentProfile key={`my-profile-${dataVersion}`} student={myStudent} onBack={() => setPage("dashboard")} onExportReport={(s, n) => exportStudentReport(s, n, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} />;
     }
     return role === "student"
-      ? <StudentDashboard onNavigate={navigate} assignments={assignments} user={sessionUser} onViewProfile={() => setPage("myprofile")} />
-      : <StaffDashboard key={`staff-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={profile?.full_name || "Staff"} />;
+      ? <StudentDashboard onNavigate={navigate} assignments={assignments} user={currentUser} onViewProfile={() => setPage("myprofile")} />
+      : <StaffDashboard key={`staff-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={currentUser.name} />;
   };
 
   const mobileNav = role === "student"
@@ -4415,15 +4270,7 @@ function App() {
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#F8F9FB", minHeight: "100vh", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
       {showOnboarding && <OnboardingModal onDone={() => setShowOnboarding(false)} />}
-      {!isMobile && <Sidebar role={role} activePage={page} onNavigate={navigate} user={currentUser} onLogout={async () => { 
-        await signOutUser(); 
-        localStorage.removeItem("cats_role"); 
-        localStorage.removeItem("cats_page"); 
-        localStorage.removeItem("cats_selected_student");
-        localStorage.removeItem("cats_work_assignment");
-        localStorage.removeItem("cats_weekly_plans");
-        setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); 
-      }} collapsed={collapsed} setCollapsed={setCollapsed} />}
+      {!isMobile && <Sidebar role={role} activePage={page} onNavigate={p => { setPage(p); localStorage.setItem("cats_page", p); }} user={currentUser} onLogout={async () => { await signOutUser(); localStorage.removeItem("cats_role"); localStorage.removeItem("cats_page"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} collapsed={collapsed} setCollapsed={setCollapsed} />}
       <div style={{ flex: 1, overflow: "auto", paddingBottom: isMobile ? 64 : 0 }}>
         <div style={{ height: isMobile ? 56 : 52, borderBottom: "1px solid #E8EAF0", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 14px" : "0 18px", position: "sticky", top: 0, zIndex: 5 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -4434,16 +4281,8 @@ function App() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <NotificationBell notifications={notifications} onClear={() => setNotifications(prev => prev.map(n => ({...n, read: true})))} />
             <div style={{ fontSize: 12, color: UA.textMuted, padding: "6px 10px", borderRadius: 999, background: UA.bg, border: `1px solid ${UA.border}` }}>{sessionUser.email}</div>
-            <button onClick={async () => { 
-              await signOutUser(); 
-              localStorage.removeItem("cats_role"); 
-              localStorage.removeItem("cats_page"); 
-              localStorage.removeItem("cats_selected_student");
-              localStorage.removeItem("cats_work_assignment");
-              setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); 
-            }} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, color: UA.textSecondary }}>Sign out</button>
+            <button onClick={async () => { await signOutUser(); localStorage.removeItem("cats_role"); localStorage.removeItem("cats_page"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, color: UA.textSecondary }}>Sign out</button>
           </div>
         </div>
         {backendBanner}
@@ -4454,7 +4293,7 @@ function App() {
           {mobileNav.map(item => {
             const active = page === item.id;
             return (
-              <button key={item.id} onClick={() => navigate(item.id)} style={{ border: "none", background: active ? UA.redLight : "white", color: active ? UA.red : UA.textMuted, fontFamily: "inherit", fontSize: 11, fontWeight: active ? 700 : 500, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
+              <button key={item.id} onClick={() => setPage(item.id)} style={{ border: "none", background: active ? UA.redLight : "white", color: active ? UA.red : UA.textMuted, fontFamily: "inherit", fontSize: 11, fontWeight: active ? 700 : 500, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
                 <span style={{ fontSize: 18 }}>{item.icon}</span>{item.label}
               </button>
             );
