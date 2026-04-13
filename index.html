@@ -198,6 +198,50 @@ async function fetchDocumentsForStudent(studentId) {
   return data || [];
 }
 
+// Save a staff note to Supabase
+// Requires staff_notes table — run this SQL in Supabase SQL Editor:
+// create table public.staff_notes (
+//   id uuid primary key default gen_random_uuid(),
+//   student_id uuid references public.students(students),
+//   author text, author_initials text, date text, category text, text text,
+//   created_at timestamptz default now(), created_by uuid references auth.users(id)
+// );
+// alter table public.staff_notes enable row level security;
+// create policy "Auth read notes" on public.staff_notes for select using (auth.role() = 'authenticated');
+// create policy "Auth insert notes" on public.staff_notes for insert with check (auth.role() = 'authenticated');
+async function insertStaffNote(note, studentId, userId) {
+  const { data, error } = await supabase.from("staff_notes").insert({
+    student_id: studentId,
+    author: note.author || "",
+    author_initials: note.authorInitials || "",
+    date: note.date || "",
+    category: note.category || "Session Note",
+    text: note.text || "",
+    created_by: userId || null,
+  }).select().single();
+  if (error) { console.warn("Staff note insert failed:", error.message); return null; }
+  console.log("\u2705 Staff note saved:", data.id);
+  return data;
+}
+
+async function fetchStaffNotes(studentId) {
+  const isRealUUID = studentId && typeof studentId === "string" && studentId.includes("-");
+  if (!isRealUUID) return null;
+  const { data, error } = await supabase
+    .from("staff_notes").select("*")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+  if (error) { console.warn("Staff notes fetch failed:", error.message); return null; }
+  return (data || []).map(n => ({
+    id: n.id,
+    author: n.author,
+    authorInitials: n.author_initials,
+    date: n.date,
+    category: n.category,
+    text: n.text,
+  }));
+}
+
 async function insertAssignment(a, studentId, userId) {
   const { data, error } = await supabase
     .from("assignments")
@@ -1535,6 +1579,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   const [newNote, setNewNote] = useState("");
   const [noteCategory, setNoteCategory] = useState("Session Note");
   const [notes, setNotes] = useState(STAFF_NOTES[student.id] || []);
+  const [notesLoading, setNotesLoading] = useState(true);
   const [noteSaved, setNoteSaved] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [weeklyPlan, setWeeklyPlan] = useState(student.weeklyPlan || "");
@@ -1576,6 +1621,19 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
     loadAssignments();
   }, [student.id]);
 
+  // Load notes from Supabase on mount
+  useEffect(() => {
+    const loadNotes = async () => {
+      setNotesLoading(true);
+      const liveNotes = await fetchStaffNotes(student.id);
+      if (liveNotes !== null) {
+        setNotes(liveNotes);
+      }
+      setNotesLoading(false);
+    };
+    loadNotes();
+  }, [student.id]);
+
   const handlePlanSave = () => { setPlanSaved(true); setTimeout(() => setPlanSaved(false), 2500); };
 
   // Determine if this is being viewed by staff or student
@@ -1589,13 +1647,34 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
     { id: "documents", label: "Documents", staffOnly: true },
   ].filter(t => !t.staffOnly || !isStudentView);
 
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (!newNote.trim()) return;
-    const note = { id: Date.now(), author: currentUserName || "Staff", authorInitials: initialsFromName(currentUserName || "Staff"), date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), category: noteCategory, text: newNote };
-    setNotes([note, ...notes]);
+    const note = {
+      id: Date.now(),
+      author: currentUserName || "Staff",
+      authorInitials: initialsFromName(currentUserName || "Staff"),
+      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      category: noteCategory,
+      text: newNote,
+    };
+    // Optimistically update UI
+    setNotes(prev => [note, ...prev]);
     setNewNote("");
     setNoteSaved(true);
     setTimeout(() => setNoteSaved(false), 3000);
+    // Save to Supabase
+    const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
+    if (isRealUUID) {
+      const saved = await insertStaffNote(note, student.id, sessionUser?.id);
+      if (saved) {
+        // Replace temp id with real Supabase id
+        setNotes(prev => prev.map(n => n.id === note.id ? { ...n, id: saved.id } : n));
+      } else {
+        console.warn("Note saved locally only — Supabase insert failed. Make sure the staff_notes table exists.");
+      }
+    } else {
+      console.warn("Note saved locally only — student has no real Supabase UUID.");
+    }
   };
 
   return (
@@ -1794,8 +1873,13 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
           </Card>
           {/* Existing notes */}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {notes.map(note => <NoteCard key={note.id} note={note} />)}
-            {notes.length === 0 && <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted }}><div style={{ fontSize: 32, marginBottom: 8 }}>📝</div><div style={{ fontSize: 14, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No notes yet</div><div style={{ fontSize: 13 }}>Add a session note above after meeting with this student.</div></div>}
+            {notesLoading ? (
+              <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 13 }}>Loading notes...</div>
+            ) : notes.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted }}><div style={{ fontSize: 32, marginBottom: 8 }}>📝</div><div style={{ fontSize: 14, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No notes yet</div><div style={{ fontSize: 13 }}>Add a session note above after meeting with this student.</div></div>
+            ) : (
+              notes.map(note => <NoteCard key={note.id} note={note} />)
+            )}
           </div>
         </div>
       )}
