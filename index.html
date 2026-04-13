@@ -468,6 +468,7 @@ async function callExtractSyllabus(text, courseCode, courseName, courseStart, co
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
         "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
@@ -872,6 +873,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
           "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
@@ -1094,7 +1096,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             clearInterval(timerRef.current);
             const logData = {
               studentId: a.studentId || null,
-              assignmentId: typeof a.id === "string" && a.id.includes("-") ? a.id : null,
+              assignmentId: typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-") && !a.id.startsWith("quick-") && !a.id.startsWith("ext-") && !a.id.startsWith("doc-") ? a.id : null,
               assignmentTitle: a.title,
               courseCode: a.courseCode || "",
               effort,
@@ -3883,6 +3885,7 @@ function AddAssignmentModal({ onClose, onAdd }) {
   const [errors, setErrors] = useState({});
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const inp = { fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", width: "100%", padding: "9px 12px", borderRadius: UA.radiusSm };
 
   const validate = () => {
     const e = {};
@@ -3901,31 +3904,14 @@ function AddAssignmentModal({ onClose, onAdd }) {
       if (days < 7) return "yellow";
       return "green";
     })();
-    onAdd({
-      id: Date.now(),
-      ...form,
-      points: parseInt(form.points) || 0,
-      dueDate: new Date(form.dueDate),
-      urgency,
-      d2lLink: "",
-    });
+    onAdd({ id: Date.now(), ...form, points: parseInt(form.points) || 0, dueDate: new Date(form.dueDate), urgency, d2lLink: "" });
     onClose();
   };
 
-  const Field = ({ label, k, type = "text", placeholder = "", required, rows }) => (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ fontSize: 12, fontWeight: 700, color: UA.textMuted, display: "block", marginBottom: 5 }}>
-        {label}{required && <span style={{ color: UA.red }}> *</span>}
-      </label>
-      {rows ? (
-        <textarea value={form[k]} onChange={e => set(k, e.target.value)} placeholder={placeholder} rows={rows}
-          style={{ width: "100%", padding: "9px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${errors[k] ? UA.red : UA.border}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box" }} />
-      ) : (
-        <input type={type} value={form[k]} onChange={e => set(k, e.target.value)} placeholder={placeholder}
-          style={{ width: "100%", padding: "9px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${errors[k] ? UA.red : UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }} />
-      )}
-      {errors[k] && <div style={{ fontSize: 11, color: UA.red, marginTop: 3 }}>{errors[k]}</div>}
-    </div>
+  const lbl = (text, required) => (
+    <label style={{ fontSize: 12, fontWeight: 700, color: UA.textMuted, display: "block", marginBottom: 5 }}>
+      {text}{required && <span style={{ color: UA.red }}> *</span>}
+    </label>
   );
 
   return (
@@ -3937,18 +3923,36 @@ function AddAssignmentModal({ onClose, onAdd }) {
         </div>
         <div style={{ padding: "20px 24px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-            <div style={{ gridColumn: "1 / -1" }}><Field label="Assignment Title" k="title" placeholder="e.g. Essay: The Great Gatsby" required /></div>
-            <Field label="Course Name" k="course" placeholder="e.g. English 201" required />
-            <Field label="Course Code" k="courseCode" placeholder="e.g. ENG201" />
-            <Field label="Due Date" k="dueDate" type="date" required />
-            <Field label="Points" k="points" type="number" placeholder="e.g. 100" />
+            <div style={{ gridColumn: "1 / -1", marginBottom: 14 }}>
+              {lbl("Assignment Title", true)}
+              <input value={form.title} onChange={e => set("title", e.target.value)} placeholder="e.g. Essay: The Great Gatsby" style={{ ...inp, border: `1.5px solid ${errors.title ? UA.red : UA.border}` }} />
+              {errors.title && <div style={{ fontSize: 11, color: UA.red, marginTop: 3 }}>{errors.title}</div>}
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              {lbl("Course Name", true)}
+              <input value={form.course} onChange={e => set("course", e.target.value)} placeholder="e.g. English 201" style={{ ...inp, border: `1.5px solid ${errors.course ? UA.red : UA.border}` }} />
+              {errors.course && <div style={{ fontSize: 11, color: UA.red, marginTop: 3 }}>{errors.course}</div>}
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              {lbl("Course Code")}
+              <input value={form.courseCode} onChange={e => set("courseCode", e.target.value)} placeholder="e.g. ENG201" style={{ ...inp, border: `1.5px solid ${UA.border}` }} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              {lbl("Due Date", true)}
+              <input type="date" value={form.dueDate} onChange={e => set("dueDate", e.target.value)} style={{ ...inp, border: `1.5px solid ${errors.dueDate ? UA.red : UA.border}` }} />
+              {errors.dueDate && <div style={{ fontSize: 11, color: UA.red, marginTop: 3 }}>{errors.dueDate}</div>}
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              {lbl("Points")}
+              <input type="number" value={form.points} onChange={e => set("points", e.target.value)} placeholder="e.g. 100" style={{ ...inp, border: `1.5px solid ${UA.border}` }} />
+            </div>
           </div>
-          <Field label="Description" k="description" placeholder="Brief overview of the assignment..." rows={2} />
-          <Field label="Instructions" k="instructions" placeholder="What specifically does the student need to do?" rows={3} />
-          <Field label="Rubric" k="rubric" placeholder="e.g. Thesis (25pts) · Analysis (30pts) · Citations (25pts) · Grammar (20pts)" rows={2} />
+          <div style={{ marginBottom: 14 }}>{lbl("Description")}<textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder="Brief overview of the assignment..." rows={2} style={{ ...inp, border: `1.5px solid ${UA.border}`, resize: "vertical" }} /></div>
+          <div style={{ marginBottom: 14 }}>{lbl("Instructions")}<textarea value={form.instructions} onChange={e => set("instructions", e.target.value)} placeholder="What specifically does the student need to do?" rows={3} style={{ ...inp, border: `1.5px solid ${UA.border}`, resize: "vertical" }} /></div>
+          <div style={{ marginBottom: 14 }}>{lbl("Rubric")}<textarea value={form.rubric} onChange={e => set("rubric", e.target.value)} placeholder="e.g. Thesis (25pts) · Analysis (30pts) · Citations (25pts) · Grammar (20pts)" rows={2} style={{ ...inp, border: `1.5px solid ${UA.border}`, resize: "vertical" }} /></div>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: UA.textMuted, display: "block", marginBottom: 5 }}>Status</label>
-            <select value={form.status} onChange={e => set("status", e.target.value)} style={{ width: "100%", padding: "9px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none" }}>
+            {lbl("Status")}
+            <select value={form.status} onChange={e => set("status", e.target.value)} style={{ ...inp, border: `1.5px solid ${UA.border}`, background: "white" }}>
               <option value="not_started">Not Started</option>
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
@@ -4096,9 +4100,17 @@ function App() {
   const applyRoleRouting = (resolvedRole) => {
     setRole(resolvedRole);
     localStorage.setItem("cats_role", resolvedRole);
-    if (resolvedRole === "student") { setPage("dashboard"); setShowOnboarding(true); }
-    else if (resolvedRole === "admin") setPage("admin");
-    else setPage("roster");
+    if (resolvedRole === "student") {
+      setPage("dashboard");
+      setShowOnboarding(true);
+    } else if (resolvedRole === "admin") {
+      setPage("admin");
+    } else {
+      // Restore last visited page for staff, default to roster
+      const saved = localStorage.getItem("cats_page");
+      const validPages = ["dashboard", "roster", "entry", "session_notes", "settings", "admin", "risk"];
+      setPage(saved && validPages.includes(saved) ? saved : "roster");
+    }
   };
 
   const hydrateAuthenticatedState = async (user) => {
@@ -4244,9 +4256,16 @@ function App() {
   }, [assignments]);
 
   const navigate = (target, data) => {
-    if (target === "workmode") setWorkAssignment(data);
+    if (target === "workmode") {
+      // Attach the logged-in student's UUID so session logs save correctly
+      const studentUUID = role === "student"
+        ? (STUDENTS.find(s => s.email === sessionUser?.email)?.id || null)
+        : (data?.studentId || null);
+      setWorkAssignment(data ? { ...data, studentId: studentUUID } : data);
+    }
     if (target === "studentProfile") { setSelectedStudent(data); setPage("studentProfile"); return; }
     setPage(target);
+    localStorage.setItem("cats_page", target);
     window.scrollTo(0, 0);
   };
 
@@ -4277,7 +4296,8 @@ function App() {
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <WorkModePage
         assignment={workAssignment}
-        onBack={() => setPage("assignments")}
+        sessionUser={sessionUser}
+        onBack={() => setPage(role === "student" ? "dashboard" : "roster")}
         onSessionSaved={(data) => {
           if (data.understanding <= 2) pushNotification(`${currentUser.name} rated understanding ${data.understanding}/5 on "${data.title}" — may need support`, "⚠️");
         }}
