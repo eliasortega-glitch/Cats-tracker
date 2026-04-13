@@ -417,7 +417,7 @@ const NoteCard = ({ note }) => {
 
 async function callExtractSyllabus(text, courseCode, courseName, courseStart, courseEnd) {
   try {
-    // Send FULL text — Edge Function handles windowing
+    console.log("Calling extract-syllabus for:", courseCode, courseName);
     const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-syllabus`, {
       method: 'POST',
       headers: {
@@ -425,20 +425,27 @@ async function callExtractSyllabus(text, courseCode, courseName, courseStart, co
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        text, // <-- full text, no slice
-        courseCode,
-        courseName,
+        text,
+        courseCode: courseCode || "",
+        courseName: courseName || "",
         courseStart: courseStart || '2026-01-13',
         courseEnd: courseEnd || '2026-12-15',
       }),
     });
-    if (!response.ok) throw new Error(`Edge function error: ${response.status}`);
+    
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Edge function error (${response.status}): ${errText}`);
+    }
+    
     const data = await response.json();
-    console.log('Edge function result:', JSON.stringify(data, null, 2));
+    console.log('Edge function result:', data);
+    
     if (data.error) throw new Error(data.error);
     return data.assignments || [];
   } catch (e) {
-    console.warn('Extract edge function failed:', e.message);
+    console.error('Syllabus extraction failed:', e.message);
+    alert("Syllabus extraction failed: " + e.message);
     return null;
   }
 }
@@ -2037,23 +2044,47 @@ function SettingsPage({ role, currentUser = {} }) {
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: "", sport: "", year: "Freshman", email: "", counselor: "" });
   const [studentSaved, setStudentSaved] = useState(false);
+  const [editingCourses, setEditingCourses] = useState(null); // studentId
+  const [newCourse, setNewCourse] = useState({ code: "", name: "" });
 
-  const handleAddStudent = () => {
+  const handleAddStudent = async () => {
     if (!newStudent.name.trim() || !newStudent.sport.trim()) return;
     const initials = newStudent.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2);
     const student = {
-      id: Date.now(), name: newStudent.name, email: newStudent.email,
+      name: newStudent.name, email: newStudent.email,
       sport: newStudent.sport, initials, year: newStudent.year,
       gpa: 0, intakeRisk: "medium", dynamicRisk: "medium", riskScore: 50,
       lastSession: "Not yet", missedAssignments: 0, avgEffort: 0,
       avgUnderstanding: 0, totalHours: 0, counselor: newStudent.counselor || "TBD",
       courses: [], weeklyPlan: "", nextSession: "Not scheduled", schedule: [],
     };
-    setCaseload(prev => [...prev, student]);
+    
+    // Save to Supabase
+    const { data, error } = await supabase.from("students").insert(student).select().single();
+    if (!error && data) {
+      const normalized = normalizeStudentRecord(data);
+      setCaseload(prev => [...prev, normalized]);
+      STUDENTS.push(normalized);
+    } else {
+      // Fallback to local if DB fails
+      const localStudent = { ...student, id: Date.now() };
+      setCaseload(prev => [...prev, localStudent]);
+    }
+
     setNewStudent({ name: "", sport: "", year: "Freshman", email: "", counselor: "" });
     setShowAddStudent(false);
     setStudentSaved(true);
     setTimeout(() => setStudentSaved(false), 3000);
+  };
+
+  const handleUpdateCourses = async (studentId, courses) => {
+    setCaseload(prev => prev.map(s => s.id === studentId ? { ...s, courses } : s));
+    STUDENTS = STUDENTS.map(s => s.id === studentId ? { ...s, courses } : s);
+    
+    // Persist to Supabase if UUID
+    if (typeof studentId === "string" && studentId.includes("-")) {
+      await supabase.from("students").update({ courses }).eq("students", studentId);
+    }
   };
 
   const profileFields = isStaff
@@ -2159,16 +2190,55 @@ function SettingsPage({ role, currentUser = {} }) {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {caseload.map(s => (
-              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
-                <Avatar initials={s.initials} size={32} color={s.dynamicRisk === "high" ? UA.red : s.dynamicRisk === "medium" ? UA.yellow : UA.navy} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: UA.text }}>{s.name}</div>
-                  <div style={{ fontSize: 12, color: UA.textMuted }}>{s.sport} · {s.year}</div>
+              <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <Avatar initials={s.initials} size={32} color={s.dynamicRisk === "high" ? UA.red : s.dynamicRisk === "medium" ? UA.yellow : UA.navy} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: UA.text }}>{s.name}</div>
+                    <div style={{ fontSize: 12, color: UA.textMuted }}>{s.sport} · {s.year}</div>
+                  </div>
+                  <Btn size="sm" variant="outline" onClick={() => setEditingCourses(editingCourses === s.id ? null : s.id)}>
+                    {editingCourses === s.id ? "Close" : "Manage Classes"}
+                  </Btn>
+                  <button onClick={async () => {
+                    if (confirm(`Remove ${s.name} from caseload?`)) {
+                      setCaseload(prev => prev.filter(st => st.id !== s.id));
+                      if (typeof s.id === "string" && s.id.includes("-")) {
+                        await supabase.from("students").delete().eq("students", s.id);
+                      }
+                    }
+                  }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: UA.textMuted, fontSize: 16, padding: "2px 6px", borderRadius: 4 }}
+                    title="Remove from caseload">✕</button>
                 </div>
-                <RiskBadge level={s.dynamicRisk} />
-                <button onClick={() => setCaseload(prev => prev.filter(st => st.id !== s.id))}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: UA.textMuted, fontSize: 16, padding: "2px 6px", borderRadius: 4 }}
-                  title="Remove from caseload">✕</button>
+                
+                {editingCourses === s.id && (
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${UA.border}` }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: UA.textMuted, marginBottom: 8, textTransform: "uppercase" }}>Enrolled Classes</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                      {s.courses.length === 0 && <div style={{ fontSize: 12, color: UA.textMuted, fontStyle: "italic" }}>No classes added yet.</div>}
+                      {s.courses.map((c, idx) => (
+                        <div key={idx} style={{ background: "white", border: `1px solid ${UA.border}`, borderRadius: 6, padding: "4px 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: UA.navy }}>{c.code || c.courseCode}</span>
+                          <span style={{ fontSize: 12, color: UA.textSecondary }}>{c.name || c.courseName}</span>
+                          <button onClick={() => handleUpdateCourses(s.id, s.courses.filter((_, i) => i !== idx))}
+                            style={{ border: "none", background: "none", color: UA.red, cursor: "pointer", fontSize: 14, padding: 0 }}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input placeholder="Code (e.g. SPAN201)" value={newCourse.code} onChange={e => setNewCourse(p => ({...p, code: e.target.value}))}
+                        style={{ flex: 1, padding: "6px 10px", borderRadius: 6, border: `1px solid ${UA.border}`, fontSize: 12, outline: "none" }} />
+                      <input placeholder="Name (e.g. Spanish III)" value={newCourse.name} onChange={e => setNewCourse(p => ({...p, name: e.target.value}))}
+                        style={{ flex: 2, padding: "6px 10px", borderRadius: 6, border: `1px solid ${UA.border}`, fontSize: 12, outline: "none" }} />
+                      <Btn size="sm" onClick={() => {
+                        if (!newCourse.code.trim()) return;
+                        handleUpdateCourses(s.id, [...s.courses, { code: newCourse.code, name: newCourse.name }]);
+                        setNewCourse({ code: "", name: "" });
+                      }}>Add</Btn>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -3342,13 +3412,18 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
             <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 80px 32px", gap: 8, marginBottom: 8 }}>
               <input value={row.title} onChange={e => updateRow(i, "title", e.target.value)} placeholder="Assignment title..."
                 style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none" }}
-                onFocus={e => e.target.style.borderColor = UA.navy} onBlur={e => e.target.style.borderColor = UA.border} />
-              <select value={row.courseCode} onChange={e => updateRow(i, "courseCode", e.target.value)}
-                style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: "white" }}>
-                <option value="">Course...</option>
-                {(student?.courses || []).map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-              </select>
-              <input type="date" value={row.dueDate} onChange={e => updateRow(i, "dueDate", e.target.value)}
+                onFocus={e => e.target.style.borderColor = UA.navy} onBlur={e => e.target.style.borderColo                  <select value={courseCode} onChange={e => {
+                    const code = e.target.value;
+                    setCourseCode(code);
+                    const course = selectedStudent?.courses?.find(c => (c.code || c.courseCode) === code);
+                    if (course) setCourseName(course.name || course.courseName);
+                  }}
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: "white" }}>
+                    <option value="">Select a course...</option>
+                    {selectedStudent?.courses?.map((c, idx) => (
+                      <option key={idx} value={c.code || c.courseCode}>{(c.code || c.courseCode)} - {(c.name || c.courseName)}</option>
+                    ))}
+                  </select> updateRow(i, "dueDate", e.target.value)}
                 style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none" }} />
               <input type="number" value={row.points} onChange={e => updateRow(i, "points", e.target.value)} placeholder="pts"
                 style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none" }} />
@@ -3984,10 +4059,20 @@ function OnboardingModal({ onDone }) {
 // --- MAIN APP -----------------------------------------------------------------
 function App() {
   const [role, setRole] = useState(null);
-  const [page, setPage] = useState(() => localStorage.getItem("cats_page") || "dashboard");
+  const [page, setPage] = useState(() => {
+    const saved = localStorage.getItem("cats_page");
+    if (saved) return saved;
+    const role = localStorage.getItem("cats_role");
+    if (role === "student") return "dashboard";
+    if (role === "admin") return "admin";
+    return "roster";
+  });
   const [collapsed, setCollapsed] = useState(false);
   const [workAssignment, setWorkAssignment] = useState(null);
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(() => {
+    const saved = localStorage.getItem("cats_selected_student");
+    try { return saved ? JSON.parse(saved) : null; } catch { return null; }
+  });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [notifications, setNotifications] = useState([
     { id: 1, icon: "⚠️", message: "Alex Rivera's risk score moved to High — 2 missing assignments", time: "2 hours ago", read: false },
@@ -4007,9 +4092,15 @@ function App() {
   const applyRoleRouting = (resolvedRole) => {
     setRole(resolvedRole);
     localStorage.setItem("cats_role", resolvedRole);
-    if (resolvedRole === "student") { setPage("dashboard"); setShowOnboarding(true); }
-    else if (resolvedRole === "admin") setPage("admin");
-    else setPage("roster");
+    
+    // Only route if no saved page exists
+    if (!localStorage.getItem("cats_page")) {
+      let target = "roster";
+      if (resolvedRole === "student") { target = "dashboard"; setShowOnboarding(true); }
+      else if (resolvedRole === "admin") target = "admin";
+      setPage(target);
+      localStorage.setItem("cats_page", target);
+    }
   };
 
   const hydrateAuthenticatedState = async (user) => {
@@ -4155,9 +4246,19 @@ function App() {
   }, [assignments]);
 
   const navigate = (target, data) => {
-    if (target === "workmode") setWorkAssignment(data);
-    if (target === "studentProfile") { setSelectedStudent(data); setPage("studentProfile"); return; }
-    setPage(target);
+    if (target === "workmode") {
+      setWorkAssignment(data);
+      setPage("workmode");
+      localStorage.setItem("cats_page", "workmode");
+    } else if (target === "studentProfile") {
+      setSelectedStudent(data);
+      setPage("studentProfile");
+      localStorage.setItem("cats_page", "studentProfile");
+      localStorage.setItem("cats_selected_student", JSON.stringify(data));
+    } else {
+      setPage(target);
+      localStorage.setItem("cats_page", target);
+    }
     window.scrollTo(0, 0);
   };
 
