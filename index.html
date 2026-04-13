@@ -859,9 +859,8 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
   const minutesSpent = Math.max(1, Math.round(time / 60));
 
-  // CHANGED: Removed direct Anthropic API call from frontend.
-  // Now calls /api/ai-breakdown on the backend which holds the API key securely.
-  // Frontend only sends assignment data and the selected prompt — no API key ever touches the browser.
+  // Calls Supabase Edge Function which calls Claude API server-side.
+  // Same pattern as syllabus extraction — no API key in the browser.
   const handleBreakdown = async (promptId) => {
     const prompt = GUIDED_PROMPTS.find(p => p.id === promptId);
     if (!prompt) return;
@@ -869,11 +868,13 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
     setIsLoadingBreakdown(p => ({ ...p, [promptId]: true }));
 
     try {
-      const response = await fetch("/api/ai-breakdown", {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
         body: JSON.stringify({
-          // Assignment context
           assignment: {
             title: a.title,
             course: a.course,
@@ -884,7 +885,6 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             instructions: a.instructions || "",
             rubric: a.rubric || "",
           },
-          // The specific guided prompt being expanded
           prompt: {
             id: prompt.id,
             question: prompt.question,
@@ -897,13 +897,14 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
 
       if (data?.text) {
         setAiBreakdownText(p => ({ ...p, [promptId]: data.text }));
+      } else if (data?.error) {
+        throw new Error(data.error);
       } else {
-        // Fallback if backend returns empty
         setAiBreakdownText(p => ({ ...p, [promptId]: "I wasn't able to generate guidance right now. Re-read the instructions carefully and note the key action words — then bring your questions to your learning specialist." }));
       }
     } catch (err) {
-      // Fallback if backend call fails entirely
-      setAiBreakdownText(p => ({ ...p, [promptId]: "Guidance is unavailable right now. In the meantime, re-read the assignment instructions slowly and write down anything that's unclear to discuss with your learning specialist." }));
+      console.warn("AI breakdown failed:", err.message);
+      setAiBreakdownText(p => ({ ...p, [promptId]: "Guidance is unavailable right now. Re-read the assignment instructions slowly and write down anything that's unclear to discuss with your learning specialist." }));
     }
 
     setIsLoadingBreakdown(p => ({ ...p, [promptId]: false }));
