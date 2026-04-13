@@ -415,48 +415,30 @@ const NoteCard = ({ note }) => {
 
 // --- SUPABASE AUTH PAGE ---------------------------------------------------------
 
-async function callExtractSyllabus(text, courseCode, courseName) {
+async function callExtractSyllabus(text, courseCode, courseName, courseStart, courseEnd) {
   try {
-    // Sanitize and clean PDF extraction artifacts
-    const sanitized = text
-      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ")
-      .replace(/[^\x20-\x7E\n\r\t]/g, " ")
-      // Fix broken words from PDF extraction (e.g. "A PRIL" → "APRIL", "Qui z" → "Quiz")
-      .replace(/([A-Z])\s([A-Z]{2,})/g, "$1$2")
-      .replace(/([A-Za-z])\s([a-z]{1,2})\s/g, "$1$2 ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    // Find the schedule/deadline section — due dates are usually after "schedule" or "unit"
-    const lowerSanitized = sanitized.toLowerCase();
-    let startIdx = 0;
-    const markers = ["reading and assignment schedule", "unit one", "unit 1", "week 1 ", "due dates", "assignment schedule"];
-    for (const kw of markers) {
-      const idx = lowerSanitized.indexOf(kw);
-      if (idx > 0) { startIdx = Math.max(0, idx - 50); break; }
-    }
-    // Send up to 4000 chars from where the schedule starts
-    const truncated = sanitized.slice(startIdx, startIdx + 4000);
-
-    console.log("Calling extract-syllabus edge function, text length:", truncated.length);
-
+    // Send FULL text — Edge Function handles windowing
     const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-syllabus`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ text: truncated, courseCode: courseCode || "", courseName: courseName || "" }),
+      body: JSON.stringify({
+        text, // <-- full text, no slice
+        courseCode,
+        courseName,
+        courseStart: courseStart || '2026-01-13',
+        courseEnd: courseEnd || '2026-12-15',
+      }),
     });
-
-    console.log("Edge function response status:", response.status);
     if (!response.ok) throw new Error(`Edge function error: ${response.status}`);
     const data = await response.json();
-    console.log("Edge function result:", data);
+    console.log('Edge function result:', JSON.stringify(data, null, 2));
     if (data.error) throw new Error(data.error);
     return data.assignments || [];
   } catch (e) {
-    console.warn("Extract edge function failed:", e.message);
+    console.warn('Extract edge function failed:', e.message);
     return null;
   }
 }
@@ -4002,7 +3984,7 @@ function OnboardingModal({ onDone }) {
 // --- MAIN APP -----------------------------------------------------------------
 function App() {
   const [role, setRole] = useState(null);
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState(() => localStorage.getItem("cats_page") || "dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [workAssignment, setWorkAssignment] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -4252,7 +4234,7 @@ function App() {
     if (page === "admin") return <AdminPage key={`admin-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "roster") return <RosterPage key={`roster-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "studentProfile" && selectedStudent) return (
-      <StudentProfile key={`student-profile-${selectedStudent.id}-${dataVersion}`} student={selectedStudent} onBack={() => setPage("roster")} onExportReport={(student, notes) => exportStudentReport(student, notes, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} currentUserName={currentUser.name} />
+      <StudentProfile key={`student-profile-${selectedStudent.id}-${dataVersion}`} student={selectedStudent} onBack={() => setPage("roster")} onExportReport={(student, notes) => exportStudentReport(student, notes, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} currentUserName={profile?.full_name || "Staff"} />
     );
     if (page === "entryhub") return <EntryHubPage key={`entryhub-${dataVersion}`} onAddAssignment={addAssignment} sessionUser={sessionUser} role={role} students={STUDENTS} />;
     if (page === "analytics" && role !== "student") return <ProgressReportPage key={`analytics-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
@@ -4264,15 +4246,15 @@ function App() {
       setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
       await updateAssignmentStatus(id, status);
     }} />;
-    if (page === "dashboard" && role !== "student") return <StaffDashboard key={`dashboard-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={currentUser.name} />;
+    if (page === "dashboard" && role !== "student") return <StaffDashboard key={`dashboard-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={profile?.full_name || "Staff"} />;
     // Student can access their own profile
     if (page === "myprofile" && role === "student") {
       const myStudent = STUDENTS.find(s => s.email === sessionUser?.email) || STUDENTS[0];
       return <StudentProfile key={`my-profile-${dataVersion}`} student={myStudent} onBack={() => setPage("dashboard")} onExportReport={(s, n) => exportStudentReport(s, n, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} />;
     }
     return role === "student"
-      ? <StudentDashboard onNavigate={navigate} assignments={assignments} user={currentUser} onViewProfile={() => setPage("myprofile")} />
-      : <StaffDashboard key={`staff-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={currentUser.name} />;
+      ? <StudentDashboard onNavigate={navigate} assignments={assignments} user={sessionUser} onViewProfile={() => setPage("myprofile")} />
+      : <StaffDashboard key={`staff-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={profile?.full_name || "Staff"} />;
   };
 
   const mobileNav = role === "student"
@@ -4284,7 +4266,7 @@ function App() {
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#F8F9FB", minHeight: "100vh", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
       {showOnboarding && <OnboardingModal onDone={() => setShowOnboarding(false)} />}
-      {!isMobile && <Sidebar role={role} activePage={page} onNavigate={p => setPage(p)} user={currentUser} onLogout={async () => { await signOutUser(); localStorage.removeItem("cats_role"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} collapsed={collapsed} setCollapsed={setCollapsed} />}
+      {!isMobile && <Sidebar role={role} activePage={page} onNavigate={p => { setPage(p); localStorage.setItem("cats_page", p); }} user={sessionUser} onLogout={async () => { await signOutUser(); localStorage.removeItem("cats_role"); localStorage.removeItem("cats_page"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} collapsed={collapsed} setCollapsed={setCollapsed} />}
       <div style={{ flex: 1, overflow: "auto", paddingBottom: isMobile ? 64 : 0 }}>
         <div style={{ height: isMobile ? 56 : 52, borderBottom: "1px solid #E8EAF0", background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "space-between", padding: isMobile ? "0 14px" : "0 18px", position: "sticky", top: 0, zIndex: 5 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -4296,7 +4278,7 @@ function App() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 12, color: UA.textMuted, padding: "6px 10px", borderRadius: 999, background: UA.bg, border: `1px solid ${UA.border}` }}>{sessionUser.email}</div>
-            <button onClick={async () => { await signOutUser(); localStorage.removeItem("cats_role"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, color: UA.textSecondary }}>Sign out</button>
+            <button onClick={async () => { await signOutUser(); localStorage.removeItem("cats_role"); localStorage.removeItem("cats_page"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, color: UA.textSecondary }}>Sign out</button>
           </div>
         </div>
         {backendBanner}
