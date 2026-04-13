@@ -3139,7 +3139,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
     const text = syllabusText;
 
     // Try Edge Function first
-    const edgeResult = await callExtractSyllabus(text, syllabusCode, syllabusCourseName);
+    const edgeResult = await callExtractSyllabus(text, syllabusCode, syllabusCourseName, "2026-01-13", "2026-12-15");
     if (edgeResult && edgeResult.length > 0) {
       const sel = {};
       edgeResult.forEach((_, i) => sel[i] = true);
@@ -3412,18 +3412,15 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
             <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 80px 32px", gap: 8, marginBottom: 8 }}>
               <input value={row.title} onChange={e => updateRow(i, "title", e.target.value)} placeholder="Assignment title..."
                 style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none" }}
-                onFocus={e => e.target.style.borderColor = UA.navy} onBlur={e => e.target.style.borderColo                  <select value={courseCode} onChange={e => {
-                    const code = e.target.value;
-                    setCourseCode(code);
-                    const course = selectedStudent?.courses?.find(c => (c.code || c.courseCode) === code);
-                    if (course) setCourseName(course.name || course.courseName);
-                  }}
-                    style={{ width: "100%", padding: "10px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: "white" }}>
-                    <option value="">Select a course...</option>
-                    {selectedStudent?.courses?.map((c, idx) => (
-                      <option key={idx} value={c.code || c.courseCode}>{(c.code || c.courseCode)} - {(c.name || c.courseName)}</option>
-                    ))}
-                  </select> updateRow(i, "dueDate", e.target.value)}
+                onFocus={e => e.target.style.borderColor = UA.navy} onBlur={e => e.target.style.borderColor = UA.border} />
+              <select value={row.courseCode} onChange={e => updateRow(i, "courseCode", e.target.value)}
+                style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: "white" }}>
+                <option value="">Course...</option>
+                {selectedStudent?.courses?.map((c, idx) => (
+                  <option key={idx} value={c.code || c.courseCode}>{c.code || c.courseCode}</option>
+                ))}
+              </select>
+              <input type="date" value={row.dueDate} onChange={e => updateRow(i, "dueDate", e.target.value)}
                 style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none" }} />
               <input type="number" value={row.points} onChange={e => updateRow(i, "points", e.target.value)} placeholder="pts"
                 style={{ padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none" }} />
