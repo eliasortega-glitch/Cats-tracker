@@ -198,17 +198,7 @@ async function fetchDocumentsForStudent(studentId) {
   return data || [];
 }
 
-// Save a staff note to Supabase
-// Requires staff_notes table — run this SQL in Supabase SQL Editor:
-// create table public.staff_notes (
-//   id uuid primary key default gen_random_uuid(),
-//   student_id uuid references public.students(students),
-//   author text, author_initials text, date text, category text, text text,
-//   created_at timestamptz default now(), created_by uuid references auth.users(id)
-// );
-// alter table public.staff_notes enable row level security;
-// create policy "Auth read notes" on public.staff_notes for select using (auth.role() = 'authenticated');
-// create policy "Auth insert notes" on public.staff_notes for insert with check (auth.role() = 'authenticated');
+
 async function insertStaffNote(note, studentId, userId) {
   const { data, error } = await supabase.from("staff_notes").insert({
     student_id: studentId,
@@ -233,12 +223,8 @@ async function fetchStaffNotes(studentId) {
     .order("created_at", { ascending: false });
   if (error) { console.warn("Staff notes fetch failed:", error.message); return null; }
   return (data || []).map(n => ({
-    id: n.id,
-    author: n.author,
-    authorInitials: n.author_initials,
-    date: n.date,
-    category: n.category,
-    text: n.text,
+    id: n.id, author: n.author, authorInitials: n.author_initials,
+    date: n.date, category: n.category, text: n.text,
   }));
 }
 
@@ -860,8 +846,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
   const minutesSpent = Math.max(1, Math.round(time / 60));
 
-  // Calls Supabase Edge Function which calls Claude API server-side.
-  // Same pattern as syllabus extraction — no API key in the browser.
+  // Calls Supabase Edge Function ai-breakdown which calls Claude API server-side
   const handleBreakdown = async (promptId) => {
     const prompt = GUIDED_PROMPTS.find(p => p.id === promptId);
     if (!prompt) return;
@@ -1096,7 +1081,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             clearInterval(timerRef.current);
             const logData = {
               studentId: a.studentId || null,
-              assignmentId: typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-") && !a.id.startsWith("quick-") && !a.id.startsWith("ext-") && !a.id.startsWith("doc-") ? a.id : null,
+              assignmentId: typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-") && !a.id.startsWith("quick-") && !a.id.startsWith("ext-") && !a.id.startsWith("doc-") && !a.id.startsWith("extracted-") ? a.id : null,
               assignmentTitle: a.title,
               courseCode: a.courseCode || "",
               effort,
@@ -1629,9 +1614,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
     const loadNotes = async () => {
       setNotesLoading(true);
       const liveNotes = await fetchStaffNotes(student.id);
-      if (liveNotes !== null) {
-        setNotes(liveNotes);
-      }
+      if (liveNotes !== null) setNotes(liveNotes);
       setNotesLoading(false);
     };
     loadNotes();
@@ -1660,23 +1643,14 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
       category: noteCategory,
       text: newNote,
     };
-    // Optimistically update UI
     setNotes(prev => [note, ...prev]);
     setNewNote("");
     setNoteSaved(true);
     setTimeout(() => setNoteSaved(false), 3000);
-    // Save to Supabase
     const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
     if (isRealUUID) {
       const saved = await insertStaffNote(note, student.id, sessionUser?.id);
-      if (saved) {
-        // Replace temp id with real Supabase id
-        setNotes(prev => prev.map(n => n.id === note.id ? { ...n, id: saved.id } : n));
-      } else {
-        console.warn("Note saved locally only — Supabase insert failed. Make sure the staff_notes table exists.");
-      }
-    } else {
-      console.warn("Note saved locally only — student has no real Supabase UUID.");
+      if (saved) setNotes(prev => prev.map(n => n.id === note.id ? { ...n, id: saved.id } : n));
     }
   };
 
@@ -1880,9 +1854,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 13 }}>Loading notes...</div>
             ) : notes.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted }}><div style={{ fontSize: 32, marginBottom: 8 }}>📝</div><div style={{ fontSize: 14, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No notes yet</div><div style={{ fontSize: 13 }}>Add a session note above after meeting with this student.</div></div>
-            ) : (
-              notes.map(note => <NoteCard key={note.id} note={note} />)
-            )}
+            ) : notes.map(note => <NoteCard key={note.id} note={note} />)}
           </div>
         </div>
       )}
@@ -4106,9 +4078,8 @@ function App() {
     } else if (resolvedRole === "admin") {
       setPage("admin");
     } else {
-      // Restore last visited page for staff, default to roster
       const saved = localStorage.getItem("cats_page");
-      const validPages = ["dashboard", "roster", "entry", "session_notes", "settings", "admin", "risk"];
+      const validPages = ["dashboard", "roster", "entryhub", "notes", "settings", "admin", "risk", "analytics"];
       setPage(saved && validPages.includes(saved) ? saved : "roster");
     }
   };
@@ -4257,7 +4228,6 @@ function App() {
 
   const navigate = (target, data) => {
     if (target === "workmode") {
-      // Attach the logged-in student's UUID so session logs save correctly
       const studentUUID = role === "student"
         ? (STUDENTS.find(s => s.email === sessionUser?.email)?.id || null)
         : (data?.studentId || null);
