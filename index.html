@@ -852,7 +852,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
     if (!prompt) return;
     setIsLoadingBreakdown(p => ({ ...p, [promptId]: true }));
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
