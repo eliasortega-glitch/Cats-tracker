@@ -228,6 +228,39 @@ async function fetchStaffNotes(studentId) {
 }
 
 
+async function updateAssignmentInDB(id, updates) {
+  const { data, error } = await supabase
+    .from("assignments")
+    .update({
+      title: updates.title,
+      course: updates.course || "",
+      course_code: updates.courseCode || "",
+      due_date: updates.dueDate instanceof Date ? updates.dueDate.toISOString().split("T")[0] : updates.dueDate || null,
+      points: updates.points || 0,
+      description: updates.description || "",
+      instructions: updates.instructions || "",
+      rubric: updates.rubric || "",
+    })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) { console.warn("Assignment update failed:", error.message); return null; }
+  return data;
+}
+
+async function deleteAssignmentFromDB(id) {
+  const { error } = await supabase.from("assignments").delete().eq("id", id);
+  if (error) { console.warn("Assignment delete failed:", error.message); return false; }
+  return true;
+}
+
+async function deleteStaffNote(id) {
+  const { error } = await supabase.from("staff_notes").delete().eq("id", id);
+  if (error) { console.warn("Note delete failed:", error.message); return false; }
+  return true;
+}
+
+
 async function insertAssignment(a, studentId, userId) {
   const { data, error } = await supabase
     .from("assignments")
@@ -420,7 +453,7 @@ const SectionTitle = ({ children, sub }) => (
   </div>
 );
 
-const NoteCard = ({ note }) => {
+const NoteCard = ({ note, onDelete }) => {
   const catColors = {
     "Session Note": { bg: UA.navyLight, color: UA.navy, border: UA.navyBorder },
     "Concern Flag": { bg: UA.redLight, color: UA.red, border: UA.redBorder },
@@ -438,7 +471,13 @@ const NoteCard = ({ note }) => {
             <div style={{ fontSize: 11, color: UA.textMuted }}>{note.date}</div>
           </div>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{note.category}</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{note.category}</span>
+          {onDelete && (
+            <button onClick={() => { if (window.confirm("Delete this note?")) onDelete(note.id); }}
+              style={{ padding: "3px 8px", borderRadius: UA.radiusSm, border: `1px solid ${UA.redBorder}`, background: UA.redLight, color: UA.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
+          )}
+        </div>
       </div>
       <p style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.7, margin: 0 }}>{note.text}</p>
     </div>
@@ -674,15 +713,19 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
         ))}
       </div>
 
-      {/* Intervention alert */}
-      <div style={{ background: UA.redLight, border: `1px solid ${UA.redBorder}`, borderRadius: UA.radius, padding: "16px 20px", display: "flex", gap: 14, alignItems: "flex-start" }}>
-        <span style={{ fontSize: 20 }}>⚠️</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, color: UA.red, fontSize: 14, marginBottom: 3 }}>Heads up — action needed</div>
-          <div style={{ fontSize: 13, color: UA.redDark, lineHeight: 1.5 }}>You have 1 missing assignment and 2 due within 48 hours. Your learning specialist has been notified. Consider scheduling a session.</div>
+      {/* Dynamic intervention alert — only shows when there are real urgent items */}
+      {assignments.filter(a => a.status !== "completed" && a.urgency === "red").length > 0 && (
+        <div style={{ background: UA.redLight, border: `1px solid ${UA.redBorder}`, borderRadius: UA.radius, padding: "16px 20px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+          <span style={{ fontSize: 20 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, color: UA.red, fontSize: 14, marginBottom: 3 }}>Heads up — action needed</div>
+            <div style={{ fontSize: 13, color: UA.redDark, lineHeight: 1.5 }}>
+              You have {assignments.filter(a => a.status !== "completed" && a.urgency === "red").length} assignment{assignments.filter(a => a.status !== "completed" && a.urgency === "red").length !== 1 ? "s" : ""} due very soon. Consider scheduling a session with your learning specialist.
+            </div>
+          </div>
+          <Btn size="sm" variant="outline" onClick={() => onNavigate("assignments")}>View →</Btn>
         </div>
-        <Btn size="sm" variant="outline" onClick={() => onNavigate("assignments")}>View →</Btn>
-      </div>
+      )}
 
       {/* This week's assignments */}
       <Card style={{ padding: "22px 24px" }}>
@@ -699,7 +742,7 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
               <UrgencyBar urgency={a.urgency} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: UA.text }}>{a.title}</div>
-                <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · Due {a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+                <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "")}</div>
               </div>
               <StatusBadge status={a.status} />
               <Btn size="sm" variant="secondary" onClick={e => { e.stopPropagation(); onNavigate("workmode", a); }}>Work on this</Btn>
@@ -728,10 +771,11 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
 }
 
 // --- ASSIGNMENTS PAGE ----------------------------------------------------------
-function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignment, onUpdateStatus }) {
+function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignment, onUpdateStatus, onEditAssignment, onDeleteAssignment }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState(null);
   const filtered = assignments.filter(a =>
     (a.title + a.course).toLowerCase().includes(search.toLowerCase()) &&
     (filterStatus === "all" || a.status === filterStatus)
@@ -752,6 +796,7 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
       {showAddModal && <AddAssignmentModal onClose={() => setShowAddModal(false)} onAdd={a => { onAddAssignment && onAddAssignment(a); setShowAddModal(false); }} />}
+      {editingAssignment && <EditAssignmentModal assignment={editingAssignment} onClose={() => setEditingAssignment(null)} onSave={updated => { onEditAssignment && onEditAssignment(updated); setEditingAssignment(null); }} />}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <SectionTitle>Assignments</SectionTitle>
         <Btn onClick={() => setShowAddModal(true)}>+ Add Assignment</Btn>
@@ -788,7 +833,7 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
                   <UrgencyBar urgency={a.urgency} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: UA.text }}>{a.title}</div>
-                    <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.points} pts · Due {a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+                    <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.points} pts · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "")}</div>
                   </div>
                   <StatusBadge status={a.status} />
                   {a.status !== "completed" && (
@@ -804,6 +849,14 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
                     </button>
                   )}
                   <Btn size="sm" variant="outline" onClick={e => { e.stopPropagation(); onNavigate("workmode", a); }}>Open →</Btn>
+                  <button onClick={e => { e.stopPropagation(); setEditingAssignment(a); }}
+                    style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                    ✏️
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); if (window.confirm("Delete this assignment?")) { onDeleteAssignment && onDeleteAssignment(a.id); } }}
+                    style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.redBorder}`, background: UA.redLight, color: UA.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                    🗑
+                  </button>
                 </div>
               ))}
             </div>
@@ -904,7 +957,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: a.urgency === "red" ? UA.red : a.urgency === "yellow" ? UA.yellow : UA.green }} />
           <div>
             <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>{a.title}</div>
-            <div style={{ fontSize: 12, color: UA.textMuted }}>{a.course} · {a.points} pts · Due {a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+            <div style={{ fontSize: 12, color: UA.textMuted }}>{a.course} · {a.points} pts · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : String(a.dueDate || "")}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1561,6 +1614,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   const [planSaved, setPlanSaved] = useState(false);
   const [localAssignments, setLocalAssignments] = useState([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(true);
+  const [editingAssignment, setEditingAssignment] = useState(null);
 
   // Load this student's real assignments from Supabase
   useEffect(() => {
@@ -1637,6 +1691,10 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+      {editingAssignment && <EditAssignmentModal assignment={editingAssignment} onClose={() => setEditingAssignment(null)} onSave={updated => {
+        setLocalAssignments(prev => prev.map(a => a.id === updated.id ? updated : a));
+        setEditingAssignment(null);
+      }} />}
       {/* Back + header */}
       <div>
         <button onClick={onBack} style={{ fontSize: 13, color: UA.textMuted, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginBottom: 12, display: "flex", alignItems: "center", gap: 6, padding: 0 }}>← Back to Roster</button>
@@ -1748,6 +1806,14 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                     <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.courseCode} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate}</div>
                   </div>
                   <StatusBadge status={a.status} />
+                  <button onClick={() => setEditingAssignment(a)}
+                    style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✏️</button>
+                  <button onClick={async () => { if (window.confirm("Delete this assignment?")) {
+                    setLocalAssignments(prev => prev.filter(x => x.id !== a.id));
+                    const isRealUUID = typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-");
+                    if (isRealUUID) await deleteAssignmentFromDB(a.id);
+                  }}}
+                    style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.redBorder}`, background: UA.redLight, color: UA.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
                 </div>
               ))}
             {localAssignments.filter(a => selectedCourse === "all" || a.courseCode === selectedCourse).length === 0 && (
@@ -1835,7 +1901,11 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 13 }}>Loading notes...</div>
             ) : notes.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted }}><div style={{ fontSize: 32, marginBottom: 8 }}>📝</div><div style={{ fontSize: 14, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No notes yet</div><div style={{ fontSize: 13 }}>Add a session note above after meeting with this student.</div></div>
-            ) : notes.map(note => <NoteCard key={note.id} note={note} />)}
+            ) : notes.map(note => <NoteCard key={note.id} note={note} onDelete={async (noteId) => {
+              setNotes(prev => prev.filter(n => n.id !== noteId));
+              const isRealUUID = typeof noteId === "string" && noteId.includes("-") && !noteId.toString().startsWith("1");
+              if (isRealUUID) await deleteStaffNote(noteId);
+            }} />)}
           </div>
         </div>
       )}
@@ -2102,7 +2172,7 @@ function SettingsPage({ role, currentUser = {} }) {
 
   const profileFields = isStaff
     ? [["Full Name", currentUser?.name || "—"], ["Email", currentUser?.email || "—"], ["Title", "Learning Specialist"], ["Department", "CATS Academics"], ["University", "University of Arizona"]]
-    : [["Full Name", "Alex Rivera"], ["Email", "a.rivera@arizona.edu"], ["Sport", "Track & Field"], ["Academic Year", "Sophomore"]];
+    : [["Full Name", currentUser?.name || "—"], ["Email", currentUser?.email || "—"], ["Sport", "—"], ["Academic Year", "—"]];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 620 }}>
@@ -2516,7 +2586,7 @@ function AdminPage({ onSelectStudent }) {
 // --- RISK MARKERS PAGE --------------------------------------------------------
 // Standalone page with student selector + ability to add custom staff markers
 function RiskMarkersPage({ onSelectStudent }) {
-  const [selectedId, setSelectedId] = useState(STUDENTS[0].id);
+  const [selectedId, setSelectedId] = useState(STUDENTS[0]?.id || null);
   const [customMarkers, setCustomMarkers] = useState({
     1: [{ id: 1, author: "Dr. Martinez", date: "Mar 10, 2026", category: "Academic", text: "Reading comprehension deficit noted — ACT reading sub-score 17. Recommend extended time accommodation.", severity: "high" }],
     3: [{ id: 1, author: "Dr. Chen", date: "Feb 15, 2026", category: "Engagement", text: "Chronic avoidance pattern. Cancels sessions frequently. Needs structured accountability check-ins.", severity: "high" }],
@@ -2995,6 +3065,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
             "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({ icsUrl: icsUrl.trim() }),
@@ -3514,7 +3585,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
 // --- PROGRESS REPORT PAGE -----------------------------------------------------
 // Staff selects a student + date range and gets a compiled visual report
 function ProgressReportPage({ onSelectStudent }) {
-  const [selectedId, setSelectedId] = useState(STUDENTS[0].id);
+  const [selectedId, setSelectedId] = useState(STUDENTS[0]?.id || null);
   const [dateRange, setDateRange] = useState("semester");
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -3828,6 +3899,71 @@ function NotificationBell({ notifications, onClear }) {
   );
 }
 
+
+// --- EDIT ASSIGNMENT MODAL ---------------------------------------------------
+function EditAssignmentModal({ assignment, onClose, onSave }) {
+  const [form, setForm] = useState({
+    title: assignment.title || "",
+    course: assignment.course || "",
+    courseCode: assignment.courseCode || "",
+    dueDate: assignment.dueDate instanceof Date ? assignment.dueDate.toISOString().split("T")[0] : assignment.dueDate || "",
+    points: String(assignment.points || ""),
+    description: assignment.description || "",
+    instructions: assignment.instructions || "",
+    rubric: assignment.rubric || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const inp = { fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", width: "100%", padding: "9px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}` };
+
+  const handleSave = async () => {
+    if (!form.title.trim()) return;
+    setSaving(true);
+    const updated = {
+      ...assignment,
+      ...form,
+      points: parseInt(form.points) || 0,
+      dueDate: form.dueDate ? new Date(form.dueDate) : assignment.dueDate,
+    };
+    const isRealUUID = typeof assignment.id === "string" && assignment.id.includes("-") && !assignment.id.startsWith("temp-");
+    if (isRealUUID) {
+      await updateAssignmentInDB(assignment.id, updated);
+    }
+    onSave(updated);
+    setSaving(false);
+    onClose();
+  };
+
+  const lbl = (text) => <label style={{ fontSize: 12, fontWeight: 700, color: UA.textMuted, display: "block", marginBottom: 5 }}>{text}</label>;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "white", borderRadius: UA.radius, width: "100%", maxWidth: 560, maxHeight: "90vh", overflow: "auto", boxShadow: UA.shadowMd }}>
+        <div style={{ padding: "20px 24px", borderBottom: `1px solid ${UA.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "white", zIndex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>Edit Assignment</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: UA.textMuted }}>✕</button>
+        </div>
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>{lbl("Title *")}<input value={form.title} onChange={e => set("title", e.target.value)} style={inp} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>{lbl("Course")}<input value={form.course} onChange={e => set("course", e.target.value)} style={inp} /></div>
+            <div>{lbl("Course Code")}<input value={form.courseCode} onChange={e => set("courseCode", e.target.value)} style={inp} /></div>
+            <div>{lbl("Due Date")}<input type="date" value={form.dueDate} onChange={e => set("dueDate", e.target.value)} style={inp} /></div>
+            <div>{lbl("Points")}<input type="number" value={form.points} onChange={e => set("points", e.target.value)} style={inp} /></div>
+          </div>
+          <div>{lbl("Description")}<textarea value={form.description} onChange={e => set("description", e.target.value)} rows={2} style={{ ...inp, resize: "vertical" }} /></div>
+          <div>{lbl("Instructions")}<textarea value={form.instructions} onChange={e => set("instructions", e.target.value)} rows={3} style={{ ...inp, resize: "vertical" }} /></div>
+          <div>{lbl("Rubric")}<textarea value={form.rubric} onChange={e => set("rubric", e.target.value)} rows={2} style={{ ...inp, resize: "vertical" }} /></div>
+          <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+            <Btn variant="outline" fullWidth onClick={onClose}>Cancel</Btn>
+            <Btn fullWidth disabled={saving || !form.title.trim()} onClick={handleSave}>{saving ? "Saving..." : "Save Changes"}</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- ADD ASSIGNMENT MODAL -----------------------------------------------------
 // Manual assignment entry form — used until D2L sync is live.
 function AddAssignmentModal({ onClose, onAdd }) {
@@ -3998,6 +4134,7 @@ const ONBOARDING_STEPS = [
 
 function OnboardingModal({ onDone }) {
   const [step, setStep] = useState(0);
+  const handleDone = () => { localStorage.setItem("cats_onboarded", "1"); onDone(); };
   const current = ONBOARDING_STEPS[step];
   const isLast = step === ONBOARDING_STEPS.length - 1;
   return (
@@ -4017,7 +4154,7 @@ function OnboardingModal({ onDone }) {
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             {step > 0 && <Btn variant="outline" onClick={() => setStep(s => s - 1)}>Back</Btn>}
-            <Btn fullWidth onClick={() => isLast ? onDone() : setStep(s => s + 1)}>
+            <Btn fullWidth onClick={() => isLast ? handleDone() : setStep(s => s + 1)}>
               {isLast ? "Get Started →" : "Next →"}
             </Btn>
           </div>
@@ -4036,7 +4173,7 @@ function App() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [notifications, setNotifications] = useState([
-    { id: 1, icon: "⚠️", message: "Alex Rivera's risk score moved to High — 2 missing assignments", time: "2 hours ago", read: false },
+    { id: 1, icon: "⚠️", message: "Check in with your students — review caseload for recent activity", time: "Today", read: false },
     { id: 2, icon: "📝", message: "Marcus Williams has not logged a session in 6 days", time: "Yesterday", read: false },
     { id: 3, icon: "✅", message: "Jordan Kim completed all assignments this week", time: "2 days ago", read: true },
   ]);
@@ -4054,8 +4191,11 @@ function App() {
     setRole(resolvedRole);
     localStorage.setItem("cats_role", resolvedRole);
     if (resolvedRole === "student") {
-      setPage("dashboard");
-      setShowOnboarding(true);
+      const savedStudentPage = localStorage.getItem("cats_page");
+      const validStudentPages = ["dashboard", "assignments", "entryhub", "settings", "analytics", "myprofile"];
+      setPage(savedStudentPage && validStudentPages.includes(savedStudentPage) ? savedStudentPage : "dashboard");
+      const hasOnboarded = localStorage.getItem("cats_onboarded");
+      if (!hasOnboarded) { setShowOnboarding(true); }
     } else if (resolvedRole === "admin") {
       setPage("admin");
     } else {
@@ -4256,6 +4396,16 @@ function App() {
     </div>
   );
 
+  const editAssignment = async (updated) => {
+    setAssignments(prev => prev.map(a => a.id === updated.id ? updated : a));
+  };
+
+  const deleteAssignment = async (id) => {
+    setAssignments(prev => prev.filter(a => a.id !== id));
+    const isRealUUID = typeof id === "string" && id.includes("-") && !id.startsWith("temp-") && !id.startsWith("quick-") && !id.startsWith("doc-") && !id.startsWith("extracted-");
+    if (isRealUUID) await deleteAssignmentFromDB(id);
+  };
+
   const addAssignment = async (a) => {
     // Determine the student UUID — use selectedStudent's real Supabase id if available
     const studentId = a.studentId || selectedStudent?.id || null;
@@ -4305,7 +4455,7 @@ function App() {
     if (page === "assignments") return <AssignmentsPage onNavigate={navigate} assignments={assignments} onAddAssignment={addAssignment} onUpdateStatus={async (id, status) => {
       setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
       await updateAssignmentStatus(id, status);
-    }} />;
+    }} onEditAssignment={editAssignment} onDeleteAssignment={deleteAssignment} />;
     if (page === "dashboard" && role !== "student") return <StaffDashboard key={`dashboard-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={currentUser.name} />;
     // Student can access their own profile
     if (page === "myprofile" && role === "student") {
@@ -4349,7 +4499,7 @@ function App() {
           {mobileNav.map(item => {
             const active = page === item.id;
             return (
-              <button key={item.id} onClick={() => setPage(item.id)} style={{ border: "none", background: active ? UA.redLight : "white", color: active ? UA.red : UA.textMuted, fontFamily: "inherit", fontSize: 11, fontWeight: active ? 700 : 500, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
+              <button key={item.id} onClick={() => { setPage(item.id); localStorage.setItem("cats_page", item.id); }} style={{ border: "none", background: active ? UA.redLight : "white", color: active ? UA.red : UA.textMuted, fontFamily: "inherit", fontSize: 11, fontWeight: active ? 700 : 500, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
                 <span style={{ fontSize: 18 }}>{item.icon}</span>{item.label}
               </button>
             );
