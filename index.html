@@ -453,7 +453,11 @@ const SectionTitle = ({ children, sub }) => (
   </div>
 );
 
-const NoteCard = ({ note, onDelete }) => {
+const NoteCard = ({ note, onDelete, onEdit }) => {
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(note.text);
+  const [saving, setSaving] = useState(false);
+
   const catColors = {
     "Session Note": { bg: UA.navyLight, color: UA.navy, border: UA.navyBorder },
     "Concern Flag": { bg: UA.redLight, color: UA.red, border: UA.redBorder },
@@ -461,6 +465,19 @@ const NoteCard = ({ note, onDelete }) => {
     "Intake Observation": { bg: UA.greenBg, color: UA.green, border: UA.greenBorder },
   };
   const c = catColors[note.category] || catColors["Session Note"];
+
+  const handleSaveEdit = async () => {
+    if (!editText.trim()) return;
+    setSaving(true);
+    const isRealUUID = typeof note.id === "string" && note.id.includes("-") && note.id.length > 20;
+    if (isRealUUID) {
+      await supabase.from("staff_notes").update({ text: editText }).eq("id", note.id);
+    }
+    if (onEdit) onEdit(note.id, editText);
+    setSaving(false);
+    setEditing(false);
+  };
+
   return (
     <div style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "16px 20px", borderLeft: `4px solid ${c.color}` }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -473,13 +490,28 @@ const NoteCard = ({ note, onDelete }) => {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{note.category}</span>
+          {onEdit && !editing && (
+            <button onClick={() => setEditing(true)}
+              style={{ padding: "3px 8px", borderRadius: UA.radiusSm, border: `1px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✏️</button>
+          )}
           {onDelete && (
             <button onClick={() => { if (window.confirm("Delete this note?")) onDelete(note.id); }}
               style={{ padding: "3px 8px", borderRadius: UA.radiusSm, border: `1px solid ${UA.redBorder}`, background: UA.redLight, color: UA.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
           )}
         </div>
       </div>
-      <p style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.7, margin: 0 }}>{note.text}</p>
+      {editing ? (
+        <div>
+          <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={3}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navy}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn size="sm" disabled={saving} onClick={handleSaveEdit}>{saving ? "Saving..." : "Save"}</Btn>
+            <Btn size="sm" variant="outline" onClick={() => { setEditing(false); setEditText(note.text); }}>Cancel</Btn>
+          </div>
+        </div>
+      ) : (
+        <p style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.7, margin: 0 }}>{note.text}</p>
+      )}
     </div>
   );
 };
@@ -1655,7 +1687,14 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
     loadNotes();
   }, [student.id]);
 
-  const handlePlanSave = () => { setPlanSaved(true); setTimeout(() => setPlanSaved(false), 2500); };
+  const handlePlanSave = async () => {
+    setPlanSaved(true);
+    setTimeout(() => setPlanSaved(false), 2500);
+    const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
+    if (isRealUUID) {
+      await supabase.from("students").update({ weekly_plan: weeklyPlan }).eq("students", student.id);
+    }
+  };
 
   // Determine if this is being viewed by staff or student
   const isStudentView = !currentUserName || currentUserName === "there";
@@ -1901,11 +1940,16 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 13 }}>Loading notes...</div>
             ) : notes.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted }}><div style={{ fontSize: 32, marginBottom: 8 }}>📝</div><div style={{ fontSize: 14, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No notes yet</div><div style={{ fontSize: 13 }}>Add a session note above after meeting with this student.</div></div>
-            ) : notes.map(note => <NoteCard key={note.id} note={note} onDelete={async (noteId) => {
-              setNotes(prev => prev.filter(n => n.id !== noteId));
-              const isRealUUID = typeof noteId === "string" && noteId.includes("-") && !noteId.toString().startsWith("1");
-              if (isRealUUID) await deleteStaffNote(noteId);
-            }} />)}
+            ) : notes.map(note => <NoteCard key={note.id} note={note}
+              onDelete={async (noteId) => {
+                setNotes(prev => prev.filter(n => n.id !== noteId));
+                const isRealUUID = typeof noteId === "string" && noteId.includes("-") && noteId.length > 20;
+                if (isRealUUID) await deleteStaffNote(noteId);
+              }}
+              onEdit={(noteId, newText) => {
+                setNotes(prev => prev.map(n => n.id === noteId ? { ...n, text: newText } : n));
+              }}
+            />)}
           </div>
         </div>
       )}
