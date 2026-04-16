@@ -3922,13 +3922,46 @@ function ProgressReportPage({ onSelectStudent }) {
 // Staff sidebar Notes page — all notes across all students, reverse chronological
 function GlobalNotesFeed() {
   const [filterCategory, setFilterCategory] = useState("all");
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const catColors = {
     "Session Note": { bg: UA.navyLight, color: UA.navy, border: UA.navyBorder },
     "Concern Flag": { bg: UA.redLight, color: UA.red, border: UA.redBorder },
     "Follow-Up Required": { bg: UA.yellowBg, color: UA.yellow, border: UA.yellowBorder },
     "Intake Observation": { bg: UA.greenBg, color: UA.green, border: UA.greenBorder },
   };
-  const filtered = ALL_NOTES_FEED.filter(n => filterCategory === "all" || n.category === filterCategory);
+
+  useEffect(() => {
+    const loadNotes = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("staff_notes")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        const enriched = data.map(n => {
+          const student = STUDENTS.find(s => s.id === n.student_id);
+          return {
+            id: n.id,
+            author: n.author,
+            authorInitials: n.author_initials,
+            date: n.date,
+            category: n.category,
+            text: n.text,
+            studentName: student?.name || "Unknown Student",
+            studentInitials: student?.initials || "?",
+            studentRisk: student?.dynamicRisk || "low",
+          };
+        });
+        setNotes(enriched);
+      }
+      setLoading(false);
+    };
+    loadNotes();
+  }, []);
+
+  const filtered = notes.filter(n => filterCategory === "all" || n.category === filterCategory);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -3967,7 +4000,12 @@ function GlobalNotesFeed() {
             </div>
           );
         })}
-        {filtered.length === 0 && <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted, fontSize: 14 }}>No notes matching this filter</div>}
+        {loading && <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted, fontSize: 13 }}>Loading notes...</div>}
+        {!loading && filtered.length === 0 && <div style={{ textAlign: "center", padding: "40px 0", color: UA.textMuted }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No notes yet</div>
+          <div style={{ fontSize: 13 }}>Notes added on student profiles will appear here.</div>
+        </div>}
       </div>
     </div>
   );
