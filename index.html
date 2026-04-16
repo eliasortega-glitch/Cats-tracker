@@ -3026,6 +3026,127 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
 }
 
 
+
+// --- COURSES TAB --------------------------------------------------------------
+// Staff can add/edit/remove courses for any student directly in Entry Hub.
+// Saves to the students.courses JSONB column in Supabase.
+function CoursesTab({ student, effectiveStudentId, studentHasRealId, onCoursesUpdated }) {
+  const [courses, setCourses] = useState(student?.courses || []);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [newCourse, setNewCourse] = useState({ code: "", name: "", credits: "3" });
+  const [adding, setAdding] = useState(false);
+  const inp = { padding: "9px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box" };
+
+  const saveCourses = async (updated) => {
+    setSaving(true);
+    if (studentHasRealId) {
+      const { error } = await supabase
+        .from("students")
+        .update({ courses: updated })
+        .eq("students", effectiveStudentId);
+      if (error) console.warn("Courses save failed:", error.message);
+      else { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    }
+    if (onCoursesUpdated) onCoursesUpdated(updated);
+    setSaving(false);
+  };
+
+  const handleAdd = async () => {
+    if (!newCourse.code.trim() || !newCourse.name.trim()) return;
+    const updated = [...courses, {
+      code: newCourse.code.trim().toUpperCase(),
+      name: newCourse.name.trim(),
+      credits: parseInt(newCourse.credits) || 3,
+    }];
+    setCourses(updated);
+    setNewCourse({ code: "", name: "", credits: "3" });
+    setAdding(false);
+    await saveCourses(updated);
+  };
+
+  const handleRemove = async (code) => {
+    if (!window.confirm(`Remove ${code} from this student's courses?`)) return;
+    const updated = courses.filter(c => c.code !== code);
+    setCourses(updated);
+    await saveCourses(updated);
+  };
+
+  return (
+    <Card>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 14, color: UA.text }}>📚 Courses for {student?.name?.split(" ")[0] || "Student"}</div>
+          <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>Add courses here to enable course filtering and Quick Add dropdowns</div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {saved && <span style={{ fontSize: 13, color: UA.green, fontWeight: 700 }}>✓ Saved</span>}
+          {!studentHasRealId && <span style={{ fontSize: 12, color: UA.orange, fontWeight: 600 }}>⚠️ Select a real student first</span>}
+          <Btn size="sm" onClick={() => setAdding(!adding)} disabled={!studentHasRealId}>{adding ? "✕ Cancel" : "+ Add Course"}</Btn>
+        </div>
+      </div>
+
+      {/* Add course form */}
+      {adding && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 80px auto", gap: 10, marginBottom: 16, padding: "14px 16px", background: UA.navyLight, borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}` }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, marginBottom: 4 }}>CODE *</div>
+            <input value={newCourse.code} onChange={e => setNewCourse(p => ({ ...p, code: e.target.value }))}
+              placeholder="e.g. SOC101" style={{ ...inp, width: "100%" }}
+              onKeyDown={e => e.key === "Enter" && handleAdd()} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, marginBottom: 4 }}>COURSE NAME *</div>
+            <input value={newCourse.name} onChange={e => setNewCourse(p => ({ ...p, name: e.target.value }))}
+              placeholder="e.g. Introduction to Sociology" style={{ ...inp, width: "100%" }}
+              onKeyDown={e => e.key === "Enter" && handleAdd()} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, marginBottom: 4 }}>CREDITS</div>
+            <input type="number" value={newCourse.credits} onChange={e => setNewCourse(p => ({ ...p, credits: e.target.value }))}
+              min="1" max="6" style={{ ...inp, width: "100%" }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            <Btn size="sm" disabled={!newCourse.code.trim() || !newCourse.name.trim() || saving} onClick={handleAdd}>
+              {saving ? "..." : "Add"}
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {/* Course list */}
+      {courses.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No courses added yet</div>
+          <div style={{ fontSize: 13 }}>Click + Add Course to add this student{"’"}s current semester courses</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+          {/* Header */}
+          <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 80px 40px", gap: 12, padding: "6px 12px" }}>
+            {["Code", "Course Name", "Credits", ""].map((h, i) => (
+              <div key={i} style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</div>
+            ))}
+          </div>
+          {courses.map((c, i) => (
+            <div key={c.code} style={{ display: "grid", gridTemplateColumns: "100px 1fr 80px 40px", gap: 12, padding: "12px 14px", borderRadius: UA.radiusSm, background: i % 2 === 0 ? UA.bg : "white", border: `1px solid ${UA.border}`, alignItems: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: UA.navy }}>{c.code}</div>
+              <div style={{ fontSize: 13, color: UA.text }}>{c.name}</div>
+              <div style={{ fontSize: 13, color: UA.textMuted }}>{c.credits} cr</div>
+              <button onClick={() => handleRemove(c.code)}
+                style={{ padding: "4px 8px", borderRadius: UA.radiusSm, border: `1px solid ${UA.redBorder}`, background: UA.redLight, color: UA.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
+            </div>
+          ))}
+          <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 4 }}>
+            {courses.length} course{courses.length !== 1 ? "s" : ""} · {courses.reduce((sum, c) => sum + (c.credits || 0), 0)} total credits
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // --- ENTRY HUB PAGE -----------------------------------------------------------
 // Assignment entry for staff — manual quick-add, ICS/D2L import, and sync status
 // --- ENTRY HUB PAGE -----------------------------------------------------------
@@ -3415,6 +3536,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
   const tabs = [
     { id: "d2l", label: "📅 D2L Import" },
     ...(!isStudent ? [{ id: "quickadd", label: "⚡ Quick Add" }] : []),
+    ...(!isStudent ? [{ id: "courses", label: "📚 Courses" }] : []),
     { id: "syllabus", label: "📄 Syllabus" },
     { id: "saved", label: `📁 Saved (${docs.length})` },
   ];
@@ -3605,6 +3727,21 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
             </div>
           )}
         </Card>
+      )}
+
+
+      {/* COURSES TAB — staff only */}
+      {activeTab === "courses" && !isStudent && (
+        <CoursesTab
+          student={student}
+          effectiveStudentId={effectiveStudentId}
+          studentHasRealId={studentHasRealId}
+          onCoursesUpdated={(updatedCourses) => {
+            // Update STUDENTS array in memory so Quick Add dropdown refreshes
+            const idx = STUDENTS.findIndex(s => s.id === effectiveStudentId);
+            if (idx !== -1) STUDENTS[idx].courses = updatedCourses;
+          }}
+        />
       )}
 
       {/* SAVED DOCS TAB */}
