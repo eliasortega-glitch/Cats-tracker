@@ -472,11 +472,13 @@ const NoteCard = ({ note, onDelete, onEdit }) => {
   const handleSaveEdit = async () => {
     if (!editText.trim()) return;
     setSaving(true);
-    const isRealUUID = typeof note.id === "string" && note.id.includes("-") && note.id.length > 20;
-    if (isRealUUID) {
-      await supabase.from("staff_notes").update({ text: editText }).eq("id", note.id);
+    const { error } = await supabase.from("staff_notes").update({ text: editText }).eq("id", note.id);
+    if (error) {
+      console.warn("Note edit failed:", error.message);
+    } else {
+      console.log("✅ Note updated:", note.id);
+      if (onEdit) onEdit(note.id, editText);
     }
-    if (onEdit) onEdit(note.id, editText);
     setSaving(false);
     setEditing(false);
   };
@@ -2017,7 +2019,7 @@ function AnalyticsPage({ role, assignments = ASSIGNMENTS }) {
         <SectionTitle sub="Your personal progress this semester">My Progress</SectionTitle>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
           {[
-            { label: "Completion Rate", value: "67%", color: UA.navy, icon: "📈" },
+            { label: "Completion Rate", value: assignments.length > 0 ? Math.round((assignments.filter(a=>a.status==="completed").length / assignments.length) * 100) + "%" : "0%", color: UA.navy, icon: "📈" },
             { label: "Total Tasks", value: assignments.length, color: UA.text, icon: "📋" },
             { label: "Urgent", value: assignments.filter(a=>a.urgency==="red").length, color: UA.red, icon: "🔴" },
             { label: "Missing", value: assignments.filter(a=>a.status==="missing").length, color: UA.orange, icon: "⚠️" },
