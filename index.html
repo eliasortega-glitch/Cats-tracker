@@ -165,6 +165,11 @@ async function insertSessionLog(log) {
     notes: log.notes || "",
     duration_minutes: log.durationMinutes || null,
     logged_by: log.loggedBy || null,
+    time_seconds: log.timeSeconds || 0,
+    prompts_expanded: log.promptsExpanded || [],
+    ai_breakdowns_used: log.aiBreakdownsUsed || 0,
+    prompt_responses_filled: log.promptResponsesFilled || 0,
+    days_before_due: log.daysBeforeDue !== undefined ? log.daysBeforeDue : null,
   }).select().single();
   if (error) { console.warn("Session log insert failed:", error.message); return null; }
   console.log("✅ Session log saved:", data.id);
@@ -925,12 +930,50 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [aiBreakdownText, setAiBreakdownText] = useState({});
   const timerRef = useRef(null);
   const startTimeRef = useRef(Date.now());
+  const autoSaveRef = useRef(null);
+  const hasSavedRef = useRef(false);
+  // Silent engagement tracking
+  const promptsExpandedRef = useRef([]);
+  const aiBreakdownsUsedRef = useRef(0);
+
+  const buildLogData = (currentTime, overrides = {}) => {
+    const daysBeforeDue = a.dueDate instanceof Date
+      ? Math.round((a.dueDate.getTime() - Date.now()) / 86400000)
+      : null;
+    return {
+      studentId: a.studentId || null,
+      assignmentId: typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-") && !a.id.startsWith("quick-") && !a.id.startsWith("ext-") && !a.id.startsWith("doc-") && !a.id.startsWith("extracted-") ? a.id : null,
+      assignmentTitle: a.title,
+      courseCode: a.courseCode || "",
+      effort: overrides.effort || null,
+      understanding: overrides.understanding || null,
+      completionType: overrides.completionType || "in_progress",
+      notes: overrides.notes || "",
+      durationMinutes: Math.max(1, Math.round(currentTime / 60)),
+      loggedBy: sessionUser?.id || null,
+      timeSeconds: currentTime,
+      promptsExpanded: promptsExpandedRef.current,
+      aiBreakdownsUsed: aiBreakdownsUsedRef.current,
+      promptResponsesFilled: overrides.promptResponsesFilled || 0,
+      daysBeforeDue,
+    };
+  };
 
   // Auto-track time silently from the moment Work Mode opens
   useEffect(() => {
     startTimeRef.current = Date.now();
     timerRef.current = setInterval(() => setTime(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000);
-    return () => clearInterval(timerRef.current);
+    // Auto-save heartbeat every 2 minutes if student has been here > 30 seconds
+    autoSaveRef.current = setInterval(async () => {
+      const currentTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      if (currentTime > 30 && a.studentId) {
+        await insertSessionLog(buildLogData(currentTime));
+      }
+    }, 120000);
+    return () => {
+      clearInterval(timerRef.current);
+      clearInterval(autoSaveRef.current);
+    };
   }, []);
 
   const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
@@ -941,6 +984,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
     const prompt = GUIDED_PROMPTS.find(p => p.id === promptId);
     if (!prompt) return;
     setIsLoadingBreakdown(p => ({ ...p, [promptId]: true }));
+    aiBreakdownsUsedRef.current += 1;
     try {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
         method: "POST",
@@ -1003,7 +1047,15 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             onMouseLeave={e => e.currentTarget.style.background = UA.navyLight}>
             🔗 Open in D2L
           </a>
-          <Btn variant="outline" size="sm" onClick={onBack}>✕ Close</Btn>
+          <Btn variant="outline" size="sm" onClick={async () => {
+            clearInterval(timerRef.current);
+            clearInterval(autoSaveRef.current);
+            const currentTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
+            if (currentTime > 10 && a.studentId) {
+              await insertSessionLog(buildLogData(currentTime));
+            }
+            onBack();
+          }}>✕ Close</Btn>
         </div>
       </div>
 
@@ -1037,7 +1089,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                 return (
                   <div key={prompt.id} style={{ borderRadius: UA.radius, border: `1.5px solid ${isActive ? UA.red : isComplete ? UA.greenBorder : UA.border}`, background: isActive ? UA.redLight : isComplete ? UA.greenBg : UA.bgCard, overflow: "hidden", transition: "all 0.2s" }}>
                     {/* Prompt header */}
-                    <div onClick={() => setActivePrompt(isActive ? null : prompt.id)} style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+                    <div onClick={() => { setActivePrompt(isActive ? null : prompt.id); if (!isActive && !promptsExpandedRef.current.includes(prompt.id)) { promptsExpandedRef.current = [...promptsExpandedRef.current, prompt.id]; } }} style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ width: 26, height: 26, borderRadius: "50%", background: isComplete ? UA.greenBg : isActive ? UA.redLight : UA.bg, border: `2px solid ${isComplete ? UA.green : isActive ? UA.red : UA.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: isComplete ? UA.green : isActive ? UA.red : UA.textMuted, flexShrink: 0 }}>
                         {isComplete ? "✓" : idx + 1}
                       </div>
@@ -1156,18 +1208,13 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
           <Btn variant="primary" size="lg" fullWidth disabled={saving} onClick={async () => {
             setSaving(true);
             clearInterval(timerRef.current);
-            const logData = {
-              studentId: a.studentId || null,
-              assignmentId: typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-") && !a.id.startsWith("quick-") && !a.id.startsWith("ext-") && !a.id.startsWith("doc-") && !a.id.startsWith("extracted-") ? a.id : null,
-              assignmentTitle: a.title,
-              courseCode: a.courseCode || "",
+            const logData = buildLogData(time, {
               effort,
               understanding,
               completionType,
               notes,
-              durationMinutes: minutesSpent,
-              loggedBy: sessionUser?.id || null,
-            };
+              promptResponsesFilled: Object.keys(promptResponses).filter(k => promptResponses[k]?.trim()).length,
+            });
             // Save to Supabase
             await insertSessionLog(logData);
             // Update assignment status if completed
@@ -4038,6 +4085,11 @@ function SessionLogTab({ studentId }) {
             understanding: l.understanding || 0,
             completionType: l.completion_type || "in_progress",
             notes: l.notes || "",
+            timeSeconds: l.time_seconds || 0,
+            promptsExpanded: l.prompts_expanded || [],
+            aiBreakdownsUsed: l.ai_breakdowns_used || 0,
+            promptResponsesFilled: l.prompt_responses_filled || 0,
+            daysBeforeDue: l.days_before_due,
           })));
         }
         setLoading(false);
@@ -4075,6 +4127,24 @@ function SessionLogTab({ studentId }) {
               </div>
             </div>
           </div>
+          {/* Silent engagement row */}
+          {(log.timeSeconds > 0 || log.aiBreakdownsUsed > 0 || log.promptsExpanded?.length > 0) && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0", padding: "10px 14px", background: UA.navyLight, borderRadius: UA.radiusSm, border: `1px solid ${UA.navyBorder}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: UA.navy, width: "100%", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>🔍 Behavioral Engagement</div>
+              {[
+                { label: "Time in app", value: log.timeSeconds > 0 ? `${Math.round(log.timeSeconds / 60)}m ${log.timeSeconds % 60}s` : "—" },
+                { label: "Prompts opened", value: `${log.promptsExpanded?.length || 0} / 4` },
+                { label: "AI breakdowns", value: log.aiBreakdownsUsed || 0 },
+                { label: "Responses written", value: `${log.promptResponsesFilled || 0} / 4` },
+                { label: "Days before due", value: log.daysBeforeDue !== null && log.daysBeforeDue !== undefined ? (log.daysBeforeDue <= 0 ? "Day of / overdue" : `${Math.round(log.daysBeforeDue)} days`) : "—" },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ padding: "6px 12px", borderRadius: UA.radiusSm, background: "white", border: `1px solid ${UA.navyBorder}`, textAlign: "center", minWidth: 90 }}>
+                  <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>{label}</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: UA.navy }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          )}
           {/* Student notes */}
           {log.notes && (
             <div style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.7, padding: "10px 14px", background: UA.bg, borderRadius: UA.radiusSm, borderLeft: `3px solid ${UA.navy}` }}>
