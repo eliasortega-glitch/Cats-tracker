@@ -1443,26 +1443,36 @@ function TodayActivityFeed({ onSelectStudent }) {
 
   useEffect(() => {
     const load = async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+      const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+      const threeDaysOut = new Date(); threeDaysOut.setDate(threeDaysOut.getDate() + 3); threeDaysOut.setHours(23,59,59,999);
+
       const { data, error } = await supabase
         .from("assignments")
-        .select("id, title, course, status, updated_at, student_id")
-        .gte("updated_at", today.toISOString())
-        .order("updated_at", { ascending: false });
+        .select("id, title, course, course_code, status, due_date, student_id")
+        .lte("due_date", threeDaysOut.toISOString().split("T")[0])
+        .neq("status", "completed")
+        .order("due_date", { ascending: true });
 
       if (!error && data) {
-        // Enrich with student names
         const enriched = data.map(a => {
           const student = STUDENTS.find(s => s.id === a.student_id);
-          return { ...a, studentName: student?.name || "Unknown", studentInitials: student?.initials || "?", studentRisk: student?.dynamicRisk || "low" };
+          const due = new Date(a.due_date);
+          const isToday = due >= todayStart && due <= todayEnd;
+          return {
+            ...a,
+            dueDate: due,
+            isToday,
+            studentName: student?.name || "Unknown",
+            studentInitials: student?.initials || "?",
+            studentRisk: student?.dynamicRisk || "low",
+          };
         });
         setActivity(enriched);
       }
       setLoading(false);
     };
     load();
-    // Refresh every 60 seconds
     const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -1485,29 +1495,55 @@ function TodayActivityFeed({ onSelectStudent }) {
           <div style={{ fontSize: 13, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No activity yet today</div>
           <div style={{ fontSize: 12 }}>When students mark assignments complete, it will appear here in real time.</div>
         </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {activity.map((a, i) => {
-            const riskColor = a.studentRisk === "high" ? UA.red : a.studentRisk === "medium" ? UA.yellow : UA.green;
-            const statusColor = a.status === "completed" ? UA.green : a.status === "in_progress" ? UA.navy : UA.textMuted;
-            const statusLabel = a.status === "completed" ? "✓ Completed" : a.status === "in_progress" ? "In Progress" : a.status === "missing" ? "Missing" : "Not Started";
-            const timeStr = new Date(a.updated_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-            return (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: UA.radiusSm, background: a.status === "completed" ? UA.greenBg : UA.bg, border: `1px solid ${a.status === "completed" ? UA.greenBorder : UA.border}` }}>
-                <Avatar initials={a.studentInitials} size={34} color={riskColor} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: UA.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
-                  <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.studentName} · {a.course}</div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: statusColor }}>{statusLabel}</div>
-                  <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>{timeStr}</div>
+      ) : (() => {
+        const dueToday = activity.filter(a => a.isToday);
+        const upcoming = activity.filter(a => !a.isToday);
+        const AssignmentRow = ({ a }) => {
+          const riskColor = a.studentRisk === "high" ? UA.red : a.studentRisk === "medium" ? UA.yellow : UA.green;
+          const statusColor = a.status === "in_progress" ? UA.navy : a.status === "missing" ? UA.red : UA.textMuted;
+          const statusLabel = a.status === "in_progress" ? "In Progress" : a.status === "missing" ? "Missing" : "Not Started";
+          const dueStr = a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: UA.radiusSm, background: a.status === "missing" ? UA.redLight : UA.bg, border: `1px solid ${a.status === "missing" ? UA.redBorder : UA.border}` }}>
+              <Avatar initials={a.studentInitials} size={32} color={riskColor} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: UA.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
+                <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.studentName} · {a.course || a.course_code}</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: statusColor }}>{statusLabel}</div>
+                <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>Due {dueStr}</div>
+              </div>
+            </div>
+          );
+        };
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {dueToday.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: UA.red, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>🔴 Due Today — {dueToday.length} assignment{dueToday.length !== 1 ? "s" : ""}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {dueToday.map((a, i) => <AssignmentRow key={i} a={a} />)}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+            {upcoming.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: UA.yellow, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>📅 Coming Up — Next 3 Days</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {upcoming.map((a, i) => <AssignmentRow key={i} a={a} />)}
+                </div>
+              </div>
+            )}
+            {dueToday.length === 0 && upcoming.length === 0 && (
+              <div style={{ textAlign: "center", padding: "24px 0", color: UA.textMuted }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: UA.text }}>Nothing due today or in the next 3 days</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </Card>
   );
 }
