@@ -3095,6 +3095,13 @@ function CoursesTab({ student, effectiveStudentId, studentHasRealId, onCoursesUp
   const [adding, setAdding] = useState(false);
   const inp = { padding: "9px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box" };
 
+  // Always fetch fresh courses from Supabase on mount so we don't overwrite existing ones
+  useEffect(() => {
+    if (!effectiveStudentId) return;
+    supabase.from("students").select("courses").eq("students", effectiveStudentId).maybeSingle()
+      .then(({ data }) => { if (data?.courses) setCourses(data.courses); });
+  }, [effectiveStudentId]);
+
   const saveCourses = async (updated) => {
     setSaving(true);
     if (studentHasRealId) {
