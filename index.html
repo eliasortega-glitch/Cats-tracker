@@ -87,6 +87,7 @@ async function fetchSessionUser() {
 
 async function fetchProfileForUser(userId) {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+  if (error) console.warn("Profile fetch error:", error.message, "code:", error.code);
   return { data, error };
 }
 
@@ -249,8 +250,10 @@ async function updateAssignmentInDB(id, updates) {
 }
 
 async function deleteAssignmentFromDB(id) {
-  const { error } = await supabase.from("assignments").delete().eq("id", id);
-  if (error) { console.warn("Assignment delete failed:", error.message); return false; }
+  console.log("Deleting assignment from Supabase:", id);
+  const { error } = await supabase.from("assignments").delete().eq("id", String(id));
+  if (error) { console.error("Assignment delete failed:", error.message, "ID was:", id); return false; }
+  console.log("✅ Assignment deleted from Supabase:", id);
   return true;
 }
 
@@ -1849,8 +1852,8 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                     style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✏️</button>
                   <button onClick={async () => { if (window.confirm("Delete this assignment?")) {
                     setLocalAssignments(prev => prev.filter(x => x.id !== a.id));
-                    const isRealUUID = typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-");
-                    if (isRealUUID) await deleteAssignmentFromDB(a.id);
+                    console.log("Delete clicked, id:", a.id, "type:", typeof a.id);
+                    await deleteAssignmentFromDB(a.id);
                   }}}
                     style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.redBorder}`, background: UA.redLight, color: UA.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
                 </div>
@@ -4583,8 +4586,8 @@ function App() {
 
   const deleteAssignment = async (id) => {
     setAssignments(prev => prev.filter(a => a.id !== id));
-    const isRealUUID = typeof id === "string" && id.includes("-") && !id.startsWith("temp-") && !id.startsWith("quick-") && !id.startsWith("doc-") && !id.startsWith("extracted-");
-    if (isRealUUID) await deleteAssignmentFromDB(id);
+    console.log("App deleteAssignment called, id:", id);
+    await deleteAssignmentFromDB(id);
   };
 
   const addAssignment = async (a) => {
