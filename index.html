@@ -1200,19 +1200,11 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               {[
                 { label: "B", title: "Bold", action: () => insertFormat("**", "**", "bold text") },
                 { label: "I", title: "Italic", action: () => insertFormat("_", "_", "italic text") },
-                { label: "H1", title: "Heading", action: () => insertFormat("
-# ", "
-", "Heading") },
-                { label: "H2", title: "Subheading", action: () => insertFormat("
-## ", "
-", "Subheading") },
-                { label: "•", title: "Bullet", action: () => insertFormat("
-- ", "", "list item") },
-                { label: "1.", title: "Numbered list", action: () => insertFormat("
-1. ", "", "list item") },
-                { label: "―", title: "Divider", action: () => insertFormat("
----
-", "", "") },
+                { label: "H1", title: "Heading", action: () => insertFormat("\n# ", "\n", "Heading") },
+                { label: "H2", title: "Subheading", action: () => insertFormat("\n## ", "\n", "Subheading") },
+                { label: "•", title: "Bullet", action: () => insertFormat("\n- ", "", "list item") },
+                { label: "1.", title: "Numbered list", action: () => insertFormat("\n1. ", "", "list item") },
+                { label: "―", title: "Divider", action: () => insertFormat("\n---\n", "", "") },
               ].map(btn => (
                 <button key={btn.label} title={btn.title} onClick={btn.action}
                   style={{ padding: "3px 8px", borderRadius: 4, border: `1px solid ${UA.border}`, background: "white", color: UA.text, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: btn.label === "B" ? "serif" : btn.label === "I" ? "serif" : "inherit", fontStyle: btn.label === "I" ? "italic" : "normal", minWidth: 28 }}>
