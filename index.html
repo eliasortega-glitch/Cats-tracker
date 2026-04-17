@@ -1299,7 +1299,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             if ((completionType === "independent" || completionType === "with_support") && typeof a.id === "string" && a.id.includes("-")) {
               await updateAssignmentStatus(a.id, "completed");
             }
-            if (onSessionSaved) onSessionSaved({ title: a.title, effort, understanding, time, durationMinutes: minutesSpent });
+            if (onSessionSaved) onSessionSaved({ title: a.title, effort, understanding, time, durationMinutes: minutesSpent, completionType });
             setSaved(true);
             setSaving(false);
           }}>
@@ -1800,7 +1800,7 @@ function QuickAddAssignments({ courses, onAdd }) {
 }
 
 // --- STAFF STUDENT PROFILE -----------------------------------------------------
-function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sessionUser, currentUserName = "Staff" }) {
+function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sessionUser, currentUserName = "Staff", onUpdateAssignmentStatus, onDeleteAssignment: onDeleteAssignmentProp, onEditAssignment: onEditAssignmentProp }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
   const [noteCategory, setNoteCategory] = useState("Session Note");
@@ -1965,7 +1965,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               { label: "Avg Effort", value: `${student.avgEffort}/5`, color: student.avgEffort >= 3.5 ? UA.green : UA.red },
               { label: "Avg Understanding", value: `${student.avgUnderstanding}/5`, color: student.avgUnderstanding >= 3 ? UA.green : UA.red },
               { label: "Study Hours", value: `${student.totalHours}h`, color: UA.navy },
-              { label: "Missing", value: student.missedAssignments, color: student.missedAssignments > 0 ? UA.red : UA.green },
+              { label: "Missing", value: localAssignments.filter(a => a.status === "missing").length, color: localAssignments.filter(a => a.status === "missing").length > 0 ? UA.red : UA.green },
             ].map((s,i) => (
               <Card key={i} style={{ padding: "18px 20px", textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>{s.label}</div>
@@ -1973,6 +1973,42 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               </Card>
             ))}
           </div>
+
+          {/* Assignment status breakdown */}
+          {localAssignments.length > 0 && (() => {
+            const completed = localAssignments.filter(a => a.status === "completed").length;
+            const inProgress = localAssignments.filter(a => a.status === "in_progress").length;
+            const notStarted = localAssignments.filter(a => a.status === "not_started").length;
+            const missing = localAssignments.filter(a => a.status === "missing").length;
+            const total = localAssignments.length;
+            const pct = (n) => Math.round((n / total) * 100);
+            return (
+              <Card style={{ padding: "18px 20px" }}>
+                <div style={{ fontWeight: 800, fontSize: 14, color: UA.text, marginBottom: 14 }}>Assignment Status Breakdown</div>
+                <div style={{ display: "flex", gap: 0, height: 10, borderRadius: 99, overflow: "hidden", marginBottom: 14 }}>
+                  {completed > 0 && <div style={{ width: `${pct(completed)}%`, background: UA.green }} />}
+                  {inProgress > 0 && <div style={{ width: `${pct(inProgress)}%`, background: UA.navy }} />}
+                  {notStarted > 0 && <div style={{ width: `${pct(notStarted)}%`, background: UA.border }} />}
+                  {missing > 0 && <div style={{ width: `${pct(missing)}%`, background: UA.red }} />}
+                </div>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                  {[
+                    { label: "Completed", count: completed, color: UA.green, bg: UA.greenBg },
+                    { label: "In Progress", count: inProgress, color: UA.navy, bg: UA.navyLight },
+                    { label: "Not Started", count: notStarted, color: UA.textMuted, bg: "#F3F4F6" },
+                    { label: "Missing", count: missing, color: UA.red, bg: UA.redLight },
+                  ].map(({ label, count, color, bg }) => (
+                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: UA.radiusSm, background: bg }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, fontWeight: 700, color }}>{count}</span>
+                      <span style={{ fontSize: 12, color: UA.textMuted }}>{label}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginLeft: "auto", fontSize: 12, color: UA.textMuted, alignSelf: "center" }}>{total} total</div>
+                </div>
+              </Card>
+            );
+          })()}
           <Card>
             <div style={{ fontWeight: 800, fontSize: 14, color: UA.text, marginBottom: 14 }}>Effort & Understanding Trend</div>
             <ResponsiveContainer width="100%" height={200}>
@@ -2010,13 +2046,24 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                     <div style={{ fontWeight: 700, fontSize: 14, color: UA.text }}>{a.title}</div>
                     <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.courseCode} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate}</div>
                   </div>
-                  <StatusBadge status={a.status} />
+                  <select value={a.status} onChange={async (e) => {
+                    const newStatus = e.target.value;
+                    setLocalAssignments(prev => prev.map(x => x.id === a.id ? { ...x, status: newStatus } : x));
+                    await updateAssignmentStatus(a.id, newStatus);
+                    if (onUpdateAssignmentStatus) onUpdateAssignmentStatus(a.id, newStatus);
+                  }} style={{ fontSize: 11, fontWeight: 700, padding: "4px 8px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontFamily: "inherit", cursor: "pointer", background: a.status === "completed" ? UA.greenBg : a.status === "in_progress" ? UA.navyLight : a.status === "missing" ? UA.redLight : "#F3F4F6", color: a.status === "completed" ? UA.green : a.status === "in_progress" ? UA.navy : a.status === "missing" ? UA.red : "#6B7280" }}>
+                    <option value="not_started">Not Started</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="missing">Missing</option>
+                  </select>
                   <button onClick={() => setEditingAssignment(a)}
                     style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✏️</button>
                   <button onClick={async () => { if (window.confirm("Delete this assignment?")) {
                     setLocalAssignments(prev => prev.filter(x => x.id !== a.id));
                     console.log("Delete clicked, id:", a.id, "type:", typeof a.id);
                     await deleteAssignmentFromDB(a.id);
+                    if (onDeleteAssignmentProp) onDeleteAssignmentProp(a.id);
                   }}}
                     style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.redBorder}`, background: UA.redLight, color: UA.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
                 </div>
@@ -4817,6 +4864,11 @@ function App() {
         onBack={() => setPage(role === "student" ? "dashboard" : "roster")}
         onSessionSaved={(data) => {
           if (data.understanding <= 2) pushNotification(`${currentUser.name} rated understanding ${data.understanding}/5 on "${data.title}" — may need support`, "⚠️");
+          if (data.completionType === "independent" || data.completionType === "with_support") {
+            setAssignments(prev => prev.map(a => a.id === workAssignment?.id ? { ...a, status: "completed" } : a));
+          } else if (data.completionType === "in_progress") {
+            setAssignments(prev => prev.map(a => a.id === workAssignment?.id ? { ...a, status: "in_progress" } : a));
+          }
         }}
       />
     </div>
@@ -4870,7 +4922,14 @@ function App() {
     if (page === "admin") return <AdminPage key={`admin-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "roster") return <RosterPage key={`roster-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "studentProfile" && selectedStudent) return (
-      <StudentProfile key={`student-profile-${selectedStudent.id}-${dataVersion}`} student={selectedStudent} onBack={() => setPage("roster")} onExportReport={(student, notes) => exportStudentReport(student, notes, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} currentUserName={currentUser.name} />
+      <StudentProfile key={`student-profile-${selectedStudent.id}-${dataVersion}`} student={selectedStudent} onBack={() => setPage("roster")} onExportReport={(student, notes) => exportStudentReport(student, notes, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} currentUserName={currentUser.name}
+        onUpdateAssignmentStatus={(id, status) => {
+          setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+          updateAssignmentStatus(id, status);
+        }}
+        onDeleteAssignment={deleteAssignment}
+        onEditAssignment={editAssignment}
+      />
     );
     if (page === "entryhub") return <EntryHubPage key={`entryhub-${dataVersion}`} onAddAssignment={addAssignment} sessionUser={sessionUser} role={role} students={STUDENTS} />;
     if (page === "analytics" && role !== "student") return <ProgressReportPage key={`analytics-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
@@ -4886,7 +4945,12 @@ function App() {
     // Student can access their own profile
     if (page === "myprofile" && role === "student") {
       const myStudent = STUDENTS.find(s => s.email === sessionUser?.email) || STUDENTS[0];
-      return <StudentProfile key={`my-profile-${dataVersion}`} student={myStudent} onBack={() => setPage("dashboard")} onExportReport={(s, n) => exportStudentReport(s, n, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser} />;
+      return <StudentProfile key={`my-profile-${dataVersion}`} student={myStudent} onBack={() => setPage("dashboard")} onExportReport={(s, n) => exportStudentReport(s, n, assignments)} onAddAssignment={addAssignment} sessionUser={sessionUser}
+        onUpdateAssignmentStatus={(id, status) => {
+          setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+          updateAssignmentStatus(id, status);
+        }}
+      />;
     }
     return role === "student"
       ? <StudentDashboard onNavigate={navigate} assignments={assignments} user={currentUser} onViewProfile={() => setPage("myprofile")} />
