@@ -1830,6 +1830,13 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   const [noteSaved, setNoteSaved] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [weeklyPlan, setWeeklyPlan] = useState(student.weeklyPlan || "");
+
+  // Load weekly plan fresh from Supabase on mount
+  useEffect(() => {
+    if (!student.id || !student.id.includes("-")) return;
+    supabase.from("students").select("weekly_plan").eq("students", student.id).maybeSingle()
+      .then(({ data }) => { if (data?.weekly_plan) setWeeklyPlan(data.weekly_plan); });
+  }, [student.id]);
   const [planSaved, setPlanSaved] = useState(false);
   const [planGenerating, setPlanGenerating] = useState(false);
 
@@ -1934,12 +1941,19 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   }, [student.id]);
 
   const handlePlanSave = async () => {
+    const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
+    console.log("Saving plan for student:", student.id, "isRealUUID:", isRealUUID, "plan length:", weeklyPlan.length);
+    if (isRealUUID) {
+      const { error } = await supabase.from("students").update({ weekly_plan: weeklyPlan }).eq("students", student.id);
+      if (error) {
+        console.error("Plan save failed:", error.message);
+        alert("Save failed: " + error.message);
+        return;
+      }
+      console.log("✅ Plan saved successfully");
+    }
     setPlanSaved(true);
     setTimeout(() => setPlanSaved(false), 2500);
-    const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
-    if (isRealUUID) {
-      await supabase.from("students").update({ weekly_plan: weeklyPlan }).eq("students", student.id);
-    }
   };
 
   // Determine if this is being viewed by staff or student
