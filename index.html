@@ -765,7 +765,7 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
           <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>This Week</div>
           <Btn size="sm" variant="ghost" onClick={() => onNavigate("assignments")}>View all →</Btn>
         </div>
-        {upcoming.length === 0 && missing.length === 0 ? (
+        {upcoming.length === 0 && overdue.length === 0 ? (
           <div style={{ textAlign: "center", padding: "24px 0", color: UA.textMuted }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🎉</div>
             <div style={{ fontWeight: 700, color: UA.text, marginBottom: 4 }}>You're all caught up!</div>
