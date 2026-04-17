@@ -1374,15 +1374,15 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
         </div>
       </div>
 
-      {/* Caseload health summary */}
+      {/* Caseload health summary — clickable tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
         {[
-          { label: "Total Students", value: STUDENTS.length, color: UA.navy, icon: "👥", sub: "in your caseload" },
-          { label: "High Risk", value: STUDENTS.filter(s => s.dynamicRisk === "high").length, color: UA.red, icon: "🔴", sub: "need attention" },
-          { label: "Appointments Today", value: isWeekend ? 0 : todayAppts.length, color: UA.navy, icon: "📅", sub: isWeekend ? "enjoy your weekend" : "scheduled today" },
-          { label: "Low Risk", value: STUDENTS.filter(s => s.dynamicRisk === "low").length, color: UA.green, icon: "🟢", sub: "on track" },
+          { label: "Total Students", value: STUDENTS.length, color: UA.navy, icon: "👥", sub: "in your caseload", action: () => onSelectStudent(null) },
+          { label: "High Risk", value: STUDENTS.filter(s => s.dynamicRisk === "high").length, color: UA.red, icon: "🔴", sub: "need attention", action: () => { const s = STUDENTS.find(st => st.dynamicRisk === "high"); if (s) onSelectStudent(s); } },
+          { label: "Appointments Today", value: isWeekend ? 0 : todayAppts.length, color: UA.navy, icon: "📅", sub: isWeekend ? "enjoy your weekend" : "scheduled today", action: null },
+          { label: "Low Risk", value: STUDENTS.filter(s => s.dynamicRisk === "low").length, color: UA.green, icon: "🟢", sub: "on track", action: () => { const s = STUDENTS.find(st => st.dynamicRisk === "low"); if (s) onSelectStudent(s); } },
         ].map((s, i) => (
-          <Card key={i} style={{ padding: "18px 20px" }}>
+          <Card key={i} hover={!!s.action} style={{ padding: "18px 20px", cursor: s.action ? "pointer" : "default" }} onClick={s.action || undefined}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <div style={{ fontSize: 11, color: UA.textMuted, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>{s.label}</div>
@@ -1459,9 +1459,16 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
         )}
       </Card>
 
-      {/* Weekly schedule */}
+      {/* Weekly schedule — collapsible */}
+      {(() => {
+        const [weekOpen, setWeekOpen] = React.useState(false);
+        return (
       <Card style={{ padding: "22px 24px" }}>
-        <div style={{ fontWeight: 800, fontSize: 16, color: UA.text, marginBottom: 16 }}>📆 This Week</div>
+        <div onClick={() => setWeekOpen(o => !o)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", marginBottom: weekOpen ? 16 : 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>📆 This Week</div>
+          <span style={{ fontSize: 13, color: UA.textMuted, fontWeight: 600 }}>{weekOpen ? "▲ Collapse" : "▼ Expand"}</span>
+        </div>
+        {weekOpen && <div>
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           {DAYS.map((dayName, i) => {
             const dayIdx = i + 1;
@@ -1508,7 +1515,10 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
             );
           })}
         </div>
+        </div>}
       </Card>
+        );
+      })()}
 
       {/* Today's student activity */}
       <TodayActivityFeed onSelectStudent={onSelectStudent} />
