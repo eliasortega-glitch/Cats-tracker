@@ -1223,14 +1223,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                 clearTimeout(autoSaveTimeout.current);
                 autoSaveTimeout.current = setTimeout(() => setWorkSaved(true), 1500);
               }}
-              placeholder={"Start writing here...
-
-You can:
-• Take notes from your reading
-• Draft your response or essay
-• Write out your thinking
-
-When done, hit Copy and paste into Google Docs or D2L."}
+              placeholder="Start writing here... take notes, draft your response, or write out your thinking. Hit Copy when done to paste into Google Docs or D2L."
               style={{ width: "100%", minHeight: 280, padding: "14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.8, background: "white" }}
               onFocus={e => e.target.style.borderColor = UA.navy}
               onBlur={e => e.target.style.borderColor = UA.border}
