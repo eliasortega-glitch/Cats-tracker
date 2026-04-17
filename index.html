@@ -5044,7 +5044,7 @@ function App() {
     <div style={{ margin: isMobile ? "12px 12px 0" : "16px 20px 0", padding: "12px 14px", borderRadius: 12, border: `1px solid ${backendStatus.studentsMode === "live" ? UA.greenBorder : UA.yellowBorder}`, background: backendStatus.studentsMode === "live" ? UA.greenBg : UA.yellowBg, display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ fontSize: 13, fontWeight: 800, color: backendStatus.studentsMode === "live" ? UA.green : UA.yellow }}>Backend status</div>
       <div style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.5 }}>
-        Signed in as <strong>{sessionUser.email}</strong>. {backendStatus.profileMode === "live" ? "Your real profile loaded from Supabase." : "Your role/display name are using a fallback because the profiles table is still blocked or missing an RLS policy."} {backendStatus.studentsMessage}
+        Signed in as <strong>{sessionUser.email}</strong>. {backendStatus.studentsMessage}
       </div>
     </div>
   );
