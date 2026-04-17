@@ -118,19 +118,17 @@ async function fetchAllAssignments() {
   if (!data || data.length === 0) return []; // empty but connected
 
   const now = new Date();
+  const midnight = new Date(now); midnight.setHours(0,0,0,0);
   const mapped = data.map(a => {
     const dueDate = a.due_date ? new Date(a.due_date) : new Date();
     const currentStatus = a.status || "not_started";
-    const midnight = new Date(now); midnight.setHours(0,0,0,0);
-    const autoMissing = dueDate < midnight && currentStatus !== "completed" && currentStatus !== "missing";
-    const finalStatus = autoMissing ? "missing" : currentStatus;
-    if (autoMissing && currentStatus !== "missing") {
-      supabase.from("assignments").update({ status: "missing" }).eq("id", a.id).then(() => {});
-    }
+    // isOverdue is independent of work status — past due AND not completed
+    const isOverdue = dueDate < midnight && currentStatus !== "completed";
     return {
       id: a.id, title: a.title || "", course: a.course || "",
       courseCode: a.course_code || "", dueDate,
-      points: a.points || 0, status: finalStatus,
+      points: a.points || 0, status: currentStatus,
+      isOverdue,
       urgency: a.urgency || "green", description: a.description || "",
       instructions: a.instructions || "", rubric: a.rubric || "",
       d2lLink: a.d2l_link || "https://d2l.arizona.edu", studentId: a.student_id,
@@ -698,9 +696,9 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
   const midnight = new Date(now); midnight.setHours(0,0,0,0);
   const weekEnd = new Date(midnight.getTime() + 7*86400000);
   
-  const missing = assignments.filter(a => a.status === "missing");
-  const upcoming = assignments.filter(a => a.status !== "completed" && a.status !== "missing" && a.dueDate >= midnight && a.dueDate < weekEnd);
-  const allIncomplete = assignments.filter(a => a.status !== "completed");
+  const overdue = assignments.filter(a => a.isOverdue && a.status !== "completed");
+  const upcoming = assignments.filter(a => !a.isOverdue && a.status !== "completed" && a.dueDate >= midnight && a.dueDate < weekEnd);
+  const inProgress = assignments.filter(a => a.status === "in_progress");
   const completed = assignments.filter(a => a.status === "completed");
 
   const dueStr = (a) => a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "");
@@ -716,19 +714,22 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
         <p style={{ color: UA.textMuted, marginTop: 4, fontSize: 14 }}>Here's where you stand this week</p>
       </div>
 
-      {/* Missing assignments — front and center */}
-      {missing.length > 0 && (
+      {/* Overdue assignments — front and center */}
+      {overdue.length > 0 && (
         <div style={{ background: UA.redLight, border: `2px solid ${UA.red}`, borderRadius: UA.radius, padding: "18px 20px" }}>
           <div style={{ fontWeight: 800, fontSize: 15, color: UA.red, marginBottom: 12 }}>
-            ⚠️ {missing.length} Missing Assignment{missing.length !== 1 ? "s" : ""} — Talk to your learning specialist
+            ⚠️ {overdue.length} Past Due Assignment{overdue.length !== 1 ? "s" : ""} — Talk to your learning specialist
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {missing.map(a => (
+            {overdue.map(a => (
               <div key={a.id} onClick={() => onNavigate("workmode", a)}
                 style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: UA.radiusSm, background: "white", border: `1px solid ${UA.redBorder}`, cursor: "pointer" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, color: UA.text }}>{a.title}</div>
-                  <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>{a.course} · Was due {dueStr(a)}</div>
+                  <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>
+                    {a.course} · Was due {dueStr(a)}
+                    {a.status === "in_progress" && <span style={{ marginLeft: 8, color: UA.navy, fontWeight: 700 }}>· In Progress</span>}
+                  </div>
                 </div>
                 <Btn size="sm" variant="primary" onClick={e => { e.stopPropagation(); onNavigate("workmode", a); }}>Open →</Btn>
               </div>
@@ -737,15 +738,15 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats — clickable tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
         {[
-          { label: "This Week", value: upcoming.length, sub: "assignments due", color: UA.navy, icon: "📋" },
-          { label: "Missing", value: missing.length, sub: "need attention", color: UA.red, icon: "🔴" },
-          { label: "In Progress", value: assignments.filter(a=>a.status==="in_progress").length, sub: "started", color: UA.yellow, icon: "🔄" },
-          { label: "Completed", value: completed.length, sub: "this semester", color: UA.green, icon: "✅" },
+          { label: "This Week", value: upcoming.length, sub: "assignments due", color: UA.navy, icon: "📋", filter: "upcoming" },
+          { label: "Past Due", value: overdue.length, sub: "need attention", color: UA.red, icon: "🔴", filter: "overdue" },
+          { label: "In Progress", value: inProgress.length, sub: "started", color: UA.yellow, icon: "🔄", filter: "in_progress" },
+          { label: "Completed", value: completed.length, sub: "this semester", color: UA.green, icon: "✅", filter: "completed" },
         ].map((s, i) => (
-          <Card key={i} style={{ padding: "16px 18px" }}>
+          <Card key={i} hover style={{ padding: "16px 18px", cursor: "pointer" }} onClick={() => onNavigate("assignments", { filter: s.filter })}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <div style={{ fontSize: 11, color: UA.textMuted, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
@@ -810,23 +811,30 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
 }
 
 // --- ASSIGNMENTS PAGE ----------------------------------------------------------
-function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignment, onUpdateStatus, onEditAssignment, onDeleteAssignment }) {
+function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignment, onUpdateStatus, onEditAssignment, onDeleteAssignment, initialFilter = "all" }) {
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState(initialFilter);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
-  const filtered = assignments.filter(a =>
-    (a.title + a.course).toLowerCase().includes(search.toLowerCase()) &&
-    (filterStatus === "all" || a.status === filterStatus)
-  );
+  const filtered = assignments.filter(a => {
+    const matchesSearch = (a.title + a.course).toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    if (filterStatus === "all") return true;
+    if (filterStatus === "overdue") return a.isOverdue && a.status !== "completed";
+    if (filterStatus === "upcoming") return !a.isOverdue && a.status !== "completed";
+    if (filterStatus === "in_progress") return a.status === "in_progress";
+    if (filterStatus === "not_started") return a.status === "not_started";
+    if (filterStatus === "completed") return a.status === "completed";
+    return true;
+  });
   const groups = {
-    missing: filtered.filter(a=>a.status==="missing"),
-    in_progress: filtered.filter(a=>a.status==="in_progress"),
+    overdue: filtered.filter(a=>a.isOverdue && a.status !== "completed"),
+    in_progress: filtered.filter(a=>a.status==="in_progress" && !a.isOverdue),
     not_started: filtered.filter(a=>a.status==="not_started"),
     completed: filtered.filter(a=>a.status==="completed"),
   };
   const gMeta = {
-    missing: { label: "Missing", accent: UA.red },
+    overdue: { label: "Past Due", accent: UA.red },
     in_progress: { label: "In Progress", accent: UA.navy },
     not_started: { label: "Not Started", accent: UA.textMuted },
     completed: { label: "Completed", accent: UA.green },
@@ -846,7 +854,7 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍  Search assignments or courses..." style={{ padding: "9px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: UA.bg }} />
           <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ padding: "9px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: "white", cursor: "pointer" }}>
             <option value="all">All Statuses</option>
-            <option value="missing">Missing</option>
+            <option value="overdue">Past Due</option>
             <option value="in_progress">In Progress</option>
             <option value="not_started">Not Started</option>
             <option value="completed">Completed</option>
@@ -1965,7 +1973,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               { label: "Avg Effort", value: `${student.avgEffort}/5`, color: student.avgEffort >= 3.5 ? UA.green : UA.red },
               { label: "Avg Understanding", value: `${student.avgUnderstanding}/5`, color: student.avgUnderstanding >= 3 ? UA.green : UA.red },
               { label: "Study Hours", value: `${student.totalHours}h`, color: UA.navy },
-              { label: "Missing", value: localAssignments.filter(a => a.status === "missing").length, color: localAssignments.filter(a => a.status === "missing").length > 0 ? UA.red : UA.green },
+              { label: "Past Due", value: localAssignments.filter(a => a.isOverdue && a.status !== "completed").length, color: localAssignments.filter(a => a.isOverdue && a.status !== "completed").length > 0 ? UA.red : UA.green },
             ].map((s,i) => (
               <Card key={i} style={{ padding: "18px 20px", textAlign: "center" }}>
                 <div style={{ fontSize: 11, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>{s.label}</div>
@@ -1979,7 +1987,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
             const completed = localAssignments.filter(a => a.status === "completed").length;
             const inProgress = localAssignments.filter(a => a.status === "in_progress").length;
             const notStarted = localAssignments.filter(a => a.status === "not_started").length;
-            const missing = localAssignments.filter(a => a.status === "missing").length;
+            const missing = localAssignments.filter(a => a.isOverdue && a.status !== "completed").length;
             const total = localAssignments.length;
             const pct = (n) => Math.round((n / total) * 100);
             return (
@@ -1996,7 +2004,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                     { label: "Completed", count: completed, color: UA.green, bg: UA.greenBg },
                     { label: "In Progress", count: inProgress, color: UA.navy, bg: UA.navyLight },
                     { label: "Not Started", count: notStarted, color: UA.textMuted, bg: "#F3F4F6" },
-                    { label: "Missing", count: missing, color: UA.red, bg: UA.redLight },
+                    { label: "Past Due", count: missing, color: UA.red, bg: UA.redLight },
                   ].map(({ label, count, color, bg }) => (
                     <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: UA.radiusSm, background: bg }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
@@ -4633,6 +4641,7 @@ function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [workAssignment, setWorkAssignment] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [notifications, setNotifications] = useState([
     { id: 1, icon: "⚠️", message: "Check in with your students — review caseload for recent activity", time: "Today", read: false },
@@ -4738,20 +4747,17 @@ function App() {
           .order("due_date", { ascending: true });
         if (!error && data) {
           const now2 = new Date();
+          const midnight2 = new Date(now2); midnight2.setHours(0,0,0,0);
           liveAssignments = data.map(a => {
             const dueDate = a.due_date ? new Date(a.due_date) : new Date();
             const currentStatus = a.status || "not_started";
-            const midnight2 = new Date(now2); midnight2.setHours(0,0,0,0);
-    const autoMissing = dueDate < midnight2 && currentStatus !== "completed" && currentStatus !== "missing";
-            const finalStatus = autoMissing ? "missing" : currentStatus;
-            if (autoMissing && currentStatus !== "missing") {
-              supabase.from("assignments").update({ status: "missing" }).eq("id", a.id).then(() => {});
-            }
+            const isOverdue = dueDate < midnight2 && currentStatus !== "completed";
             return {
               id: a.id, title: a.title || "", course: a.course || "",
               courseCode: a.course_code || "",
               dueDate,
-              points: a.points || 0, status: finalStatus,
+              points: a.points || 0, status: currentStatus,
+              isOverdue,
               urgency: a.urgency || "green", description: a.description || "",
               instructions: a.instructions || "", rubric: a.rubric || "",
               d2lLink: a.d2l_link || "https://d2l.arizona.edu",
@@ -4828,6 +4834,7 @@ function App() {
       setWorkAssignment(data ? { ...data, studentId: studentUUID } : data);
     }
     if (target === "studentProfile") { setSelectedStudent(data); setPage("studentProfile"); return; }
+    if (target === "assignments" && data?.filter) { setAssignmentFilter(data.filter); }
     setPage(target);
     localStorage.setItem("cats_page", target);
     window.scrollTo(0, 0);
@@ -4937,7 +4944,7 @@ function App() {
     if (page === "settings") return <SettingsPage role={role} currentUser={currentUser} />;
     if (page === "notes") return <GlobalNotesFeed />;
     if (page === "risk") return <RiskMarkersPage key={`risk-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
-    if (page === "assignments") return <AssignmentsPage onNavigate={navigate} assignments={assignments} onAddAssignment={addAssignment} onUpdateStatus={async (id, status) => {
+    if (page === "assignments") return <AssignmentsPage onNavigate={navigate} assignments={assignments} onAddAssignment={addAssignment} initialFilter={assignmentFilter} onUpdateStatus={async (id, status) => {
       setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
       await updateAssignmentStatus(id, status);
     }} onEditAssignment={editAssignment} onDeleteAssignment={deleteAssignment} />;
