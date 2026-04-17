@@ -695,121 +695,113 @@ function Sidebar({ role, activePage, onNavigate, user, onLogout, collapsed, setC
 // --- STUDENT DASHBOARD ---------------------------------------------------------
 function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewProfile }) {
   const now = new Date();
-  const ws = new Date(now); ws.setDate(now.getDate() - now.getDay());
-  const we = new Date(ws.getTime() + 7*86400000);
-  const week = assignments.filter(a => a.dueDate >= ws && a.dueDate < we);
+  const midnight = new Date(now); midnight.setHours(0,0,0,0);
+  const weekEnd = new Date(midnight.getTime() + 7*86400000);
+  
+  const missing = assignments.filter(a => a.status === "missing");
+  const upcoming = assignments.filter(a => a.status !== "completed" && a.status !== "missing" && a.dueDate >= midnight && a.dueDate < weekEnd);
+  const allIncomplete = assignments.filter(a => a.status !== "completed");
+  const completed = assignments.filter(a => a.status === "completed");
+
+  const dueStr = (a) => a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, color: UA.text, margin: 0, letterSpacing: "-0.02em" }}>{`${new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, ${(user?.name || "there").split(" ")[0]} 👋`}</h1>
-          <p style={{ color: UA.textMuted, marginTop: 4, fontSize: 14 }}>Here's where you stand this week</p>
-        </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-          <div style={{ fontSize: 13, color: UA.textMuted, background: UA.bg, padding: "8px 16px", borderRadius: UA.radiusSm, border: `1px solid ${UA.border}` }}>
-            📅 Week of {ws.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-          </div>
-        </div>
+      {/* Greeting */}
+      <div>
+        <h1 style={{ fontSize: 26, fontWeight: 900, color: UA.text, margin: 0, letterSpacing: "-0.02em" }}>
+          {`${now.getHours() < 12 ? "Good morning" : now.getHours() < 17 ? "Good afternoon" : "Good evening"}, ${(user?.name || "there").split(" ")[0]} 👋`}
+        </h1>
+        <p style={{ color: UA.textMuted, marginTop: 4, fontSize: 14 }}>Here's where you stand this week</p>
       </div>
 
-      {/* Top urgent assignments preview */}
-      {(() => {
-        const urgent = assignments.filter(a => a.status !== "completed" && (a.urgency === "red" || a.urgency === "yellow")).slice(0, 3);
-        if (!urgent.length) return null;
-        return (
-          <Card style={{ padding: "18px 20px", border: `1.5px solid ${UA.redBorder}`, background: UA.redLight }}>
-            <div style={{ fontWeight: 800, fontSize: 14, color: UA.red, marginBottom: 12 }}>🔴 Needs Attention</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {urgent.map(a => (
-                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: UA.radiusSm, background: "white", border: `1px solid ${UA.redBorder}` }}>
-                  <UrgencyBar urgency={a.urgency} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: UA.text }}>{a.title}</div>
-                    <div style={{ fontSize: 11, color: UA.textMuted }}>{a.course} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate}</div>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: a.urgency === "red" ? UA.red : UA.yellow, background: a.urgency === "red" ? UA.redLight : UA.yellowBg, padding: "3px 8px", borderRadius: 99, border: `1px solid ${a.urgency === "red" ? UA.redBorder : UA.yellowBorder}` }}>
-                    {a.urgency === "red" ? "Due Soon" : "Upcoming"}
-                  </span>
+      {/* Missing assignments — front and center */}
+      {missing.length > 0 && (
+        <div style={{ background: UA.redLight, border: `2px solid ${UA.red}`, borderRadius: UA.radius, padding: "18px 20px" }}>
+          <div style={{ fontWeight: 800, fontSize: 15, color: UA.red, marginBottom: 12 }}>
+            ⚠️ {missing.length} Missing Assignment{missing.length !== 1 ? "s" : ""} — Talk to your learning specialist
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {missing.map(a => (
+              <div key={a.id} onClick={() => onNavigate("workmode", a)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: UA.radiusSm, background: "white", border: `1px solid ${UA.redBorder}`, cursor: "pointer" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: UA.text }}>{a.title}</div>
+                  <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>{a.course} · Was due {dueStr(a)}</div>
                 </div>
-              ))}
-            </div>
-          </Card>
-        );
-      })()}
+                <Btn size="sm" variant="primary" onClick={e => { e.stopPropagation(); onNavigate("workmode", a); }}>Open →</Btn>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
         {[
-          { label: "This Week", value: week.length, sub: `${week.filter(a=>a.status==="completed").length} completed`, color: UA.navy, icon: "📋" },
-          { label: "Urgent", value: week.filter(a=>a.urgency==="red").length, sub: "Due within 3 days", color: UA.red, icon: "🔴" },
-          { label: "Approaching", value: week.filter(a=>a.urgency==="yellow").length, sub: "Due within 7 days", color: UA.yellow, icon: "🟡" },
-          { label: "Completed", value: assignments.filter(a=>a.status==="completed").length, sub: "This semester", color: UA.green, icon: "✅" },
+          { label: "This Week", value: upcoming.length, sub: "assignments due", color: UA.navy, icon: "📋" },
+          { label: "Missing", value: missing.length, sub: "need attention", color: UA.red, icon: "🔴" },
+          { label: "In Progress", value: assignments.filter(a=>a.status==="in_progress").length, sub: "started", color: UA.yellow, icon: "🔄" },
+          { label: "Completed", value: completed.length, sub: "this semester", color: UA.green, icon: "✅" },
         ].map((s, i) => (
-          <Card key={i} style={{ padding: "18px 20px" }}>
+          <Card key={i} style={{ padding: "16px 18px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <div style={{ fontSize: 11, color: UA.textMuted, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>{s.label}</div>
-                <div style={{ fontSize: 34, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 5 }}>{s.sub}</div>
+                <div style={{ fontSize: 11, color: UA.textMuted, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 4 }}>{s.sub}</div>
               </div>
-              <span style={{ fontSize: 22 }}>{s.icon}</span>
+              <span style={{ fontSize: 20 }}>{s.icon}</span>
             </div>
           </Card>
         ))}
       </div>
 
-      {/* Dynamic intervention alert — only shows when there are real urgent items */}
-      {assignments.filter(a => a.status !== "completed" && a.urgency === "red").length > 0 && (
-        <div style={{ background: UA.redLight, border: `1px solid ${UA.redBorder}`, borderRadius: UA.radius, padding: "16px 20px", display: "flex", gap: 14, alignItems: "flex-start" }}>
-          <span style={{ fontSize: 20 }}>⚠️</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, color: UA.red, fontSize: 14, marginBottom: 3 }}>Heads up — action needed</div>
-            <div style={{ fontSize: 13, color: UA.redDark, lineHeight: 1.5 }}>
-              You have {assignments.filter(a => a.status !== "completed" && a.urgency === "red").length} assignment{assignments.filter(a => a.status !== "completed" && a.urgency === "red").length !== 1 ? "s" : ""} due very soon. Consider scheduling a session with your learning specialist.
-            </div>
-          </div>
-          <Btn size="sm" variant="outline" onClick={() => onNavigate("assignments")}>View →</Btn>
-        </div>
-      )}
-
-      {/* This week's assignments */}
-      <Card style={{ padding: "22px 24px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>This Week's Assignments</div>
+      {/* This week's assignments — all upcoming, sorted by due date, missing shown distinctly */}
+      <Card style={{ padding: "20px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>This Week</div>
           <Btn size="sm" variant="ghost" onClick={() => onNavigate("assignments")}>View all →</Btn>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {week.map(a => (
-            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}`, cursor: "pointer", transition: "all 0.15s" }}
-              onClick={() => onNavigate("workmode", a)}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = UA.red; e.currentTarget.style.background = UA.redLight; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = UA.border; e.currentTarget.style.background = UA.bg; }}>
-              <UrgencyBar urgency={a.urgency} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: UA.text }}>{a.title}</div>
-                <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "")}</div>
+        {upcoming.length === 0 && missing.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "24px 0", color: UA.textMuted }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🎉</div>
+            <div style={{ fontWeight: 700, color: UA.text, marginBottom: 4 }}>You're all caught up!</div>
+            <div style={{ fontSize: 13 }}>No assignments due this week.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {upcoming.map(a => (
+              <div key={a.id}
+                onClick={() => onNavigate("workmode", a)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${a.urgency === "red" ? UA.redBorder : UA.border}`, borderLeft: `4px solid ${a.urgency === "red" ? UA.red : a.urgency === "yellow" ? UA.yellow : UA.green}`, cursor: "pointer", transition: "all 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = UA.navyLight}
+                onMouseLeave={e => e.currentTarget.style.background = UA.bg}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: UA.text }}>{a.title}</div>
+                  <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · Due {dueStr(a)}</div>
+                </div>
+                <StatusBadge status={a.status} />
+                <Btn size="sm" variant="secondary" onClick={e => { e.stopPropagation(); onNavigate("workmode", a); }}>Work on this</Btn>
               </div>
-              <StatusBadge status={a.status} />
-              <Btn size="sm" variant="secondary" onClick={e => { e.stopPropagation(); onNavigate("workmode", a); }}>Work on this</Btn>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Quick actions */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
         {[
           { icon: "📚", label: "All Assignments", page: "assignments" },
           { icon: "📊", label: "My Progress", page: "analytics" },
           { icon: "⚙", label: "Settings", page: "settings" },
         ].map(item => (
           <button key={item.page} onClick={() => onNavigate(item.page)}
-            style={{ padding: "22px 16px", borderRadius: UA.radius, border: `1.5px solid ${UA.border}`, background: UA.bgCard, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: UA.text, transition: "all 0.15s", fontFamily: "inherit", boxShadow: UA.shadow }}
+            style={{ padding: "20px 16px", borderRadius: UA.radius, border: `1.5px solid ${UA.border}`, background: UA.bgCard, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: UA.text, transition: "all 0.15s", fontFamily: "inherit", boxShadow: UA.shadow }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = UA.navy; e.currentTarget.style.background = UA.navyLight; e.currentTarget.style.color = UA.navy; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = UA.border; e.currentTarget.style.background = UA.bgCard; e.currentTarget.style.color = UA.text; }}>
-            <span style={{ fontSize: 28 }}>{item.icon}</span>{item.label}
+            <span style={{ fontSize: 26 }}>{item.icon}</span>{item.label}
           </button>
         ))}
       </div>
