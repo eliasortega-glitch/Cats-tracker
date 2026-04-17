@@ -1377,10 +1377,10 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
       {/* Caseload health summary — clickable tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
         {[
-          { label: "Total Students", value: STUDENTS.length, color: UA.navy, icon: "👥", sub: "in your caseload", action: () => onSelectStudent(null) },
-          { label: "High Risk", value: STUDENTS.filter(s => s.dynamicRisk === "high").length, color: UA.red, icon: "🔴", sub: "need attention", action: () => { const s = STUDENTS.find(st => st.dynamicRisk === "high"); if (s) onSelectStudent(s); } },
+          { label: "Total Students", value: STUDENTS.length, color: UA.navy, icon: "👥", sub: "in your caseload", action: () => onSelectStudent("roster") },
+          { label: "High Risk", value: STUDENTS.filter(s => s.dynamicRisk === "high").length, color: UA.red, icon: "🔴", sub: "need attention", action: () => onSelectStudent("roster_high") },
           { label: "Appointments Today", value: isWeekend ? 0 : todayAppts.length, color: UA.navy, icon: "📅", sub: isWeekend ? "enjoy your weekend" : "scheduled today", action: null },
-          { label: "Low Risk", value: STUDENTS.filter(s => s.dynamicRisk === "low").length, color: UA.green, icon: "🟢", sub: "on track", action: () => { const s = STUDENTS.find(st => st.dynamicRisk === "low"); if (s) onSelectStudent(s); } },
+          { label: "Low Risk", value: STUDENTS.filter(s => s.dynamicRisk === "low").length, color: UA.green, icon: "🟢", sub: "on track", action: () => onSelectStudent("roster_low") },
         ].map((s, i) => (
           <Card key={i} hover={!!s.action} style={{ padding: "18px 20px", cursor: s.action ? "pointer" : "default" }} onClick={s.action || undefined}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -5072,7 +5072,11 @@ function App() {
       setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
       await updateAssignmentStatus(id, status);
     }} onEditAssignment={editAssignment} onDeleteAssignment={deleteAssignment} />;
-    if (page === "dashboard" && role !== "student") return <StaffDashboard key={`dashboard-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={currentUser.name} />;
+    if (page === "dashboard" && role !== "student") return <StaffDashboard key={`dashboard-${dataVersion}`} onSelectStudent={s => {
+      if (s === "roster") { setPage("roster"); return; }
+      if (s === "roster_high" || s === "roster_low") { setPage("roster"); return; }
+      setSelectedStudent(s); setPage("studentProfile");
+    }} currentUserName={currentUser.name} />;
     // Student can access their own profile
     if (page === "myprofile" && role === "student") {
       const myStudent = STUDENTS.find(s => s.email === sessionUser?.email) || STUDENTS[0];
@@ -5085,7 +5089,10 @@ function App() {
     }
     return role === "student"
       ? <StudentDashboard onNavigate={navigate} assignments={assignments} user={currentUser} onViewProfile={() => setPage("myprofile")} />
-      : <StaffDashboard key={`staff-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} currentUserName={currentUser.name} />;
+      : <StaffDashboard key={`staff-${dataVersion}`} onSelectStudent={s => {
+      if (s === "roster" || s === "roster_high" || s === "roster_low") { setPage("roster"); return; }
+      setSelectedStudent(s); setPage("studentProfile");
+    }} currentUserName={currentUser.name} />;
   };
 
   const mobileNav = role === "student"
