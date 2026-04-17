@@ -2419,6 +2419,8 @@ function SettingsPage({ role, currentUser = {} }) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState(currentUser?.name || "");
+  // Sync if currentUser loads after initial render
+  React.useEffect(() => { if (currentUser?.name) setFullName(currentUser.name); }, [currentUser?.name]);
   const [notifPrefs, setNotifPrefs] = useState({
     highRisk: true, missedSession: true, missingAssignment: true,
     lowUnderstanding: true, sessionComplete: false, weeklyReport: true,
@@ -4952,8 +4954,18 @@ function App() {
   };
 
   const currentUser = profile
-    ? { name: profile.full_name || profile.Full_Name || deriveDisplayNameFromEmail(profile.email || sessionUser?.email || ""), initials: profile.initials || initialsFromName(profile.full_name || deriveDisplayNameFromEmail(profile.email || sessionUser?.email || "")) }
-    : { name: deriveDisplayNameFromEmail(sessionUser?.email || "user@example.com"), initials: initialsFromName(deriveDisplayNameFromEmail(sessionUser?.email || "user@example.com")) };
+    ? { 
+        id: sessionUser?.id || null,
+        email: profile.email || sessionUser?.email || "",
+        name: profile.full_name || profile.Full_Name || deriveDisplayNameFromEmail(profile.email || sessionUser?.email || ""),
+        initials: profile.initials || initialsFromName(profile.full_name || deriveDisplayNameFromEmail(profile.email || sessionUser?.email || ""))
+      }
+    : { 
+        id: sessionUser?.id || null,
+        email: sessionUser?.email || "",
+        name: deriveDisplayNameFromEmail(sessionUser?.email || "user@example.com"),
+        initials: initialsFromName(deriveDisplayNameFromEmail(sessionUser?.email || "user@example.com"))
+      };
 
   if (authLoading) {
     return (
