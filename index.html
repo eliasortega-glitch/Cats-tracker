@@ -1831,6 +1831,65 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [weeklyPlan, setWeeklyPlan] = useState(student.weeklyPlan || "");
   const [planSaved, setPlanSaved] = useState(false);
+  const [planGenerating, setPlanGenerating] = useState(false);
+
+  const generateWeeklyPlan = async () => {
+    setPlanGenerating(true);
+    try {
+      const now = new Date();
+      const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + 1);
+      const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+      const weekStr = weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " – " + weekEnd.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+      const overdueAssignments = localAssignments.filter(a => a.isOverdue && a.status !== "completed");
+      const weekAssignments = localAssignments.filter(a => !a.isOverdue && a.status !== "completed" && a.dueDate >= now && a.dueDate <= weekEnd);
+      const upcomingAssignments = localAssignments.filter(a => !a.isOverdue && a.status !== "completed" && a.dueDate > weekEnd).slice(0, 3);
+
+      const formatA = (a) => a.title + " (" + a.course + ", due " + (a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate) + ", status: " + a.status + ")";
+
+      const prompt = "You are a learning specialist creating a weekly academic plan for a student-athlete. Generate a structured weekly plan in plain text, ready to paste into a planning tool. Use this exact format:" +
+        "\n\nWeek of [DATE] — [STUDENT NAME]" +
+        "\n\nPRIORITY THIS WEEK:" +
+        "\n• [assignment] — [brief action]" +
+        "\n\nDAILY FOCUS:" +
+        "\nMonday: [task]" +
+        "\nTuesday: [task]" +
+        "\nWednesday: [task]" +
+        "\nThursday: [task]" +
+        "\nFriday: [task]" +
+        "\n\nSTAFF NOTES:" +
+        "\n• [1-2 observations based on engagement data]" +
+        "\n\nStudent: " + student.name +
+        "\nSport: " + student.sport +
+        "\nWeek of: " + weekStr +
+        "\nRisk level: " + student.dynamicRisk +
+        (overdueAssignments.length > 0 ? "\nPAST DUE (urgent): " + overdueAssignments.map(formatA).join("; ") : "") +
+        (weekAssignments.length > 0 ? "\nDUE THIS WEEK: " + weekAssignments.map(formatA).join("; ") : "\nNothing due this week") +
+        (upcomingAssignments.length > 0 ? "\nUPCOMING: " + upcomingAssignments.map(formatA).join("; ") : "") +
+        "\nAvg understanding (last sessions): " + (student.avgUnderstanding || "no data") +
+        "\nAvg effort (last sessions): " + (student.avgEffort || "no data") +
+        "\n\nKeep the plan concise and actionable. Focus on what the student needs to do, not what they should feel. Plain text only, no markdown formatting.";
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          assignment: { title: "Session Summary Request", course: "", description: prompt },
+          prompt: { question: "Generate weekly plan", aiPrompt: prompt },
+        }),
+      });
+      const data = await response.json();
+      const text = data.text || data.content?.[0]?.text || "";
+      if (text) setWeeklyPlan(text);
+    } catch (e) {
+      console.warn("Plan generation failed:", e.message);
+    }
+    setPlanGenerating(false);
+  };
   const [localAssignments, setLocalAssignments] = useState([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(true);
   const [editingAssignment, setEditingAssignment] = useState(null);
@@ -1970,10 +2029,16 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
           {/* ADDED: Weekly session plan — replaces Teamworks free-text task field */}
           <Card style={{ border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <div style={{ fontWeight: 800, fontSize: 14, color: UA.navy }}>📋 This Week's Plan</div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: UA.navy }}>📋 This Week's Plan</div>
+                <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>AI-drafted from assignment data · edit before saving</div>
+              </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 {planSaved && <span style={{ fontSize: 12, color: UA.green, fontWeight: 700 }}>✓ Saved</span>}
-                <Btn size="sm" variant="navy" onClick={handlePlanSave}>Save Plan</Btn>
+                <Btn size="sm" variant="outline" disabled={planGenerating} onClick={generateWeeklyPlan}>
+                  {planGenerating ? "Generating..." : "✨ Generate"}
+                </Btn>
+                <Btn size="sm" variant="secondary" onClick={handlePlanSave}>Save Plan</Btn>
               </div>
             </div>
             <textarea value={weeklyPlan} onChange={e => setWeeklyPlan(e.target.value)} rows={5}
