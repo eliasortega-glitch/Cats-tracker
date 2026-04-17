@@ -917,6 +917,28 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [effort, setEffort] = useState(3);
   const [understanding, setUnderstanding] = useState(3);
   const [notes, setNotes] = useState("");
+  const [workContent, setWorkContent] = useState("");
+  const [wordCount, setWordCount] = useState(0);
+  const [workSaved, setWorkSaved] = useState(false);
+  const [copyConfirm, setCopyConfirm] = useState(false);
+  const editorRef = useRef(null);
+  const autoSaveTimeout = useRef(null);
+
+  const insertFormat = (before, after, placeholder) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = workContent.substring(start, end) || placeholder;
+    const newText = workContent.substring(0, start) + before + selected + after + workContent.substring(end);
+    setWorkContent(newText);
+    setWordCount(newText.trim() ? newText.trim().split(/\s+/).length : 0);
+    setTimeout(() => {
+      el.focus();
+      el.selectionStart = start + before.length;
+      el.selectionEnd = start + before.length + selected.length;
+    }, 0);
+  };
   const [completionType, setCompletionType] = useState("in_progress");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -945,7 +967,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       effort: overrides.effort || null,
       understanding: overrides.understanding || null,
       completionType: overrides.completionType || "in_progress",
-      notes: overrides.notes || "",
+      notes: overrides.notes || workContent || "",
       durationMinutes: Math.max(1, Math.round(currentTime / 60)),
       loggedBy: sessionUser?.id || null,
       timeSeconds: currentTime,
@@ -1155,13 +1177,75 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             ⏱ Time on task: {fmt(time)}
           </div>
 
-          {/* Notes */}
-          <Card>
-            <div style={{ fontWeight: 800, fontSize: 15, color: UA.text, marginBottom: 10 }}>📝 Your Notes</div>
-            <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Take notes, write questions, jot ideas... this is your space." rows={5}
-              style={{ width: "100%", padding: "12px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.6 }}
+          {/* Work Editor */}
+          <Card style={{ padding: "20px 22px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontWeight: 800, fontSize: 15, color: UA.text }}>✍️ Your Work</div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {workSaved && <span style={{ fontSize: 12, color: UA.green, fontWeight: 600 }}>✓ Saved</span>}
+                <button onClick={() => {
+                  const text = workContent;
+                  navigator.clipboard.writeText(text).then(() => {
+                    setCopyConfirm(true);
+                    setTimeout(() => setCopyConfirm(false), 2000);
+                  });
+                }} style={{ padding: "5px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  {copyConfirm ? "✓ Copied!" : "📋 Copy"}
+                </button>
+              </div>
+            </div>
+
+            {/* Formatting toolbar */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 8, padding: "6px 8px", background: UA.bg, borderRadius: UA.radiusSm, border: `1px solid ${UA.border}`, flexWrap: "wrap" }}>
+              {[
+                { label: "B", title: "Bold", action: () => insertFormat("**", "**", "bold text") },
+                { label: "I", title: "Italic", action: () => insertFormat("_", "_", "italic text") },
+                { label: "H1", title: "Heading", action: () => insertFormat("
+# ", "
+", "Heading") },
+                { label: "H2", title: "Subheading", action: () => insertFormat("
+## ", "
+", "Subheading") },
+                { label: "•", title: "Bullet", action: () => insertFormat("
+- ", "", "list item") },
+                { label: "1.", title: "Numbered list", action: () => insertFormat("
+1. ", "", "list item") },
+                { label: "―", title: "Divider", action: () => insertFormat("
+---
+", "", "") },
+              ].map(btn => (
+                <button key={btn.label} title={btn.title} onClick={btn.action}
+                  style={{ padding: "3px 8px", borderRadius: 4, border: `1px solid ${UA.border}`, background: "white", color: UA.text, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: btn.label === "B" ? "serif" : btn.label === "I" ? "serif" : "inherit", fontStyle: btn.label === "I" ? "italic" : "normal", minWidth: 28 }}>
+                  {btn.label}
+                </button>
+              ))}
+              <div style={{ marginLeft: "auto", fontSize: 11, color: UA.textMuted, alignSelf: "center" }}>{wordCount} words</div>
+            </div>
+
+            <textarea
+              ref={editorRef}
+              value={workContent}
+              onChange={e => {
+                setWorkContent(e.target.value);
+                setWordCount(e.target.value.trim() ? e.target.value.trim().split(/\s+/).length : 0);
+                clearTimeout(autoSaveTimeout.current);
+                autoSaveTimeout.current = setTimeout(() => setWorkSaved(true), 1500);
+              }}
+              placeholder={"Start writing here...
+
+You can:
+• Take notes from your reading
+• Draft your response or essay
+• Write out your thinking
+
+When done, hit Copy and paste into Google Docs or D2L."}
+              style={{ width: "100%", minHeight: 280, padding: "14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.8, background: "white" }}
               onFocus={e => e.target.style.borderColor = UA.navy}
-              onBlur={e => e.target.style.borderColor = UA.border} />
+              onBlur={e => e.target.style.borderColor = UA.border}
+            />
+            <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 6 }}>
+              Auto-saves with your session · Use Copy to paste into Google Docs or D2L when done
+            </div>
           </Card>
 
           {/* Self assessment */}
