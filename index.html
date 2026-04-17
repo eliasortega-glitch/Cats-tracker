@@ -2101,7 +2101,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ fontWeight: 800, fontSize: 15, color: UA.text }}>Work Session Log</div>
           <div style={{ fontSize: 13, color: UA.textMuted, lineHeight: 1.6 }}>Every Work Mode session this student has logged — review before your meeting to see where they spent time, how they rated their effort and understanding, and what they noted.</div>
-          <SessionLogTab studentId={student.id} />
+          <SessionLogTab studentId={student.id} studentName={student.name} />
         </div>
       )}
 
@@ -4282,9 +4282,74 @@ function GlobalNotesFeed() {
 // --- SESSION LOG TAB ----------------------------------------------------------
 // Shows on student profile — every Work Mode session the student has logged.
 // This is what the LS reviews before a meeting.
-function SessionLogTab({ studentId }) {
+function SessionLogTab({ studentId, studentName = "this student" }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [aiSummary, setAiSummary] = useState("");
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
+
+  const generateSummary = async () => {
+    if (logs.length === 0) return;
+    setSummaryLoading(true);
+    setSummaryError("");
+    setAiSummary("");
+
+    // Build a compact data payload for Claude
+    const avgEffort = logs.filter(l=>l.effort>0).length > 0
+      ? (logs.filter(l=>l.effort>0).reduce((s,l)=>s+l.effort,0) / logs.filter(l=>l.effort>0).length).toFixed(1)
+      : "not reported";
+    const avgUnderstanding = logs.filter(l=>l.understanding>0).length > 0
+      ? (logs.filter(l=>l.understanding>0).reduce((s,l)=>s+l.understanding,0) / logs.filter(l=>l.understanding>0).length).toFixed(1)
+      : "not reported";
+    const totalTime = logs.reduce((s,l)=>s+l.timeSeconds,0);
+    const totalBreakdowns = logs.reduce((s,l)=>s+l.aiBreakdownsUsed,0);
+    const avgPromptsOpened = logs.length > 0
+      ? (logs.reduce((s,l)=>s+(l.promptsExpanded?.length||0),0) / logs.length).toFixed(1)
+      : 0;
+    const avgResponsesFilled = logs.length > 0
+      ? (logs.reduce((s,l)=>s+l.promptResponsesFilled,0) / logs.length).toFixed(1)
+      : 0;
+    const lateWorkSessions = logs.filter(l=>l.daysBeforeDue !== null && l.daysBeforeDue <= 0).length;
+    const recentNotes = logs.filter(l=>l.notes).slice(0,3).map(l=>`"${l.notes}"`).join(", ");
+    const assignments = [...new Set(logs.map(l=>l.assignment))].join(", ");
+
+    const prompt = "You are a learning specialist reviewing a student-athlete's academic engagement data. Write a concise clinical summary (4-6 sentences) followed by 2-3 specific, actionable recommendations for the upcoming session. Be direct and professional — this is for a staff member, not the student. Do not be generic. Use the specific numbers provided." +
+      " Student: " + studentName +
+      " | Sessions logged: " + logs.length +
+      " | Assignments worked on: " + assignments +
+      " | Total time in app: " + Math.round(totalTime/60) + " minutes" +
+      " | Avg effort (self-reported 1-5): " + avgEffort +
+      " | Avg understanding (self-reported 1-5): " + avgUnderstanding +
+      " | Avg prompts opened per session: " + avgPromptsOpened + " of 4" +
+      " | Avg written responses per session: " + avgResponsesFilled + " of 4" +
+      " | AI breakdowns requested: " + totalBreakdowns +
+      " | Sessions started day-of or late: " + lateWorkSessions + " of " + logs.length +
+      (recentNotes ? " | Student notes from recent sessions: " + recentNotes : "") +
+      " | Important context: Self-reported effort and understanding may not reflect actual engagement. Weight behavioral data (time, prompts opened, responses written) more heavily when they conflict with self-report. Flag any discrepancies explicitly.";
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          assignment: { title: "Session Summary Request", course: "", description: prompt },
+          prompt: { question: "Generate clinical summary", aiPrompt: prompt },
+        }),
+      });
+      const data = await response.json();
+      const text = data.text || data.content?.[0]?.text || "";
+      if (!text) throw new Error("Empty response");
+      setAiSummary(text);
+    } catch (e) {
+      setSummaryError("Could not generate summary. Try again.");
+    }
+    setSummaryLoading(false);
+  };
 
   useEffect(() => {
     const isRealUUID = studentId && typeof studentId === "string" && studentId.includes("-");
@@ -4326,7 +4391,36 @@ function SessionLogTab({ studentId }) {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* AI Session Summary */}
+      <Card style={{ padding: "20px 24px", border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: aiSummary ? 14 : 0 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: UA.navy }}>🧠 AI Session Summary</div>
+            <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>Interprets behavioral + self-report data and surfaces clinical insights</div>
+          </div>
+          <Btn size="sm" variant="secondary" disabled={summaryLoading || logs.length === 0} onClick={generateSummary}>
+            {summaryLoading ? "Generating..." : aiSummary ? "Regenerate" : "Generate Summary"}
+          </Btn>
+        </div>
+        {summaryLoading && (
+          <div style={{ padding: "16px 0", color: UA.textMuted, fontSize: 13 }}>Analyzing {logs.length} sessions...</div>
+        )}
+        {summaryError && (
+          <div style={{ color: UA.red, fontSize: 13, marginTop: 10 }}>{summaryError}</div>
+        )}
+        {aiSummary && !summaryLoading && (
+          <div style={{ fontSize: 13, lineHeight: 1.8, color: UA.text, whiteSpace: "pre-wrap", marginTop: 4 }}>{aiSummary}</div>
+        )}
+        {!aiSummary && !summaryLoading && !summaryError && (
+          <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 10 }}>
+            Click Generate Summary to get an AI-interpreted clinical overview of this student's engagement patterns.
+          </div>
+        )}
+      </Card>
+
+      {/* Session log entries */}
       {logs.map(log => (
         <div key={log.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "18px 20px", boxShadow: UA.shadow }}>
           {/* Header */}
