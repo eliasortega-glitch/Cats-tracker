@@ -1710,7 +1710,10 @@ function RosterPage({ onSelectStudent }) {
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <RiskBadge level={student.dynamicRisk} score={student.riskScore} />
-              {student.missedAssignments > 0 && <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: UA.redLight, color: UA.red, fontWeight: 700, border: `1px solid ${UA.redBorder}` }}>{student.missedAssignments} missing</span>}
+              {student.missedAssignments > 0 && <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: UA.redLight, color: UA.red, fontWeight: 700, border: `1px solid ${UA.redBorder}` }}>{student.missedAssignments} past due</span>}
+              {student.lastSession && (student.lastSession.includes("7 days") || student.lastSession.includes("8 days") || student.lastSession.includes("9 days") || student.lastSession.includes("10 days") || student.lastSession === "No sessions yet") && (
+                <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: UA.yellowBg, color: UA.yellow, fontWeight: 700, border: `1px solid ${UA.yellowBorder}` }}>⚠️ No recent session</span>
+              )}
               <div style={{ fontSize: 12, color: UA.textMuted }}>Last session: {student.lastSession}</div>
             </div>
             <span style={{ color: UA.textMuted, fontSize: 18 }}>›</span>
@@ -4789,11 +4792,82 @@ function App() {
     } else if (liveAssignments.length === 0) {
       console.log("No assignments found for this user.");
       setAssignments([]);
-      setAssignmentsMode("live"); // Connected, just empty
+      setAssignmentsMode("live");
     } else {
       setAssignments(liveAssignments);
       setAssignmentsMode("live");
       console.log(`✅ ${liveAssignments.length} assignments loaded from Supabase.`);
+    }
+
+    // --- DYNAMIC RISK SCORING ---
+    // Runs on every login for staff. Updates STUDENTS array in memory.
+    // Rules:
+    //   High Risk: 3+ past due OR avg understanding < 2.5 over last 3 sessions OR no session in 7+ days
+    //   Medium Risk: 2 past due
+    //   Low Risk: everything else
+    if (resolvedRole !== "student" && liveAssignments) {
+      for (const student of STUDENTS) {
+        try {
+          // Count past due assignments
+          const pastDue = liveAssignments.filter(a =>
+            a.studentId === student.id && a.isOverdue && a.status !== "completed"
+          ).length;
+
+          // Fetch last 3 session logs for this student
+          const { data: recentLogs } = await supabase
+            .from("session_logs")
+            .select("understanding, created_at")
+            .eq("student_id", student.id)
+            .order("created_at", { ascending: false })
+            .limit(3);
+
+          const logs = recentLogs || [];
+
+          // Average understanding from last 3 sessions
+          const avgUnderstanding = logs.length > 0
+            ? logs.reduce((sum, l) => sum + (l.understanding || 0), 0) / logs.length
+            : null;
+
+          // Days since last session
+          const lastSessionDate = logs[0]?.created_at ? new Date(logs[0].created_at) : null;
+          const daysSinceSession = lastSessionDate
+            ? Math.floor((Date.now() - lastSessionDate.getTime()) / 86400000)
+            : null;
+
+          // Calculate risk level
+          let newRisk = "low";
+          let riskScore = 10;
+
+          if (pastDue >= 3 || (avgUnderstanding !== null && avgUnderstanding < 2.5) || (daysSinceSession !== null && daysSinceSession >= 7)) {
+            newRisk = "high";
+            riskScore = 85;
+          } else if (pastDue >= 2) {
+            newRisk = "medium";
+            riskScore = 55;
+          }
+
+          // Update in memory
+          student.dynamicRisk = newRisk;
+          student.riskScore = riskScore;
+          student.missedAssignments = pastDue;
+          if (avgUnderstanding !== null) student.avgUnderstanding = parseFloat(avgUnderstanding.toFixed(1));
+          if (daysSinceSession !== null) student.lastSession = daysSinceSession === 0 ? "Today" : daysSinceSession === 1 ? "Yesterday" : `${daysSinceSession} days ago`;
+
+          // Write back to Supabase if risk changed
+          const { data: currentRow } = await supabase
+            .from("students")
+            .select("risk_level")
+            .eq("students", student.id)
+            .maybeSingle();
+
+          if (currentRow && currentRow.risk_level !== newRisk) {
+            await supabase.from("students").update({ risk_level: newRisk }).eq("students", student.id);
+            console.log(`📊 Risk updated: ${student.name} → ${newRisk} (${pastDue} past due, avg understanding: ${avgUnderstanding?.toFixed(1) || "n/a"})`);
+          }
+        } catch (e) {
+          console.warn("Risk calc failed for", student.name, e.message);
+        }
+      }
     }
 
     setAuthLoading(false);
