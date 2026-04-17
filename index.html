@@ -924,6 +924,26 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const editorRef = useRef(null);
   const autoSaveTimeout = useRef(null);
 
+  // Load previous work content for this assignment
+  useEffect(() => {
+    if (!a?.id || !a?.studentId) return;
+    const isRealUUID = typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-");
+    if (!isRealUUID) return;
+    supabase.from("session_logs")
+      .select("notes, created_at")
+      .eq("assignment_id", a.id)
+      .eq("student_id", a.studentId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.notes && data.notes.trim()) {
+          setWorkContent(data.notes);
+          setWordCount(data.notes.trim().split(/\s+/).length);
+        }
+      });
+  }, [a?.id]);
+
   const insertFormat = (before, after, placeholder) => {
     const el = editorRef.current;
     if (!el) return;
@@ -982,16 +1002,8 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   useEffect(() => {
     startTimeRef.current = Date.now();
     timerRef.current = setInterval(() => setTime(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000);
-    // Auto-save heartbeat every 2 minutes if student has been here > 30 seconds
-    autoSaveRef.current = setInterval(async () => {
-      const currentTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
-      if (currentTime > 30 && a.studentId) {
-        await insertSessionLog(buildLogData(currentTime));
-      }
-    }, 120000);
     return () => {
       clearInterval(timerRef.current);
-      clearInterval(autoSaveRef.current);
     };
   }, []);
 
