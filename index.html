@@ -2429,9 +2429,14 @@ function SettingsPage({ role, currentUser = {} }) {
   const isStaff = role !== "student";
 
   const handleSaveSettings = async () => {
+    console.log("handleSaveSettings called, id:", currentUser?.id, "name:", fullName);
     setSaving(true);
     if (currentUser?.id && fullName.trim()) {
-      await supabase.from("profiles").update({ full_name: fullName.trim() }).eq("id", currentUser.id);
+      const { error } = await supabase.from("profiles").update({ full_name: fullName.trim() }).eq("id", currentUser.id);
+      if (error) console.error("Settings save failed:", error.message);
+      else console.log("✅ Settings saved successfully");
+    } else {
+      console.warn("Save skipped — id:", currentUser?.id, "name:", fullName);
     }
     setSaving(false);
     setSaved(true);
