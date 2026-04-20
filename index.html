@@ -1029,6 +1029,55 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [expandedBreakdown, setExpandedBreakdown] = useState({});
   const [isLoadingBreakdown, setIsLoadingBreakdown] = useState({});
   const [aiBreakdownText, setAiBreakdownText] = useState({});
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("Help me understand this assignment and where to start.");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
+
+  const sendChatMessage = async (messageText) => {
+    const msg = messageText || chatInput;
+    if (!msg.trim() || chatLoading) return;
+    setChatInput("");
+    setChatLoading(true);
+
+    const userMsg = { role: "user", content: msg };
+    const updatedHistory = [...chatMessages, userMsg];
+    setChatMessages(updatedHistory);
+
+    // Build context about the assignment
+    const assignmentContext = "Assignment: " + (a.title || "Untitled") +
+      " | Course: " + (a.course || "Not specified") +
+      " | Due: " + (a.dueDate instanceof Date ? a.dueDate.toLocaleDateString() : String(a.dueDate || "")) +
+      " | Points: " + (a.points || "Not specified") +
+      (a.description ? " | Description: " + a.description : "") +
+      (a.instructions ? " | Instructions: " + a.instructions : "") +
+      (a.rubric ? " | Rubric: " + a.rubric : "");
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          assignment: { title: "Chat Mode", course: "", description: assignmentContext },
+          prompt: {
+            question: msg,
+            aiPrompt: "Assignment context: " + assignmentContext + "\n\nConversation so far: " + updatedHistory.slice(-4).map(m => m.role + ": " + m.content).join("\n") + "\n\nStudent question: " + msg + "\n\nRespond helpfully and specifically. Keep it under 4 sentences. Do not write the assignment for them. If they ask for simpler language, use simpler language.",
+          },
+        }),
+      });
+      const data = await response.json();
+      const reply = data.text || "I couldn't generate a response. Try again.";
+      setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
+    } catch (e) {
+      setChatMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+    }
+    setChatLoading(false);
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
   const timerRef = useRef(null);
   const startTimeRef = useRef(Date.now());
   const autoSaveRef = useRef(null);
@@ -1171,6 +1220,59 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               </div>
             ))}
           </Card>
+
+          {/* AI Chat Box */}
+          <div style={{ background: zenMode ? ZEN.bgCard : UA.bgCard, border: `1.5px solid ${zenMode ? ZEN.navyBorder : UA.navyBorder}`, borderRadius: UA.radius, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: 380, transition: "all 0.3s" }}>
+            <div style={{ padding: "12px 16px", borderBottom: `1px solid ${zenMode ? ZEN.border : UA.navyBorder}`, background: zenMode ? ZEN.navyLight : UA.navyLight }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: zenMode ? ZEN.navy : UA.navy, letterSpacing: "0.06em", textTransform: "uppercase" }}>🤖 Ask About This Assignment</div>
+              <div style={{ fontSize: 11, color: zenMode ? ZEN.textMuted : UA.textMuted, marginTop: 2 }}>Ask anything — I only know about this assignment</div>
+            </div>
+
+            {/* Messages */}
+            <div style={{ flex: 1, overflow: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10, minHeight: 80, maxHeight: 220 }}>
+              {chatMessages.length === 0 && (
+                <div style={{ fontSize: 12, color: zenMode ? ZEN.textMuted : UA.textMuted, textAlign: "center", padding: "16px 0" }}>
+                  Send a message to start — or use the starter prompt below
+                </div>
+              )}
+              {chatMessages.map((msg, i) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div style={{
+                    maxWidth: "85%", padding: "8px 12px", borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                    background: msg.role === "user" ? (zenMode ? ZEN.navy : UA.navy) : (zenMode ? ZEN.bgCard : "#F3F4F6"),
+                    color: msg.role === "user" ? "white" : (zenMode ? ZEN.text : UA.text),
+                    fontSize: 13, lineHeight: 1.6,
+                    border: msg.role === "assistant" ? `1px solid ${zenMode ? ZEN.border : UA.border}` : "none",
+                  }}>{msg.content}</div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                  <div style={{ padding: "8px 12px", borderRadius: "14px 14px 14px 4px", background: zenMode ? ZEN.bgCard : "#F3F4F6", border: `1px solid ${zenMode ? ZEN.border : UA.border}`, fontSize: 13, color: UA.textMuted }}>
+                    Thinking...
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input */}
+            <div style={{ padding: "10px 12px", borderTop: `1px solid ${zenMode ? ZEN.border : UA.border}`, display: "flex", gap: 8 }}>
+              <input
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendChatMessage()}
+                placeholder="Ask a question..."
+                style={{ flex: 1, padding: "8px 12px", borderRadius: 20, border: `1.5px solid ${zenMode ? ZEN.border : UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: zenMode ? ZEN.inputBg : "white", color: zenMode ? ZEN.text : UA.text, transition: "all 0.2s" }}
+                onFocus={e => e.target.style.borderColor = UA.navy}
+                onBlur={e => e.target.style.borderColor = zenMode ? ZEN.border : UA.border}
+              />
+              <button onClick={() => sendChatMessage()} disabled={chatLoading || !chatInput.trim()}
+                style={{ padding: "8px 14px", borderRadius: 20, border: "none", background: UA.navy, color: "white", fontSize: 13, fontWeight: 700, cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: chatLoading || !chatInput.trim() ? 0.5 : 1, transition: "all 0.15s" }}>
+                Send
+              </button>
+            </div>
+          </div>
 
           {/* Guided prompts — interactive */}
           <div>
