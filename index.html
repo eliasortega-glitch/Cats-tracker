@@ -946,6 +946,20 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
 
 
 function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
+  const [zenMode, setZenMode] = useState(() => localStorage.getItem("cats_zen") === "1");
+  const toggleZen = () => setZenMode(z => { const next = !z; localStorage.setItem("cats_zen", next ? "1" : "0"); return next; });
+
+  // Zen mode color palette
+  const ZEN = {
+    bg: "#0f1117", bgCard: "#1a1d26", border: "#2a2d3a",
+    borderStrong: "#3a3d4a", text: "#e8eaf0", textSecondary: "#b0b4c4",
+    textMuted: "#6b7280", navy: "#4a90d9", navyLight: "#1a2535",
+    navyBorder: "#2a3d55", red: "#ff6b6b", redLight: "#2a1515",
+    redBorder: "#4a2525", green: "#4ade80", greenBg: "#0f2a1a",
+    yellow: "#fbbf24", yellowBg: "#2a1f0a", shadow: "0 2px 12px rgba(0,0,0,0.4)",
+  };
+  const T = zenMode ? ZEN : UA; // T = theme
+
   const [time, setTime] = useState(0);
   const [effort, setEffort] = useState(3);
   const [understanding, setUnderstanding] = useState(3);
@@ -1095,20 +1109,23 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   );
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: UA.bg, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: T.bg, fontFamily: "'DM Sans', system-ui, sans-serif", transition: "background 0.3s, color 0.3s" }}>
       {/* Header */}
-      <div style={{ background: UA.bgCard, borderBottom: `1px solid ${UA.border}`, padding: "0 28px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+      <div style={{ background: T.bgCard, borderBottom: `1px solid ${T.border}`, padding: "0 28px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxShadow: zenMode ? "0 1px 8px rgba(0,0,0,0.4)" : "0 1px 4px rgba(0,0,0,0.04)", transition: "all 0.3s" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: a.urgency === "red" ? UA.red : a.urgency === "yellow" ? UA.yellow : UA.green }} />
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: a.urgency === "red" ? T.red : a.urgency === "yellow" ? T.yellow : T.green }} />
           <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>{a.title}</div>
-            <div style={{ fontSize: 12, color: UA.textMuted }}>{a.course} · {a.points} pts · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : String(a.dueDate || "")}</div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: T.text }}>{a.title}</div>
+            <div style={{ fontSize: 12, color: T.textMuted }}>{a.course} · {a.points} pts · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : String(a.dueDate || "")}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <a href={a.d2lLink} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 13, fontWeight: 700, textDecoration: "none", transition: "all 0.15s" }}
-            onMouseEnter={e => e.currentTarget.style.background = "#D8E6F5"}
-            onMouseLeave={e => e.currentTarget.style.background = UA.navyLight}>
+          {/* Zen toggle */}
+          <button onClick={toggleZen} title={zenMode ? "Exit Zen Mode" : "Enter Zen Mode"}
+            style={{ padding: "6px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${zenMode ? "#4a90d9" : UA.border}`, background: zenMode ? "#1a2535" : UA.bg, color: zenMode ? "#4a90d9" : UA.textMuted, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s" }}>
+            {zenMode ? "☀️ Exit Focus" : "🌙 Focus Mode"}
+          </button>
+          <a href={a.d2lLink} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${T.navyBorder}`, background: T.navyLight, color: T.navy, fontSize: 13, fontWeight: 700, textDecoration: "none", transition: "all 0.15s" }}>
             🔗 Open in D2L
           </a>
           <Btn variant="outline" size="sm" onClick={async () => {
@@ -1124,10 +1141,10 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       </div>
 
       {/* Split panel — stacks vertically on mobile via .work-split CSS class */}
-      <div className="work-split" style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", overflow: "hidden" }}>
+      <div className="work-split" style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", overflow: "hidden", transition: "background 0.3s" }}>
 
         {/* LEFT: Assignment details + guided prompts */}
-        <div style={{ borderRight: `1px solid ${UA.border}`, overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ borderRight: `1px solid ${T.border}`, overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18, background: T.bg, transition: "all 0.3s" }}>
 
           {/* Assignment details — pinned at top */}
           <Card style={{ padding: "20px 22px", border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
@@ -1215,15 +1232,15 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         </div>
 
         {/* RIGHT: Workspace */}
-        <div style={{ overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18, background: T.bg, transition: "all 0.3s" }}>
 
-          {/* Silent time tracker — shows time spent without requiring interaction */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: UA.radiusSm, background: UA.navyLight, border: `1px solid ${UA.navyBorder}`, fontSize: 12, color: UA.navy, fontWeight: 700 }}>
+          {/* Silent time tracker */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: UA.radiusSm, background: T.navyLight, border: `1px solid ${T.navyBorder}`, fontSize: 12, color: T.navy, fontWeight: 700, transition: "all 0.3s" }}>
             ⏱ Time on task: {fmt(time)}
           </div>
 
           {/* Work Editor */}
-          <Card style={{ padding: "20px 22px" }}>
+          <div style={{ background: T.bgCard, borderRadius: UA.radius, border: `1px solid ${zenMode ? "#2a2d3a" : UA.border}`, padding: "20px 22px", boxShadow: zenMode ? "0 0 0 1px #4a90d922, 0 4px 20px rgba(0,0,0,0.3)" : UA.shadow, transition: "all 0.3s" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ fontWeight: 800, fontSize: 15, color: UA.text }}>✍️ Your Work</div>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -1269,14 +1286,14 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                 autoSaveTimeout.current = setTimeout(() => setWorkSaved(true), 1500);
               }}
               placeholder="Start writing here... take notes, draft your response, or write out your thinking. Hit Copy when done to paste into Google Docs or D2L."
-              style={{ width: "100%", minHeight: 280, padding: "14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.8, background: "white" }}
-              onFocus={e => e.target.style.borderColor = UA.navy}
-              onBlur={e => e.target.style.borderColor = UA.border}
+              style={{ width: "100%", minHeight: zenMode ? 340 : 280, padding: "14px", borderRadius: UA.radiusSm, border: `1.5px solid ${zenMode ? "#2a3d55" : UA.border}`, fontSize: zenMode ? 15 : 13, fontFamily: zenMode ? "'Georgia', serif" : "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: zenMode ? 2 : 1.8, background: zenMode ? "#12151f" : "white", color: zenMode ? "#e8eaf0" : UA.text, transition: "all 0.3s" }}
+              onFocus={e => { e.target.style.borderColor = zenMode ? "#4a90d9" : UA.navy; if (zenMode) e.target.style.boxShadow = "0 0 0 2px #4a90d933"; }}
+              onBlur={e => { e.target.style.borderColor = zenMode ? "#2a3d55" : UA.border; e.target.style.boxShadow = "none"; }}
             />
-            <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: T.textMuted, marginTop: 6, transition: "color 0.3s" }}>
               Auto-saves with your session · Use Copy to paste into Google Docs or D2L when done
             </div>
-          </Card>
+          </div>
 
           {/* Self assessment */}
           <Card>
@@ -1345,6 +1362,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         @media (max-width: 768px) {
           .work-split { grid-template-columns: 1fr !important; }
           .work-split > div:first-child { border-right: none !important; border-bottom: 1px solid #E8EAF0; max-height: none !important; }
+  .zen-mode .work-split > div:first-child { border-bottom-color: #2a2d3a !important; }
         }
       `}</style>
     </div>
