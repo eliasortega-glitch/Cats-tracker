@@ -119,19 +119,31 @@ async function fetchAllAssignments() {
 
   const now = new Date();
   const midnight = new Date(now); midnight.setHours(0,0,0,0);
+  const threeDaysAgo = new Date(now); threeDaysAgo.setDate(now.getDate() - 3);
+  const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(now.getDate() - 7);
+
   const mapped = data.map(a => {
     const dueDate = a.due_date ? new Date(a.due_date) : new Date();
     const currentStatus = a.status || "not_started";
-    // isOverdue is independent of work status — past due AND not completed
+    const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
     const isOverdue = dueDate < midnight && currentStatus !== "completed";
+
+    // Auto-archive logic:
+    // Completed assignments older than 3 days → archived
+    // Past due assignments older than 7 days → archived
+    const isArchived = 
+      (currentStatus === "completed" && updatedAt && updatedAt < threeDaysAgo) ||
+      (isOverdue && dueDate < sevenDaysAgo);
+
     return {
       id: a.id, title: a.title || "", course: a.course || "",
       courseCode: a.course_code || "", dueDate,
       points: a.points || 0, status: currentStatus,
-      isOverdue,
+      isOverdue, isArchived,
       urgency: a.urgency || "green", description: a.description || "",
       instructions: a.instructions || "", rubric: a.rubric || "",
       d2lLink: a.d2l_link || "https://d2l.arizona.edu", studentId: a.student_id,
+      updatedAt,
     };
   });
   return mapped;
@@ -696,10 +708,11 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
   const midnight = new Date(now); midnight.setHours(0,0,0,0);
   const weekEnd = new Date(midnight.getTime() + 7*86400000);
   
-  const overdue = assignments.filter(a => a.isOverdue && a.status !== "completed");
-  const upcoming = assignments.filter(a => !a.isOverdue && a.status !== "completed" && a.dueDate >= midnight && a.dueDate < weekEnd);
-  const inProgress = assignments.filter(a => a.status === "in_progress");
-  const completed = assignments.filter(a => a.status === "completed");
+  const active = assignments.filter(a => !a.isArchived);
+  const overdue = active.filter(a => a.isOverdue && a.status !== "completed");
+  const upcoming = active.filter(a => !a.isOverdue && a.status !== "completed" && a.dueDate >= midnight && a.dueDate < weekEnd);
+  const inProgress = active.filter(a => a.status === "in_progress");
+  const completed = assignments.filter(a => a.status === "completed"); // all time for stats
 
   const dueStr = (a) => a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "");
 
@@ -816,7 +829,11 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
   const [filterStatus, setFilterStatus] = useState(initialFilter);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
-  const filtered = assignments.filter(a => {
+  const [showArchived, setShowArchived] = useState(false);
+  
+  const activeAssignments = showArchived ? assignments : assignments.filter(a => !a.isArchived);
+  const archivedCount = assignments.filter(a => a.isArchived).length;
+  const filtered = activeAssignments.filter(a => {
     const matchesSearch = (a.title + a.course).toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
     if (filterStatus === "all") return true;
@@ -846,7 +863,15 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
       {editingAssignment && <EditAssignmentModal assignment={editingAssignment} onClose={() => setEditingAssignment(null)} onSave={updated => { onEditAssignment && onEditAssignment(updated); setEditingAssignment(null); }} />}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <SectionTitle>Assignments</SectionTitle>
-        <Btn onClick={() => setShowAddModal(true)}>+ Add Assignment</Btn>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {archivedCount > 0 && (
+            <button onClick={() => setShowArchived(s => !s)}
+              style={{ padding: "7px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, background: showArchived ? UA.navyLight : "white", color: showArchived ? UA.navy : UA.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              {showArchived ? "Hide Archived" : `Show Archived (${archivedCount})`}
+            </button>
+          )}
+          <Btn onClick={() => setShowAddModal(true)}>+ Add Assignment</Btn>
+        </div>
       </div>
 
       <Card style={{ padding: "16px 20px" }}>
@@ -1900,6 +1925,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   const [localAssignments, setLocalAssignments] = useState([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(true);
   const [editingAssignment, setEditingAssignment] = useState(null);
+  const [showArchivedStaff, setShowArchivedStaff] = useState(false);
 
   // Load this student's real assignments from Supabase
   useEffect(() => {
@@ -2137,9 +2163,19 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
             <CourseList courses={student.courses} selectedCourse={selectedCourse} onSelect={setSelectedCourse} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {localAssignments
-              .filter(a => selectedCourse === "all" || a.courseCode === selectedCourse)
-              .map(a => (
+            {(() => {
+              const now3 = new Date(); const mid3 = new Date(now3); mid3.setHours(0,0,0,0);
+              const t3 = new Date(now3); t3.setDate(now3.getDate()-3);
+              const s7 = new Date(now3); s7.setDate(now3.getDate()-7);
+              const isArchivedFn = a => {
+                const isOver = a.dueDate instanceof Date && a.dueDate < mid3 && a.status !== "completed";
+                return (a.status === "completed" && a.updatedAt && new Date(a.updatedAt) < t3) || (isOver && a.dueDate < s7);
+              };
+              const visible = localAssignments.filter(a => (selectedCourse === "all" || a.courseCode === selectedCourse) && (showArchivedStaff || !isArchivedFn(a)));
+              const archCount = localAssignments.filter(a => (selectedCourse === "all" || a.courseCode === selectedCourse) && isArchivedFn(a)).length;
+              return (<>
+                {archCount > 0 && <button onClick={() => setShowArchivedStaff(s => !s)} style={{ padding: "5px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, background: showArchivedStaff ? UA.navyLight : "white", color: UA.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginBottom: 8, display: "block" }}>{showArchivedStaff ? "Hide Archived" : `Show Archived (${archCount})`}</button>}
+                {visible.map(a => (
                 <div key={a.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: UA.shadow }}>
                   <UrgencyBar urgency={a.urgency} />
                   <div style={{ flex: 1 }}>
@@ -2168,6 +2204,9 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                     style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.redBorder}`, background: UA.redLight, color: UA.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
                 </div>
               ))}
+                ))}
+                </>);
+            })()}
             {localAssignments.filter(a => selectedCourse === "all" || a.courseCode === selectedCourse).length === 0 && (
               <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 14 }}>No assignments yet — add via Entry Hub or have the student import from D2L</div>
             )}
@@ -4964,20 +5003,27 @@ function App() {
         if (!error && data) {
           const now2 = new Date();
           const midnight2 = new Date(now2); midnight2.setHours(0,0,0,0);
+          const threeDaysAgo2 = new Date(now2); threeDaysAgo2.setDate(now2.getDate() - 3);
+          const sevenDaysAgo2 = new Date(now2); sevenDaysAgo2.setDate(now2.getDate() - 7);
           liveAssignments = data.map(a => {
             const dueDate = a.due_date ? new Date(a.due_date) : new Date();
             const currentStatus = a.status || "not_started";
+            const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
             const isOverdue = dueDate < midnight2 && currentStatus !== "completed";
+            const isArchived =
+              (currentStatus === "completed" && updatedAt && updatedAt < threeDaysAgo2) ||
+              (isOverdue && dueDate < sevenDaysAgo2);
             return {
               id: a.id, title: a.title || "", course: a.course || "",
               courseCode: a.course_code || "",
               dueDate,
               points: a.points || 0, status: currentStatus,
-              isOverdue,
+              isOverdue, isArchived,
               urgency: a.urgency || "green", description: a.description || "",
               instructions: a.instructions || "", rubric: a.rubric || "",
               d2lLink: a.d2l_link || "https://d2l.arizona.edu",
               studentId: a.student_id,
+              updatedAt,
             };
           });
         }
