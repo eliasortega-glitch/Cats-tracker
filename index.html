@@ -3570,6 +3570,8 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
 
   // Syllabus state
   const [syllabusFile, setSyllabusFile] = useState("");
+  const [syllabusImageBase64, setSyllabusImageBase64] = useState(null);
+  const [syllabusImageMediaType, setSyllabusImageMediaType] = useState(null);
   const [syllabusCode, setSyllabusCode] = useState("");
   const [syllabusCourseName, setSyllabusCourseName] = useState("");
   const [syllabusText, setSyllabusText] = useState("");
@@ -3585,6 +3587,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
   const [docs, setDocs] = useState([]);
   const [docsLoading, setDocsLoading] = useState(true);
   const fileRef = useRef();
+  const cameraRef = useRef();
 
   const student = students.find(s => s.id === selectedStudentId) || students[0];
 
@@ -3720,6 +3723,19 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
       } catch (e) {
         setSyllabusText("Could not extract text automatically. Please paste the syllabus text manually.");
       }
+    } else if (file.type.startsWith("image/") || file.name.match(/\.(jpg|jpeg|png|gif|webp|heic)$/i)) {
+      // IMAGE — send to Claude vision via Edge Function
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = e.target.result.split(",")[1];
+        const mediaType = file.type || "image/jpeg";
+        setSyllabusText("📸 Image loaded — click Extract Assignments to analyze with AI vision");
+        // Store base64 for extraction
+        setSyllabusImageBase64(base64);
+        setSyllabusImageMediaType(mediaType);
+        setSyllabusFile(file.name);
+      };
+      reader.readAsDataURL(file);
     } else {
       const reader = new FileReader();
       reader.onload = (e) => setSyllabusText(e.target.result || "");
@@ -3731,8 +3747,51 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
 
   // Extract assignments — calls Supabase Edge Function which uses Claude API server-side
   const handleExtract = async () => {
-    if (!syllabusText.trim()) return;
+    if (!syllabusText.trim() && !syllabusImageBase64) return;
     setExtracting(true); setExtractedItems([]);
+
+    // IMAGE MODE — send to vision API
+    if (syllabusImageBase64) {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            imageBase64: syllabusImageBase64,
+            imageMediaType: syllabusImageMediaType || "image/jpeg",
+          }),
+        });
+        const data = await response.json();
+        const text = data.text || "";
+        if (text) {
+          try {
+            const clean = text.replace(/```json|```/g, "").trim();
+            const parsed = JSON.parse(clean);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const items = parsed.map((item, i) => ({
+                id: i, title: item.title || "Untitled",
+                dueDate: item.dueDate || "", points: item.points || 0,
+                description: item.description || "",
+                courseCode: syllabusCode, course: syllabusCourseName,
+              }));
+              const sel = {};
+              items.forEach((_, i) => sel[i] = true);
+              setSelectedExtracted(sel);
+              setExtractedItems(items);
+              setExtracting(false);
+              setSyllabusImageBase64(null);
+              return;
+            }
+          } catch(e) { console.warn("JSON parse failed, trying text fallback", e.message); }
+        }
+      } catch(e) { console.warn("Image extraction failed:", e.message); }
+      setExtracting(false);
+      return;
+    }
 
     const text = syllabusText;
 
@@ -4054,16 +4113,21 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted }}>
-                Syllabus Text <span style={{ fontWeight: 400 }}>(drag & drop PDF, browse, or paste)</span>
+                Syllabus / Photo <span style={{ fontWeight: 400 }}>(PDF, image, or paste text)</span>
               </label>
               <button onClick={() => fileRef.current.click()}
                 style={{ fontSize: 11, fontWeight: 700, color: UA.navy, background: UA.navyLight, border: `1px solid ${UA.navyBorder}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontFamily: "inherit" }}>
-                📎 Browse file
+                📎 Browse / Upload
               </button>
-              <input ref={fileRef} type="file" accept=".pdf,.txt,.doc,.docx" onChange={e => readFile(e.target.files[0])} style={{ display: "none" }} />
+              <button onClick={() => cameraRef.current.click()}
+                style={{ fontSize: 11, fontWeight: 700, color: UA.red, background: UA.redLight, border: `1px solid ${UA.redBorder}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                📷 Take Photo
+              </button>
+              <input ref={fileRef} type="file" accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.heic,image/*" onChange={e => readFile(e.target.files[0])} style={{ display: "none" }} />
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={e => readFile(e.target.files[0])} style={{ display: "none" }} />
             </div>
             <textarea value={syllabusText} onChange={e => setSyllabusText(e.target.value)}
-              placeholder="Drag & drop a PDF here, click Browse file, or paste your syllabus text — then hit Extract Assignments."
+              placeholder="Drag & drop a PDF or photo here, click Browse file, or paste syllabus text — then hit Extract Assignments. Photos of handouts, syllabi, or whiteboards work too."
               rows={6}
               onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
