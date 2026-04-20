@@ -3743,7 +3743,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
     }
   };
 
-  const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); readFile(e.dataTransfer.files[0]); };
+  const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); };
 
   // Extract assignments — calls Supabase Edge Function which uses Claude API server-side
   const handleExtract = async () => {
@@ -4123,8 +4123,8 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
                 style={{ fontSize: 11, fontWeight: 700, color: UA.red, background: UA.redLight, border: `1px solid ${UA.redBorder}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontFamily: "inherit" }}>
                 📷 Take Photo
               </button>
-              <input ref={fileRef} type="file" accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.heic,image/*" onChange={e => readFile(e.target.files[0])} style={{ display: "none" }} />
-              <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={e => readFile(e.target.files[0])} style={{ display: "none" }} />
+              <input ref={fileRef} type="file" accept=".pdf,.txt,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.heic,image/*" onChange={e => { if (e.target.files[0]) readFile(e.target.files[0]); }} style={{ display: "none" }} />
+              <input ref={cameraRef} type="file" accept="image/*;capture=camera" onChange={e => { if (e.target.files[0]) readFile(e.target.files[0]); }} style={{ display: "none" }} />
             </div>
             <textarea value={syllabusText} onChange={e => setSyllabusText(e.target.value)}
               placeholder="Drag & drop a PDF or photo here, click Browse file, or paste syllabus text — then hit Extract Assignments. Photos of handouts, syllabi, or whiteboards work too."
