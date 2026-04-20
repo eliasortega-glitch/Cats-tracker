@@ -2204,7 +2204,6 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                     style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.redBorder}`, background: UA.redLight, color: UA.red, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
                 </div>
               ))}
-                ))}
                 </>);
             })()}
             {localAssignments.filter(a => selectedCourse === "all" || a.courseCode === selectedCourse).length === 0 && (
