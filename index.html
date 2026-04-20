@@ -837,30 +837,27 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   
-  const activeAssignments = showArchived ? assignments : assignments.filter(a => !a.isArchived);
-  const archivedCount = assignments.filter(a => a.isArchived).length;
-  const filtered = activeAssignments.filter(a => {
-    const matchesSearch = (a.title + a.course).toLowerCase().includes(search.toLowerCase());
-    if (!matchesSearch) return false;
-    if (filterStatus === "all") return true;
-    if (filterStatus === "overdue") return a.isOverdue && a.status !== "completed";
-    if (filterStatus === "upcoming") return !a.isOverdue && a.status !== "completed";
-    if (filterStatus === "in_progress") return a.status === "in_progress";
-    if (filterStatus === "not_started") return a.status === "not_started";
-    if (filterStatus === "completed") return a.status === "completed";
-    return true;
-  });
+  const activeAssignments = assignments.filter(a => !a.isArchived);
+  const archivedAssignments = assignments.filter(a => a.isArchived);
+  const archivedCount = archivedAssignments.length;
+  const searchFiltered = activeAssignments.filter(a =>
+    (a.title + a.course).toLowerCase().includes(search.toLowerCase())
+  );
+  const now4 = new Date();
+  const in7days = new Date(now4); in7days.setDate(now4.getDate() + 7);
+
+  // Triage groups — clear priority order
   const groups = {
-    overdue: filtered.filter(a=>a.isOverdue && a.status !== "completed"),
-    in_progress: filtered.filter(a=>a.status==="in_progress" && !a.isOverdue),
-    not_started: filtered.filter(a=>a.status==="not_started"),
-    completed: filtered.filter(a=>a.status==="completed"),
+    overdue: searchFiltered.filter(a => a.isOverdue && a.status !== "completed"),
+    thisWeek: searchFiltered.filter(a => !a.isOverdue && a.status !== "completed" && a.dueDate >= now4 && a.dueDate <= in7days),
+    upcoming: searchFiltered.filter(a => !a.isOverdue && a.status !== "completed" && a.dueDate > in7days),
+    completed: searchFiltered.filter(a => a.status === "completed"),
   };
   const gMeta = {
-    overdue: { label: "Past Due", accent: UA.red },
-    in_progress: { label: "In Progress", accent: UA.navy },
-    not_started: { label: "Not Started", accent: UA.textMuted },
-    completed: { label: "Completed", accent: UA.green },
+    overdue: { label: "🔴 Past Due", accent: UA.red },
+    thisWeek: { label: "📅 Due This Week", accent: UA.yellow },
+    upcoming: { label: "🟢 Upcoming", accent: UA.green },
+    completed: { label: "✅ Completed", accent: UA.textMuted },
   };
 
   return (
@@ -881,25 +878,37 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
       </div>
 
       <Card style={{ padding: "16px 20px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12 }}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍  Search assignments or courses..." style={{ padding: "9px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: UA.bg }} />
-          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ padding: "9px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: "white", cursor: "pointer" }}>
-            <option value="all">All Statuses</option>
-            <option value="overdue">Past Due</option>
-            <option value="in_progress">In Progress</option>
-            <option value="not_started">Not Started</option>
-            <option value="completed">Completed</option>
-          </select>
-        </div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍  Search assignments or courses..." style={{ width: "100%", padding: "9px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: UA.bg, boxSizing: "border-box" }} />
       </Card>
 
-      {Object.entries(groups).map(([key, items]) => {
+      {/* Archived mode — shows only archived */}
+      {showArchived && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: UA.navyLight, borderRadius: UA.radiusSm, border: `1px solid ${UA.navyBorder}`, marginBottom: 12 }}>
+            <span style={{ fontSize: 13, color: UA.navy, fontWeight: 700 }}>📦 Archived Assignments — {archivedCount} items</span>
+            <span style={{ fontSize: 12, color: UA.textMuted }}>Completed 3+ days ago or past due 7+ days</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {archivedAssignments.filter(a => (a.title + a.course).toLowerCase().includes(search.toLowerCase())).map(a => (
+              <div key={a.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: 0.7, boxShadow: UA.shadow }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: UA.textMuted }}>{a.title}</div>
+                  <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.status} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate}</div>
+                </div>
+                <StatusBadge status={a.status} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active triage view */}
+      {!showArchived && Object.entries(groups).map(([key, items]) => {
         if (!items.length) return null;
         const meta = gMeta[key];
         return (
           <div key={key}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: meta.accent }} />
               <span style={{ fontWeight: 800, fontSize: 13, color: meta.accent, letterSpacing: "0.02em" }}>{meta.label} · {items.length}</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
