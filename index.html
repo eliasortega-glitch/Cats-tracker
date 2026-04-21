@@ -4565,16 +4565,10 @@ function GlobalNotesFeed() {
           (avgUnderstanding ? ", avg understanding " + avgUnderstanding + "/5" : "") +
           (avgTimeSeconds ? ", avg " + Math.round(avgTimeSeconds/60) + " min in Work Mode" : "") +
           (studentNotes.length > 0 ? ", recent notes: " + studentNotes.map(n => n.category + " - " + n.text.slice(0, 60)).join("; ") : "");
-      }).join("
-");
+      }).join(" | ");
 
       const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-      const prompt = "You are a learning specialist reviewing your student-athlete caseload. Write a concise morning briefing (3-5 sentences) that identifies who needs attention today, any patterns worth noting, and one or two specific action items. Be direct and clinical — this is for a professional, not a student. Do not be generic. Use the specific data provided.
-
-Today: " + today + "
-
-Caseload summary:
-" + studentSummaries;
+      const prompt = "You are a learning specialist reviewing your student-athlete caseload. Write a concise morning briefing (3-5 sentences) that identifies who needs attention today, any patterns worth noting, and one or two specific action items. Be direct and clinical. Do not be generic. Use the specific data. Today: " + today + " | Caseload: " + studentSummaries;
 
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
         method: "POST",
