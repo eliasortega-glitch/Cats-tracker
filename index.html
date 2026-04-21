@@ -4568,7 +4568,7 @@ function GlobalNotesFeed() {
       }).join(" | ");
 
       const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-      const prompt = "You are a learning specialist reviewing your student-athlete caseload. Write a concise morning briefing (3-5 sentences) that identifies who needs attention today, any patterns worth noting, and one or two specific action items. Be direct and clinical. Do not be generic. Use the specific data. Today: " + today + " | Caseload: " + studentSummaries;
+      const prompt = "You are a learning specialist reviewing your student-athlete caseload before your sessions today. Your PRIMARY focus is surfacing: (1) any Concern Flags or Follow-Up Required notes from other staff, (2) students with action items that need to happen today (emails to send, assignments to submit, appointments missed), (3) students with past due work. Write 3-5 sentences maximum. Lead with the most urgent flags. Name the student and the specific issue. Be direct — this is a clinical handoff note, not a summary. Today: " + today + " | Caseload data: " + studentSummaries;
 
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
         method: "POST",
