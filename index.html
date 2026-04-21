@@ -1033,6 +1033,17 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [chatInput, setChatInput] = useState("Help me understand this assignment and where to start.");
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
+  const [isTypingFocus, setIsTypingFocus] = useState(false);
+  const typingTimeoutRef = useRef(null);
+
+  const handleEditorFocus = () => {
+    setIsTypingFocus(true);
+    clearTimeout(typingTimeoutRef.current);
+  };
+
+  const handleEditorBlur = () => {
+    typingTimeoutRef.current = setTimeout(() => setIsTypingFocus(false), 800);
+  };
 
   const sendChatMessage = async (messageText) => {
     const msg = messageText || chatInput;
@@ -1208,7 +1219,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       <div className="work-split" style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", overflow: "hidden", transition: "background 0.3s" }}>
 
         {/* LEFT: Assignment details + guided prompts */}
-        <div style={{ borderRight: `1px solid ${T.border}`, overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18, background: T.bg, transition: "all 0.3s" }}>
+        <div style={{ borderRight: `1px solid ${T.border}`, overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18, background: T.bg, transition: "opacity 0.4s, background 0.3s", opacity: isTypingFocus ? 0.25 : 1, pointerEvents: isTypingFocus ? "none" : "auto" }}>
 
           {/* Assignment details — pinned at top */}
           <Card style={{ padding: "20px 22px", border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
@@ -1349,7 +1360,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         </div>
 
         {/* RIGHT: Workspace */}
-        <div style={{ overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18, background: T.bg, transition: "all 0.3s" }}>
+        <div style={{ overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18, background: T.bg, transition: "all 0.3s" }} onFocus={() => setIsTypingFocus(false)} onBlur={() => {}}>
 
           {/* Silent time tracker */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: UA.radiusSm, background: T.navyLight, border: `1px solid ${T.navyBorder}`, fontSize: 12, color: T.navy, fontWeight: 700, transition: "all 0.3s" }}>
@@ -1403,9 +1414,9 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                 autoSaveTimeout.current = setTimeout(() => setWorkSaved(true), 1500);
               }}
               placeholder="Start writing here... take notes, draft your response, or write out your thinking. Hit Copy when done to paste into Google Docs or D2L."
-              style={{ width: "100%", minHeight: zenMode ? 340 : 280, padding: "14px", borderRadius: UA.radiusSm, border: `1.5px solid ${zenMode ? "#2a3d55" : UA.border}`, fontSize: zenMode ? 15 : 13, fontFamily: zenMode ? "'Georgia', serif" : "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: zenMode ? 2 : 1.8, background: zenMode ? "#12151f" : "white", color: zenMode ? "#e8eaf0" : UA.text, transition: "all 0.3s" }}
-              onFocus={e => { e.target.style.borderColor = zenMode ? "#4a90d9" : UA.navy; if (zenMode) e.target.style.boxShadow = "0 0 0 2px #4a90d933"; }}
-              onBlur={e => { e.target.style.borderColor = zenMode ? "#2a3d55" : UA.border; e.target.style.boxShadow = "none"; }}
+              style={{ width: "100%", minHeight: isTypingFocus ? 420 : (zenMode ? 340 : 280), padding: isTypingFocus ? "20px 24px" : "14px", borderRadius: UA.radiusSm, border: `1.5px solid ${isTypingFocus ? UA.navy : zenMode ? "#2a3d55" : UA.border}`, fontSize: isTypingFocus ? 15 : (zenMode ? 15 : 13), fontFamily: isTypingFocus || zenMode ? "'Georgia', serif" : "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: isTypingFocus ? 2.1 : (zenMode ? 2 : 1.8), background: zenMode ? "#12151f" : "white", color: zenMode ? "#e8eaf0" : UA.text, transition: "all 0.4s", boxShadow: isTypingFocus ? "0 0 0 3px rgba(0,51,102,0.08), 0 4px 20px rgba(0,0,0,0.06)" : "none" }}
+              onFocus={e => { handleEditorFocus(); e.target.style.borderColor = zenMode ? "#4a90d9" : UA.navy; }}
+              onBlur={e => { handleEditorBlur(); e.target.style.borderColor = zenMode ? "#2a3d55" : UA.border; e.target.style.boxShadow = "none"; }}
             />
             <div style={{ fontSize: 11, color: T.textMuted, marginTop: 6, transition: "color 0.3s" }}>
               Auto-saves with your session · Use Copy to paste into Google Docs or D2L when done
