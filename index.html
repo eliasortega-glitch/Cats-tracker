@@ -4519,6 +4519,82 @@ function GlobalNotesFeed() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [briefing, setBriefing] = useState("");
+  const [briefingLoading, setBriefingLoading] = useState(false);
+
+  const generateBriefing = async () => {
+    setBriefingLoading(true);
+    setBriefing("");
+
+    try {
+      // Fetch recent session logs for all students
+      const { data: sessionData } = await supabase
+        .from("session_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      // Fetch all assignments
+      const { data: assignmentData } = await supabase
+        .from("assignments")
+        .select("student_id, title, status, due_date, updated_at")
+        .order("due_date", { ascending: true });
+
+      // Build student summaries
+      const studentSummaries = STUDENTS.map(s => {
+        const recentSessions = (sessionData || []).filter(l => l.student_id === s.id).slice(0, 3);
+        const pastDue = (assignmentData || []).filter(a => {
+          const due = new Date(a.due_date);
+          const midnight = new Date(); midnight.setHours(0,0,0,0);
+          return a.student_id === s.id && due < midnight && a.status !== "completed";
+        });
+        const studentNotes = notes.filter(n => n.studentName === s.name).slice(0, 2);
+        const daysSinceSession = recentSessions[0]
+          ? Math.floor((Date.now() - new Date(recentSessions[0].created_at)) / 86400000)
+          : null;
+        const avgUnderstanding = recentSessions.filter(l => l.understanding > 0).length > 0
+          ? (recentSessions.filter(l => l.understanding > 0).reduce((sum, l) => sum + l.understanding, 0) / recentSessions.filter(l => l.understanding > 0).length).toFixed(1)
+          : null;
+        const avgTimeSeconds = recentSessions.length > 0
+          ? Math.round(recentSessions.reduce((s, l) => s + (l.time_seconds || 0), 0) / recentSessions.length)
+          : null;
+
+        return s.name + " (" + s.sport + ", " + s.dynamicRisk + " risk)" +
+          ": " + pastDue.length + " past due" +
+          (daysSinceSession !== null ? ", last session " + (daysSinceSession === 0 ? "today" : daysSinceSession + " days ago") : ", no sessions logged") +
+          (avgUnderstanding ? ", avg understanding " + avgUnderstanding + "/5" : "") +
+          (avgTimeSeconds ? ", avg " + Math.round(avgTimeSeconds/60) + " min in Work Mode" : "") +
+          (studentNotes.length > 0 ? ", recent notes: " + studentNotes.map(n => n.category + " - " + n.text.slice(0, 60)).join("; ") : "");
+      }).join("
+");
+
+      const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+      const prompt = "You are a learning specialist reviewing your student-athlete caseload. Write a concise morning briefing (3-5 sentences) that identifies who needs attention today, any patterns worth noting, and one or two specific action items. Be direct and clinical — this is for a professional, not a student. Do not be generic. Use the specific data provided.
+
+Today: " + today + "
+
+Caseload summary:
+" + studentSummaries;
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          assignment: { title: "Session Summary Request", course: "", description: prompt },
+          prompt: { question: "Generate caseload briefing", aiPrompt: prompt },
+        }),
+      });
+      const data = await response.json();
+      setBriefing(data.text || "Could not generate briefing. Try again.");
+    } catch (e) {
+      setBriefing("Error generating briefing: " + e.message);
+    }
+    setBriefingLoading(false);
+  };
 
   const catColors = {
     "Session Note": { bg: UA.navyLight, color: UA.navy, border: UA.navyBorder },
@@ -4561,7 +4637,31 @@ function GlobalNotesFeed() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <SectionTitle sub="All staff notes across your caseload — most recent first">Notes Feed</SectionTitle>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <SectionTitle sub="All staff notes across your caseload — most recent first">Notes Feed</SectionTitle>
+        </div>
+
+        {/* AI Morning Briefing */}
+        <Card style={{ border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, padding: "20px 24px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: briefing ? 14 : 0 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: UA.navy }}>☀️ AI Morning Briefing</div>
+              <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>Analyzes your full caseload — sessions, past due assignments, notes, and risk levels</div>
+            </div>
+            <Btn size="sm" variant="secondary" disabled={briefingLoading} onClick={generateBriefing}>
+              {briefingLoading ? "Generating..." : briefing ? "Refresh" : "Generate Briefing"}
+            </Btn>
+          </div>
+          {briefingLoading && (
+            <div style={{ fontSize: 13, color: UA.textMuted, padding: "8px 0" }}>Analyzing your caseload...</div>
+          )}
+          {briefing && !briefingLoading && (
+            <div style={{ fontSize: 13, lineHeight: 1.8, color: UA.text, whiteSpace: "pre-wrap", padding: "14px 16px", background: "white", borderRadius: UA.radiusSm, border: `1px solid ${UA.navyBorder}`, marginTop: 4 }}>{briefing}</div>
+          )}
+          {!briefing && !briefingLoading && (
+            <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 10 }}>Click Generate Briefing each morning for an AI summary of who needs attention and why.</div>
+          )}
+        </Card>
       </div>
       {/* Category filter */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
