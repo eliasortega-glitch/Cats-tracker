@@ -640,13 +640,13 @@ function Sidebar({ role, activePage, onNavigate, user, onLogout, collapsed, setC
   const adminNav = [
     { id: "dashboard", label: "Dashboard", icon: "⊞" },
     { id: "roster", label: "Students", icon: "👥" },
-    { id: "entryhub", label: "Entry Hub", icon: "📥" },
+    { id: "entryhub", label: "Add Assignments", icon: "📥" },
     { id: "settings", label: "Settings", icon: "⚙" },
   ];
   const staffNav = [
     { id: "dashboard", label: "Dashboard", icon: "⊞" },
     { id: "roster", label: "Students", icon: "👥" },
-    { id: "entryhub", label: "Entry Hub", icon: "📥", staffOnly: true },
+    { id: "entryhub", label: "Add Assignments", icon: "📥", staffOnly: true },
     { id: "notes", label: "Session Notes", icon: "📝", staffOnly: true },
     { id: "settings", label: "Settings", icon: "⚙" },
   ];
@@ -732,6 +732,39 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
         </h1>
         <p style={{ color: UA.textMuted, marginTop: 4, fontSize: 14 }}>Here's where you stand this week</p>
       </div>
+
+      {/* What to do right now — single clear call to action */}
+      {(() => {
+        const mostUrgent = overdue.length > 0 ? overdue[0]
+          : upcoming.sort((a,b) => a.dueDate - b.dueDate)[0]
+          || inProgress[0]
+          || null;
+        if (!mostUrgent) return null;
+        const isOverdueItem = overdue.includes(mostUrgent);
+        const daysUntil = mostUrgent.dueDate instanceof Date
+          ? Math.ceil((mostUrgent.dueDate - now) / 86400000)
+          : null;
+        const urgencyText = isOverdueItem ? "Past due — open now"
+          : daysUntil === 0 ? "Due today"
+          : daysUntil === 1 ? "Due tomorrow"
+          : daysUntil !== null ? `Due in ${daysUntil} days`
+          : "Start here";
+        return (
+          <div style={{ background: isOverdueItem ? UA.redLight : UA.navyLight, border: `2px solid ${isOverdueItem ? UA.red : UA.navy}`, borderRadius: UA.radius, padding: "18px 20px", display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: isOverdueItem ? UA.red : UA.navy, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
+                {overdue.length > 0 ? `⚡ Start here — ${overdue.length} past due` : "⚡ Up next"}
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: UA.text, marginBottom: 4 }}>{mostUrgent.title}</div>
+              <div style={{ fontSize: 12, color: UA.textMuted }}>{mostUrgent.course} · {urgencyText}</div>
+            </div>
+            <button onClick={() => onNavigate("workmode", mostUrgent)}
+              style={{ padding: "10px 20px", borderRadius: UA.radiusSm, border: "none", background: isOverdueItem ? UA.red : UA.navy, color: "white", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+              Open Work Mode →
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Overdue assignments — front and center */}
       {overdue.length > 0 && (
@@ -2133,10 +2166,8 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "assignments", label: "Assignments" },
-    { id: "sessions", label: "Session Log", staffOnly: true },
-    { id: "risk", label: "Risk Markers", staffOnly: true },
-    { id: "notes", label: "Notes", staffOnly: true, count: notes.length },
-    { id: "documents", label: "Documents", staffOnly: true },
+    { id: "sessions", label: "Sessions", staffOnly: true },
+    { id: "notes", label: "Notes & Docs", staffOnly: true, count: notes.length },
   ].filter(t => !t.staffOnly || !isStudentView);
 
   const handleAddNote = async () => {
@@ -2169,32 +2200,46 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
       {/* Back + header */}
       <div>
         <button onClick={onBack} style={{ fontSize: 13, color: UA.textMuted, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginBottom: 12, display: "flex", alignItems: "center", gap: 6, padding: 0 }}>← Back to Roster</button>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <Avatar initials={student.initials} size={52} color={student.dynamicRisk === "high" ? UA.red : student.dynamicRisk === "medium" ? UA.yellow : UA.navy} />
-            <div>
-              <h1 style={{ fontSize: 24, fontWeight: 900, color: UA.text, margin: 0, letterSpacing: "-0.02em" }}>{student.name}</h1>
-              <div style={{ fontSize: 13, color: UA.textMuted, marginTop: 3 }}>{student.sport} · {student.year} · GPA {student.gpa} · {student.counselor}</div>
-              {/* ADDED: next session and course count in header */}
-              <div style={{ display: "flex", gap: 12, marginTop: 6, alignItems: "center" }}>
-                <span style={{ fontSize: 12, color: UA.navy, fontWeight: 700 }}>📅 Next session: {student.nextSession || "Not scheduled"}</span>
-                <span style={{ fontSize: 12, color: UA.textMuted }}>· {(student.courses || []).length} courses this semester</span>
+
+        {/* Clinical header card */}
+        <div style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "20px 24px", boxShadow: UA.shadow }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <Avatar initials={student.initials} size={56} color={student.dynamicRisk === "high" ? UA.red : student.dynamicRisk === "medium" ? UA.yellow : UA.navy} />
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <h1 style={{ fontSize: 22, fontWeight: 900, color: UA.text, margin: 0, letterSpacing: "-0.02em" }}>{student.name}</h1>
+                  <RiskBadge level={student.dynamicRisk} score={student.riskScore} />
+                </div>
+                <div style={{ fontSize: 13, color: UA.textMuted }}>{student.sport} · {student.year} · Counselor: {student.counselor}</div>
+                {/* Clinical quick stats */}
+                <div style={{ display: "flex", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
+                  {(() => {
+                    const pastDueCount = localAssignments.filter(a => a.isOverdue && a.status !== "completed").length;
+                    const recentFlag = notes.find(n => n.category === "Concern Flag" || n.category === "Follow-Up Required");
+                    return (<>
+                      <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: pastDueCount > 0 ? UA.redLight : UA.greenBg, color: pastDueCount > 0 ? UA.red : UA.green, fontWeight: 700, border: `1px solid ${pastDueCount > 0 ? UA.redBorder : UA.greenBorder}` }}>
+                        {pastDueCount > 0 ? `${pastDueCount} past due` : "No past due work"}
+                      </span>
+                      <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: UA.navyLight, color: UA.navy, fontWeight: 700, border: `1px solid ${UA.navyBorder}` }}>
+                        Last session: {student.lastSession || "No sessions yet"}
+                      </span>
+                      {recentFlag && (
+                        <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: UA.redLight, color: UA.red, fontWeight: 700, border: `1px solid ${UA.redBorder}` }}>
+                          ⚑ {recentFlag.category}: {recentFlag.text.slice(0, 40)}{recentFlag.text.length > 40 ? "..." : ""}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: UA.bg, color: UA.textMuted, fontWeight: 600, border: `1px solid ${UA.border}` }}>
+                        {(student.courses || []).length} courses
+                      </span>
+                    </>);
+                  })()}
+                </div>
               </div>
             </div>
-            <RiskBadge level={student.dynamicRisk} score={student.riskScore} />
+            <Btn variant="outline" size="sm" onClick={() => onExportReport && onExportReport(student, notes)}>📄 Export Report</Btn>
           </div>
-          <Btn variant="outline" size="sm" onClick={() => onExportReport && onExportReport(student, notes)}>📄 Export Report</Btn>
         </div>
-        {/* ADDED: course pills in header */}
-        {student.courses && student.courses.length > 0 && (
-          <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {student.courses.map(c => (
-              <span key={c.code} style={{ fontSize: 12, padding: "4px 12px", borderRadius: 99, background: UA.navyLight, color: UA.navy, fontWeight: 700, border: `1px solid ${UA.navyBorder}` }}>
-                {c.code} <span style={{ fontWeight: 400, opacity: 0.7 }}>· {c.name} · {c.credits}cr</span>
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Tabs */}
@@ -2353,7 +2398,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                 </>);
             })()}
             {localAssignments.filter(a => selectedCourse === "all" || a.courseCode === selectedCourse).length === 0 && (
-              <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 14 }}>No assignments yet — add via Entry Hub or have the student import from D2L</div>
+              <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 14 }}>No assignments yet — add via Add Assignments or have the student import from D2L</div>
             )}
           </div>
           </>)}
@@ -2368,7 +2413,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
         </div>
       )}
 
-      {activeTab === "risk" && (
+      {activeTab === "notes_risk_hidden" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <Card>
@@ -2451,7 +2496,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
         </div>
       )}
 
-      {activeTab === "documents" && (
+      {activeTab === "documents_hidden" && (
         <StaffDocumentsView studentId={student.id} studentName={student.name} onAddAssignment={onAddAssignment} sessionUser={sessionUser} />
       )}
     </div>
@@ -4138,7 +4183,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
     <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 900, color: UA.text, margin: 0 }}>Entry Hub</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 900, color: UA.text, margin: 0 }}>Add Assignments</h2>
           <p style={{ color: UA.textMuted, fontSize: 14, marginTop: 4 }}>Import assignments, upload syllabi, and manage course content{!isStudent ? " for your students" : ""}.</p>
         </div>
       </div>
@@ -5627,8 +5672,8 @@ function App() {
   const mobileNav = role === "student"
     ? [{ id: "dashboard", icon: "⊞", label: "Home" }, { id: "assignments", icon: "📚", label: "Tasks" }, { id: "entryhub", icon: "📥", label: "Import" }, { id: "settings", icon: "⚙", label: "Settings" }]
     : role === "admin"
-    ? [{ id: "dashboard", icon: "⊞", label: "Dashboard" }, { id: "roster", icon: "👥", label: "Students" }, { id: "entryhub", icon: "📥", label: "Entry Hub" }, { id: "settings", icon: "⚙", label: "Settings" }]
-    : [{ id: "dashboard", icon: "⊞", label: "Dashboard" }, { id: "roster", icon: "👥", label: "Students" }, { id: "entryhub", icon: "📥", label: "Entry Hub" }, { id: "notes", icon: "📝", label: "Notes" }];
+    ? [{ id: "dashboard", icon: "⊞", label: "Dashboard" }, { id: "roster", icon: "👥", label: "Students" }, { id: "entryhub", icon: "📥", label: "Add Assignments" }, { id: "settings", icon: "⚙", label: "Settings" }]
+    : [{ id: "dashboard", icon: "⊞", label: "Dashboard" }, { id: "roster", icon: "👥", label: "Students" }, { id: "entryhub", icon: "📥", label: "Add Assignments" }, { id: "notes", icon: "📝", label: "Notes" }];
 
   return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: "#F8F9FB", minHeight: "100vh", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
