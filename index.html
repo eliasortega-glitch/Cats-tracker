@@ -2257,7 +2257,63 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
       {/* Tab content */}
       {activeTab === "overview" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* ADDED: Weekly session plan — replaces Teamworks free-text task field */}
+
+          {/* PRE-SESSION BRIEFING — top row: metrics + urgent assignments */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            {/* Left: key metrics */}
+            <Card style={{ padding: "18px 20px" }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: UA.text, marginBottom: 14 }}>📊 At a Glance</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[
+                  { label: "Past Due", value: localAssignments.filter(a => a.isOverdue && a.status !== "completed").length, color: localAssignments.filter(a => a.isOverdue && a.status !== "completed").length > 0 ? UA.red : UA.green },
+                  { label: "Due This Week", value: localAssignments.filter(a => { const d = a.dueDate; const now5 = new Date(); const w = new Date(now5); w.setDate(now5.getDate()+7); return !a.isOverdue && a.status !== "completed" && d >= now5 && d <= w; }).length, color: UA.navy },
+                  { label: "Avg Understanding", value: student.avgUnderstanding > 0 ? `${student.avgUnderstanding}/5` : "No data", color: student.avgUnderstanding >= 3 ? UA.green : student.avgUnderstanding > 0 ? UA.red : UA.textMuted },
+                  { label: "Last Session", value: student.lastSession || "None", color: UA.textMuted },
+                ].map((s,i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < 3 ? `1px solid ${UA.border}` : "none" }}>
+                    <span style={{ fontSize: 13, color: UA.textMuted }}>{s.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: s.color }}>{s.value}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Right: urgent assignments */}
+            <Card style={{ padding: "18px 20px" }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: UA.text, marginBottom: 14 }}>🔥 Needs Attention</div>
+              {(() => {
+                const urgent = [
+                  ...localAssignments.filter(a => a.isOverdue && a.status !== "completed"),
+                  ...localAssignments.filter(a => { const d = a.dueDate; const n = new Date(); const t = new Date(n); t.setDate(n.getDate()+3); return !a.isOverdue && a.status !== "completed" && d >= n && d <= t; }),
+                ].slice(0, 4);
+                if (urgent.length === 0) return <div style={{ fontSize: 13, color: UA.green, fontWeight: 700, textAlign: "center", padding: "16px 0" }}>✓ Nothing urgent right now</div>;
+                return urgent.map(a => (
+                  <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${UA.border}` }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: a.isOverdue ? UA.red : UA.yellow, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: UA.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</div>
+                      <div style={{ fontSize: 11, color: UA.textMuted }}>{a.isOverdue ? "Past due" : "Due " + (a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate)}</div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </Card>
+          </div>
+
+          {/* Open flags */}
+          {notes.filter(n => n.category === "Concern Flag" || n.category === "Follow-Up Required").length > 0 && (
+            <Card style={{ padding: "16px 20px", border: `1.5px solid ${UA.redBorder}`, background: UA.redLight }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: UA.red, marginBottom: 10 }}>⚑ Open Flags</div>
+              {notes.filter(n => n.category === "Concern Flag" || n.category === "Follow-Up Required").slice(0, 3).map((n, i) => (
+                <div key={i} style={{ fontSize: 13, color: UA.text, padding: "6px 0", borderBottom: i < 2 ? `1px solid ${UA.redBorder}` : "none", lineHeight: 1.5 }}>
+                  <span style={{ fontWeight: 700, color: UA.red, marginRight: 8 }}>{n.category}</span>{n.text}
+                  <span style={{ fontSize: 11, color: UA.textMuted, marginLeft: 8 }}>{n.date}</span>
+                </div>
+              ))}
+            </Card>
+          )}
+
+          {/* Weekly plan */}
           <Card style={{ border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div>
@@ -5242,6 +5298,26 @@ function App() {
   const [role, setRole] = useState(null);
   const [page, setPage] = useState(() => localStorage.getItem("cats_page") || "dashboard");
   const [collapsed, setCollapsed] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+
+  const runGlobalSearch = (q) => {
+    setGlobalSearch(q);
+    if (!q.trim()) { setSearchResults([]); return; }
+    const ql = q.toLowerCase();
+    const results = [];
+    // Search students
+    STUDENTS.filter(s => s.name.toLowerCase().includes(ql) || s.sport.toLowerCase().includes(ql)).forEach(s => {
+      results.push({ type: "student", label: s.name, sub: s.sport + " · " + s.year, action: () => { setSelectedStudent(s); setPage("studentProfile"); setSearchOpen(false); setGlobalSearch(""); } });
+    });
+    // Search assignments (from global assignments array)
+    assignments.filter(a => a.title.toLowerCase().includes(ql) || a.course.toLowerCase().includes(ql)).slice(0, 5).forEach(a => {
+      const student = STUDENTS.find(s => s.id === a.studentId);
+      results.push({ type: "assignment", label: a.title, sub: (student?.name || "Unknown") + " · " + a.course + " · Due " + (a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate), action: () => { if (student) { setSelectedStudent(student); setPage("studentProfile"); } setSearchOpen(false); setGlobalSearch(""); } });
+    });
+    setSearchResults(results.slice(0, 8));
+  };
   const [workAssignment, setWorkAssignment] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [assignmentFilter, setAssignmentFilter] = useState("all");
@@ -5689,6 +5765,37 @@ function App() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* Global search — staff only */}
+            {role !== "student" && (
+              <div style={{ position: "relative" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: UA.bg, border: `1px solid ${searchOpen ? UA.navy : UA.border}`, transition: "all 0.2s" }}>
+                  <span style={{ fontSize: 13, color: UA.textMuted }}>🔍</span>
+                  <input
+                    value={globalSearch}
+                    onChange={e => runGlobalSearch(e.target.value)}
+                    onFocus={() => setSearchOpen(true)}
+                    onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+                    placeholder="Search students or assignments..."
+                    style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontFamily: "inherit", width: searchOpen ? 180 : 120, transition: "width 0.2s", color: UA.text }}
+                  />
+                </div>
+                {searchOpen && searchResults.length > 0 && (
+                  <div style={{ position: "absolute", top: "110%", right: 0, width: 300, background: "white", border: `1px solid ${UA.border}`, borderRadius: UA.radius, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 100, overflow: "hidden" }}>
+                    {searchResults.map((r, i) => (
+                      <div key={i} onClick={r.action} style={{ padding: "10px 14px", cursor: "pointer", borderBottom: i < searchResults.length-1 ? `1px solid ${UA.border}` : "none", display: "flex", alignItems: "center", gap: 10 }}
+                        onMouseEnter={e => e.currentTarget.style.background = UA.bg}
+                        onMouseLeave={e => e.currentTarget.style.background = "white"}>
+                        <span style={{ fontSize: 16 }}>{r.type === "student" ? "👤" : "📄"}</span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: UA.text }}>{r.label}</div>
+                          <div style={{ fontSize: 11, color: UA.textMuted }}>{r.sub}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{ fontSize: 12, color: UA.textMuted, padding: "6px 10px", borderRadius: 999, background: UA.bg, border: `1px solid ${UA.border}` }}>{sessionUser.email}</div>
             <button onClick={async () => { await signOutUser(); localStorage.removeItem("cats_role"); localStorage.removeItem("cats_page"); setSessionUser(null); setProfile(null); setRole(null); setPage("dashboard"); }} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, color: UA.textSecondary }}>Sign out</button>
           </div>
