@@ -5440,13 +5440,19 @@ function App() {
     }
   }, []);
 
-  // Check for due assignments and fire push notifications
+  // Check for due assignments and fire push notifications — students only, once per day per assignment
   useEffect(() => {
     if (!assignments.length) return;
+    if (role !== "student") return; // Staff should never get student due date notifications
     const now = Date.now();
-    const soon = 24 * 60 * 60 * 1000; // 24 hours
+    const soon = 24 * 60 * 60 * 1000;
+    const today = new Date().toDateString();
+    const notifiedKey = "cats_notified_" + today;
+    const alreadyNotified = JSON.parse(localStorage.getItem(notifiedKey) || "[]");
+
     assignments.forEach(a => {
       if (a.status === "completed") return;
+      if (alreadyNotified.includes(a.id)) return; // Already notified today
       const due = a.dueDate instanceof Date ? a.dueDate.getTime() : new Date(a.dueDate).getTime();
       const diff = due - now;
       if (diff > 0 && diff <= soon) {
@@ -5456,11 +5462,12 @@ function App() {
             icon: "https://www.arizona.edu/sites/default/files/2019-11/ua_stack_rgb_4.png"
           });
         }
-        // Also add to in-app notification bell
         pushNotification(`${a.title} is due within 24 hours`, "⏰");
+        alreadyNotified.push(a.id);
       }
     });
-  }, [assignments]);
+    localStorage.setItem(notifiedKey, JSON.stringify(alreadyNotified));
+  }, [assignments, role]);
 
   const navigate = (target, data) => {
     if (target === "workmode") {
