@@ -187,6 +187,7 @@ async function insertSessionLog(log) {
     duration_minutes: log.durationMinutes || null,
     logged_by: log.loggedBy || null,
     time_seconds: log.timeSeconds || 0,
+    active_seconds: log.activeSeconds || 0,
     prompts_expanded: log.promptsExpanded || [],
     ai_breakdowns_used: log.aiBreakdownsUsed || 0,
     prompt_responses_filled: log.promptResponsesFilled || 0,
@@ -1009,6 +1010,17 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const T = zenMode ? ZEN : UA; // T = theme
 
   const [time, setTime] = useState(0);
+  const [activeSeconds, setActiveSeconds] = useState(0);
+  const [isIdle, setIsIdle] = useState(false);
+  const idleTimeoutRef = useRef(null);
+  const activeSecondsRef = useRef(0);
+  const isIdleRef = useRef(false);
+  const IDLE_THRESHOLD = 5 * 60 * 1000;
+  const resetIdleTimer = () => {
+    if (isIdleRef.current) { isIdleRef.current = false; setIsIdle(false); }
+    clearTimeout(idleTimeoutRef.current);
+    idleTimeoutRef.current = setTimeout(() => { isIdleRef.current = true; setIsIdle(true); }, IDLE_THRESHOLD);
+  };
   const [effort, setEffort] = useState(3);
   const [understanding, setUnderstanding] = useState(3);
   const [notes, setNotes] = useState("");
@@ -1146,6 +1158,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       durationMinutes: Math.max(1, Math.round(currentTime / 60)),
       loggedBy: sessionUser?.id || null,
       timeSeconds: currentTime,
+      activeSeconds: activeSecondsRef.current,
       promptsExpanded: promptsExpandedRef.current,
       aiBreakdownsUsed: aiBreakdownsUsedRef.current,
       promptResponsesFilled: overrides.promptResponsesFilled || 0,
@@ -1157,8 +1170,23 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   useEffect(() => {
     startTimeRef.current = Date.now();
     timerRef.current = setInterval(() => setTime(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000);
+    const activeInterval = setInterval(() => {
+      if (!isIdleRef.current) { activeSecondsRef.current += 1; setActiveSeconds(s => s + 1); }
+    }, 1000);
+    resetIdleTimer();
+    const onActivity = () => resetIdleTimer();
+    window.addEventListener("mousemove", onActivity);
+    window.addEventListener("keydown", onActivity);
+    window.addEventListener("click", onActivity);
+    window.addEventListener("scroll", onActivity);
     return () => {
       clearInterval(timerRef.current);
+      clearInterval(activeInterval);
+      clearTimeout(idleTimeoutRef.current);
+      window.removeEventListener("mousemove", onActivity);
+      window.removeEventListener("keydown", onActivity);
+      window.removeEventListener("click", onActivity);
+      window.removeEventListener("scroll", onActivity);
     };
   }, []);
 
@@ -1395,9 +1423,12 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         {/* RIGHT: Workspace */}
         <div style={{ overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18, background: T.bg, transition: "all 0.3s" }} onFocus={() => setIsTypingFocus(false)} onBlur={() => {}}>
 
-          {/* Silent time tracker */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: UA.radiusSm, background: T.navyLight, border: `1px solid ${T.navyBorder}`, fontSize: 12, color: T.navy, fontWeight: 700, transition: "all 0.3s" }}>
-            ⏱ Time on task: {fmt(time)}
+          {/* Active time tracker + idle detection */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: UA.radiusSm, background: isIdle ? UA.yellowBg : T.navyLight, border: `1px solid ${isIdle ? UA.yellowBorder : T.navyBorder}`, fontSize: 12, color: isIdle ? UA.yellow : T.navy, fontWeight: 700, transition: "all 0.3s" }}>
+            {isIdle ? "⏸ Timer paused — no activity detected" : `⏱ Active: ${fmt(activeSeconds)}`}
+            {!isIdle && time > activeSeconds + 10 && (
+              <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 500, marginLeft: 4 }}>· Open: {fmt(time)}</span>
+            )}
           </div>
 
           {/* Work Editor */}
