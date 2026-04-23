@@ -1555,11 +1555,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                       // Append to chat as assistant context message
                       setChatMessages(prev => [...prev, {
                         role: "assistant",
-                        content: "📋 I read your assignment photo. Here's what I found:
-
-" + extracted + "
-
-What would you like help with?"
+                        content: "📋 I read your assignment photo. Here's what I found:\n\n" + extracted + "\n\nWhat would you like help with?"
                       }]);
                       setInstrDone(true);
                       setTimeout(() => setInstrDone(false), 3000);
