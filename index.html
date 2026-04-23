@@ -1056,11 +1056,7 @@ function InstructionsPhotoBtn({ onExtracted, T }) {
         const data = await response.json();
         const extracted = data.text || "";
         if (extracted && onExtracted) {
-          onExtracted("📋 I read your assignment photo. Here's what I found:
-
-" + extracted + "
-
-What would you like help with?");
+          onExtracted("📋 I read your assignment photo. Here's what I found:\n\n" + extracted + "\n\nWhat would you like help with?");
           setInstrDone(true);
           setTimeout(() => setInstrDone(false), 3000);
         }
