@@ -1030,6 +1030,58 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
 // Everything saves to Supabase under the selected student's account.
 
 
+// ─ Add Instructions Photo — proper component to avoid hooks-in-render violation ─
+function InstructionsPhotoBtn({ onExtracted, T }) {
+  const [instrLoading, setInstrLoading] = React.useState(false);
+  const [instrDone, setInstrDone] = React.useState(false);
+  const instrRef = React.useRef();
+
+  const handleInstrPhoto = (file) => {
+    if (!file) return;
+    setInstrLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const base64 = ev.target.result.split(",")[1];
+        const mediaType = file.type || "image/jpeg";
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({
+            imageBase64: base64, imageMediaType: mediaType,
+            assignment: { title: "Extract Instructions", course: "", description: "Extract any assignment instructions, prompts, rubric criteria, or requirements from this image." },
+            prompt: { question: "What are the assignment instructions?", aiPrompt: "Read this image carefully. Extract all assignment instructions, prompts, requirements, and rubric criteria you can see. Format them clearly as plain text. Be thorough — include every requirement listed." }
+          }),
+        });
+        const data = await response.json();
+        const extracted = data.text || "";
+        if (extracted && onExtracted) {
+          onExtracted("📋 I read your assignment photo. Here's what I found:
+
+" + extracted + "
+
+What would you like help with?");
+          setInstrDone(true);
+          setTimeout(() => setInstrDone(false), 3000);
+        }
+      } catch(e) { console.warn("Instruction photo failed:", e.message); }
+      setInstrLoading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div style={{ padding: "10px 18px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 8 }}>
+      <input ref={instrRef} type="file" accept="image/*;capture=camera"
+        onChange={e => handleInstrPhoto(e.target.files[0])} style={{ display: "none" }} />
+      <button onClick={() => instrRef.current && instrRef.current.click()} disabled={instrLoading}
+        style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${T.navyBorder}`, background: T.navyLight, color: T.navy, fontSize: 12, fontWeight: 700, cursor: instrLoading ? "wait" : "pointer", fontFamily: "inherit", justifyContent: "center" }}>
+        {instrLoading ? "⏳ Reading..." : instrDone ? "✓ Added to chat" : "📷 Add Instructions Photo"}
+      </button>
+    </div>
+  );
+}
+
 function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [zenMode, setZenMode] = useState(() => localStorage.getItem("cats_zen") === "1");
   const toggleZen = () => setZenMode(z => { const next = !z; localStorage.setItem("cats_zen", next ? "1" : "0"); return next; });
@@ -1529,52 +1581,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             </div>
 
             {/* ─ Section: Add Instructions photo ─ */}
-            {(() => {
-              const [instrLoading, setInstrLoading] = React.useState(false);
-              const [instrDone, setInstrDone] = React.useState(false);
-              const instrRef = React.useRef();
-              const handleInstrPhoto = async (file) => {
-                if (!file) return;
-                setInstrLoading(true);
-                try {
-                  const reader = new FileReader();
-                  reader.onload = async (ev) => {
-                    const base64 = ev.target.result.split(",")[1];
-                    const mediaType = file.type || "image/jpeg";
-                    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
-                      body: JSON.stringify({ imageBase64: base64, imageMediaType: mediaType,
-                        assignment: { title: "Extract Instructions", course: "", description: "Extract any assignment instructions, prompts, rubric criteria, or requirements from this image. Return as plain text, organized clearly." },
-                        prompt: { question: "What are the assignment instructions?", aiPrompt: "Read this image carefully. Extract all assignment instructions, prompts, requirements, and rubric criteria you can see. Format them clearly as plain text. Be thorough — include every requirement listed." }
-                      }),
-                    });
-                    const data = await response.json();
-                    const extracted = data.text || "";
-                    if (extracted) {
-                      // Append to chat as assistant context message
-                      setChatMessages(prev => [...prev, {
-                        role: "assistant",
-                        content: "📋 I read your assignment photo. Here's what I found:\n\n" + extracted + "\n\nWhat would you like help with?"
-                      }]);
-                      setInstrDone(true);
-                      setTimeout(() => setInstrDone(false), 3000);
-                    }
-                    setInstrLoading(false);
-                  };
-                  reader.readAsDataURL(file);
-                } catch(e) { console.warn("Instruction photo failed:", e.message); setInstrLoading(false); }
-              };
-              return (
-                <div style={{ padding: "10px 18px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 8 }}>
-                  <input ref={instrRef} type="file" accept="image/*;capture=camera" onChange={e => handleInstrPhoto(e.target.files[0])} style={{ display: "none" }} />
-                  <button onClick={() => instrRef.current.click()} disabled={instrLoading}
-                    style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${T.navyBorder}`, background: T.navyLight, color: T.navy, fontSize: 12, fontWeight: 700, cursor: instrLoading ? "wait" : "pointer", fontFamily: "inherit", justifyContent: "center" }}>
-                    {instrLoading ? "⏳ Reading..." : instrDone ? "✓ Added to chat" : "📷 Add Instructions Photo"}
-                  </button>
-                </div>
-              );
-            })()}
+            <InstructionsPhotoBtn T={T} onExtracted={(msg) => setChatMessages(prev => [...prev, { role: "assistant", content: msg }])} />
 
             {/* ─ Section: AI Chat ─ */}
             <div style={{ display: "flex", flexDirection: "column", borderBottom: `1px solid ${T.border}`, minHeight: 0, flex: "0 0 auto" }}>
