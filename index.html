@@ -1729,8 +1729,6 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   );
 }
 
-}
-
 
 // --- STAFF DASHBOARD ----------------------------------------------------------
 // Weekly schedule view — shows today's appointments prominently,
@@ -4321,108 +4319,208 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
       return;
     }
 
-    // Fallback: local regex parser
-    const courseContext = syllabusCourseName || syllabusCode || "this course";
-
-    // Local regex parser fallback
+    // Fallback: broad-capture local parser
+    // Handles explicit dates, recurring patterns (every Wed/Sun), and unscheduled obligations
     try {
       const found = [];
       const seen = new Set();
+      const addItem = (item) => {
+        const key = item.title.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        found.push(item);
+      };
 
-      // Broader date pattern — catches dates anywhere in a line
       const datePattern = /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/gi;
-
-      // Assignment keywords — look for these near dates
-      const assignmentKeywords = /\b(paper|essay|exam|quiz|test|midterm|final|project|presentation|discussion|journal|entry|entries|assignment|homework|report|response|draft|submission|due|submit|turn in|deadline)\b/i;
 
       const typeMap = {
         exam: "Exam", test: "Exam", midterm: "Exam", final: "Exam", quiz: "Quiz",
         essay: "Essay", paper: "Essay", report: "Essay", response: "Essay", draft: "Essay",
-        project: "Project", presentation: "Project",
+        project: "Project", presentation: "Project", wellness: "Project",
         homework: "Homework", assignment: "Homework", submission: "Homework",
-        discussion: "Discussion", journal: "Discussion", entry: "Discussion", entries: "Discussion",
-        lab: "Lab", reading: "Reading",
+        discussion: "Discussion", journal: "Discussion", entry: "Discussion",
+        lab: "Lab", packet: "Lab", reading: "Reading", video: "Homework",
+        participation: "Homework", engagement: "Homework", reflection: "Homework",
+        "learning connection": "Homework", "watch": "Homework",
       };
 
-      // Strategy 1: Look for lines containing "due" keyword with a date
+      const guessType = (str) => {
+        const s = str.toLowerCase();
+        for (const [kw, t] of Object.entries(typeMap)) { if (s.includes(kw)) return t; }
+        return "Homework";
+      };
+
+      // --- Helper: parse a date string into ISO YYYY-MM-DD ---
+      const parseDate = (raw, yearHint) => {
+        if (!raw) return null;
+        try {
+          const str = raw.includes("/") ? raw : raw + (raw.match(/\d{4}/) ? "" : `, ${yearHint || new Date().getFullYear()}`);
+          const d = new Date(str);
+          if (!isNaN(d.getTime()) && d.getFullYear() >= 2020) return d.toISOString().split("T")[0];
+        } catch(e) {}
+        return null;
+      };
+
+      // --- Extract course date range from text (e.g. "Oct 16-Dec 10") ---
+      const rangePat = /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}\s*[-–]\s*(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s*\d{4})?/gi;
+      let courseStart = null, courseEnd = null;
+      const rangeMatch = text.match(rangePat);
+      if (rangeMatch) {
+        const parts = rangeMatch[0].split(/[-–]/);
+        if (parts.length === 2) {
+          // Extract year from text
+          const yearMatch = text.match(/20\d{2}/);
+          const yr = yearMatch ? yearMatch[0] : new Date().getFullYear().toString();
+          courseStart = parseDate(parts[0].trim(), yr);
+          courseEnd = parseDate(parts[1].trim(), yr);
+        }
+      }
+      // Fallback: use today + 10 weeks if no range found
+      if (!courseStart) courseStart = new Date().toISOString().split("T")[0];
+      if (!courseEnd) {
+        const e = new Date(); e.setDate(e.getDate() + 70);
+        courseEnd = e.toISOString().split("T")[0];
+      }
+
+      // --- Generate recurring dates for a given day of week within range ---
+      const getDayOccurrences = (dayOfWeek, startIso, endIso) => {
+        // dayOfWeek: 0=Sun, 1=Mon, ..., 3=Wed, 0=Sun
+        const dates = [];
+        const start = new Date(startIso + "T12:00:00");
+        const end = new Date(endIso + "T12:00:00");
+        const cur = new Date(start);
+        // Advance to first occurrence of dayOfWeek
+        while (cur.getDay() !== dayOfWeek) cur.setDate(cur.getDate() + 1);
+        while (cur <= end) {
+          dates.push(cur.toISOString().split("T")[0]);
+          cur.setDate(cur.getDate() + 7);
+        }
+        return dates;
+      };
+
+      // --- STRATEGY 1: Explicit dates with assignment keywords ---
+      const assignmentKeywords = /\b(paper|essay|exam|quiz|test|midterm|final|project|presentation|discussion|journal|lab|packet|assignment|homework|report|response|draft|submission|due|video|reflection|participation|learning connection|watch)\b/i;
       const lines = text.split("\n");
       for (const line of lines) {
         const trimmed = line.trim();
         if (trimmed.length < 5 || trimmed.length > 400) continue;
-        const hasDate = trimmed.match(datePattern);
-        if (!hasDate) continue;
-
-        // Parse date
-        let dueDate = null;
-        for (const match of trimmed.matchAll(new RegExp(datePattern.source, "gi"))) {
-          try {
-            const raw = match[0];
-            const parsed = new Date(raw.includes("/") ? raw : raw + (raw.match(/\d{4}/) ? "" : ", 2026"));
-            if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2025) {
-              dueDate = parsed.toISOString().split("T")[0];
-              break;
-            }
-          } catch(e) { continue; }
-        }
-        if (!dueDate) continue;
-
-        // Check if this line has an assignment keyword
+        const dateMatches = [...trimmed.matchAll(new RegExp(datePattern.source, "gi"))];
+        if (!dateMatches.length) continue;
         if (!assignmentKeywords.test(trimmed)) continue;
-
-        // Build title — extract the assignment type and context
-        let title = trimmed;
-        // Remove bracketed section headers like [Short paper is due...]
-        title = title.replace(/\[([^\]]+)\]/g, "$1");
-        // Clean up date from title
-        title = title.replace(new RegExp(datePattern.source, "gi"), "").trim();
-        // Clean up common prefixes/suffixes
-        title = title.replace(/^(is due on?|due on?|due|:|-|–|—)\s*/i, "").replace(/\s*(is due|due).*$/i, "").trim();
-        title = title.replace(/^[,.\s\[\]]+|[,.\s\[\]]+$/g, "").trim();
-
-        if (!title || title.length < 3 || seen.has(title.toLowerCase())) continue;
-        seen.add(title.toLowerCase());
-
-        // Detect type
-        const lower = title.toLowerCase();
-        let type = "Homework";
-        for (const [kw, t] of Object.entries(typeMap)) { if (lower.includes(kw)) { type = t; break; } }
-
-        const pointsMatch = trimmed.match(/(\d+)%/);
-        const points = pointsMatch ? parseInt(pointsMatch[1]) : (type === "Exam" ? 100 : 25);
-
-        found.push({ title, dueDate, points, type });
-        if (found.length >= 20) break;
+        const yearMatch = text.match(/20\d{2}/);
+        const yr = yearMatch ? yearMatch[0] : new Date().getFullYear().toString();
+        const dueDate = parseDate(dateMatches[0][0], yr);
+        if (!dueDate) continue;
+        let title = trimmed.replace(new RegExp(datePattern.source, "gi"), "").replace(/^[:\-–—\s]+|[,.\s]+$/g, "").trim();
+        if (!title || title.length < 3) continue;
+        addItem({ title, dueDate, points: guessType(title) === "Exam" ? 100 : 25, type: guessType(title), category: "one_off" });
+        if (found.length >= 30) break;
       }
 
-      // Strategy 2: If nothing found from line scan, look for week headers with dates
+      // --- STRATEGY 2: Detect recurring patterns from policy text ---
+      // e.g. "due on Wednesday and Sunday", "due every Wednesday", "Assignments are due on Wednesday and Sunday"
+      const recurringPatterns = [
+        { pattern: /due\s+(?:on\s+)?(?:every\s+)?(?:(monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:\s+and\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday))?)/gi, label: null },
+        { pattern: /(?:submissions?|assignments?)\s+are\s+due\s+(?:on\s+)?(?:every\s+)?((monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:\s+and\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday))?)/gi, label: null },
+      ];
+      const dayMap = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+
+      for (const { pattern } of recurringPatterns) {
+        let m;
+        while ((m = pattern.exec(text)) !== null) {
+          const fullMatch = m[0].toLowerCase();
+          const days = [];
+          for (const [name, num] of Object.entries(dayMap)) {
+            if (fullMatch.includes(name)) days.push({ name, num });
+          }
+          if (!days.length) continue;
+
+          // Find what's due on these days from surrounding context
+          const contextStart = Math.max(0, m.index - 200);
+          const contextEnd = Math.min(text.length, m.index + 200);
+          const context = text.slice(contextStart, contextEnd).toLowerCase();
+
+          // Extract assignment types mentioned near this pattern
+          const mentionedTypes = [];
+          if (context.includes("quiz")) mentionedTypes.push({ title: "Reading Quiz", type: "Quiz", points: 20 });
+          if (context.includes("lab")) mentionedTypes.push({ title: "Weekly Lab Packet", type: "Lab", points: 25 });
+          if (context.includes("learning connection")) mentionedTypes.push({ title: "Learning Connection", type: "Homework", points: 25 });
+          if (context.includes("watch") || context.includes("video") || context.includes("interact")) mentionedTypes.push({ title: "Watch & Interact Video", type: "Homework", points: 10 });
+          if (context.includes("discussion")) mentionedTypes.push({ title: "Discussion Post", type: "Discussion", points: 15 });
+          if (mentionedTypes.length === 0) mentionedTypes.push({ title: "Weekly Assignment", type: "Homework", points: 20 });
+
+          for (const day of days) {
+            const occurrences = getDayOccurrences(day.num, courseStart, courseEnd);
+            occurrences.forEach((dueDate, i) => {
+              mentionedTypes.forEach(({ title, type, points }) => {
+                addItem({
+                  title: `${title} — Week ${i + 1}`,
+                  dueDate,
+                  points,
+                  type,
+                  category: "recurring",
+                  recurrenceNote: `Every ${day.name.charAt(0).toUpperCase() + day.name.slice(1)}`,
+                });
+              });
+            });
+          }
+        }
+      }
+
+      // --- STRATEGY 3: Unscheduled obligations (TBD, date TBA, final project etc.) ---
+      const tbdPatterns = [
+        /final\s+(?:project|exam|paper|report|presentation)/gi,
+        /(?:date|due date)\s+(?:TBD|TBA|to be announced|to be determined)/gi,
+        /(?:comprehensive|cumulative)\s+(?:exam|project|assessment)/gi,
+        /wellness\s+plan/gi,
+        /synthesis\s+(?:essay|paper|assignment)/gi,
+        /action\s+plan/gi,
+      ];
+      const tbdTypeMap = {
+        "final": "Exam", "comprehensive": "Exam", "cumulative": "Exam",
+        "wellness plan": "Project", "action plan": "Project", "synthesis": "Essay",
+        "project": "Project", "exam": "Exam", "paper": "Essay",
+      };
+      for (const pat of tbdPatterns) {
+        let m;
+        while ((m = pat.exec(text)) !== null) {
+          const rawTitle = m[0].replace(/[\s]+/g, " ").trim();
+          const title = rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1);
+          let type = "Homework";
+          for (const [kw, t] of Object.entries(tbdTypeMap)) { if (rawTitle.toLowerCase().includes(kw)) { type = t; break; } }
+          // Use course end date as placeholder if no date found
+          addItem({ title, dueDate: courseEnd, points: type === "Exam" ? 100 : type === "Project" ? 100 : 50, type, category: "unscheduled_obligation", recurrenceNote: "Date TBD — confirm in D2L" });
+          if (found.length >= 40) break;
+        }
+      }
+
+      // --- STRATEGY 4: Week headers with date ranges ---
       if (found.length === 0) {
-        const weekPattern = /Week\s+\d+.*?\(([^)]+)\)/gi;
-        let weekMatch;
-        while ((weekMatch = weekPattern.exec(text)) !== null) {
-          const dateStr = weekMatch[1];
-          const dateMatch = dateStr.match(datePattern);
-          if (!dateMatch) continue;
-          try {
-            // Use the last date in the range as due date
-            const allDates = [...dateStr.matchAll(new RegExp(datePattern.source, "gi"))];
-            const lastDate = allDates[allDates.length - 1]?.[0];
-            if (!lastDate) continue;
-            const parsed = new Date(lastDate + (lastDate.match(/\d{4}/) ? "" : ", 2026"));
-            if (isNaN(parsed.getTime())) continue;
-            const dueDate = parsed.toISOString().split("T")[0];
-            found.push({ title: `Week ${found.length + 1} Readings`, dueDate, points: 0, type: "Reading" });
-          } catch(e) { continue; }
+        const weekPat = /Week\s+\d+.*?\(([^)]+)\)/gi;
+        let wm;
+        while ((wm = weekPat.exec(text)) !== null) {
+          const dateStr = wm[1];
+          const dms = [...dateStr.matchAll(new RegExp(datePattern.source, "gi"))];
+          if (!dms.length) continue;
+          const yr = text.match(/20\d{2}/)?.[0] || new Date().getFullYear().toString();
+          const last = dms[dms.length - 1][0];
+          const dueDate = parseDate(last, yr);
+          if (!dueDate) continue;
+          addItem({ title: `Week ${found.length + 1} Readings & Activities`, dueDate, points: 0, type: "Reading", category: "one_off" });
         }
       }
 
       if (found.length > 0) {
+        // Sort by date
+        found.sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
         const sel = {};
         found.forEach((_, i) => sel[i] = true);
         setSelectedExtracted(sel);
         setExtractedItems(found);
+        console.log(`✅ Broad-capture extracted ${found.length} items (${found.filter(f=>f.category==="recurring").length} recurring, ${found.filter(f=>f.category==="unscheduled_obligation").length} TBD)`);
       } else {
-        setExtractedItems([{ title: "Could not auto-extract — check dates are in Month Day format", dueDate: new Date(Date.now() + 30*86400000).toISOString().split("T")[0], points: 0, type: "Homework" }]);
-        console.warn("No assignments found. Syllabus may use unusual date formatting.");
+        setExtractedItems([{ title: "No assignments detected — try the AI extraction or add manually", dueDate: courseEnd, points: 0, type: "Homework", category: "one_off" }]);
+        console.warn("Broad-capture: no items found. Edge Function may be needed for this syllabus format.");
       }
     } catch (e) {
       console.error("Extraction error:", e);
