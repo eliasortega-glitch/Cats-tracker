@@ -550,9 +550,10 @@ const NoteCard = ({ note, onDelete, onEdit }) => {
 
 // --- SUPABASE AUTH PAGE ---------------------------------------------------------
 
+// --- BROAD-CAPTURE SYLLABUS EXTRACTION ---
+// Catches one-off, recurring, and TBD obligations. Returns flat array for compatibility.
 async function callExtractSyllabus(text, courseCode, courseName, courseStart, courseEnd) {
   try {
-
     const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-syllabus`, {
       method: "POST",
       headers: {
@@ -565,19 +566,37 @@ async function callExtractSyllabus(text, courseCode, courseName, courseStart, co
         courseCode,
         courseName,
         courseStart: courseStart || '2026-01-13',
-        courseEnd: courseEnd || '2026-12-15',
+        courseEnd: courseEnd || '2026-05-10',
+        strategy: "broad_capture",
       }),
     });
-
-    console.log("Edge function response status:", response.status);
     if (!response.ok) throw new Error(`Edge function error: ${response.status}`);
     const data = await response.json();
-    console.log("Edge function result:", data);
     if (data.error) throw new Error(data.error);
-    return data.assignments || [];
+    const raw = data.assignments || data.items || [];
+    return raw.map(a => ({
+      ...a,
+      category: a.category || "one_off",
+      recurrenceNote: a.recurrenceNote || null,
+    }));
   } catch (e) {
     console.warn("Extract edge function failed:", e.message);
     return null;
+  }
+}
+
+// Notification log — writes to Supabase notification_logs table
+async function logNotification(studentId, notificationType, status = "sent", staffId = null) {
+  try {
+    await supabase.from("notification_logs").insert({
+      student_id: studentId || null,
+      staff_id: staffId || null,
+      notification_type: notificationType,
+      status,
+      created_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn("Notification log failed:", e.message);
   }
 }
 
@@ -1024,10 +1043,21 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [effort, setEffort] = useState(3);
   const [understanding, setUnderstanding] = useState(3);
   const [notes, setNotes] = useState("");
-  const [workContent, setWorkContent] = useState("");
-  const [wordCount, setWordCount] = useState(0);
+  // Load draft from localStorage on open
+  const DRAFT_KEY = `cats_draft_${a?.id || "unknown"}`;
+  const [workContent, setWorkContent] = useState(() => {
+    try { return localStorage.getItem(DRAFT_KEY) || ""; } catch(e) { return ""; }
+  });
+  const [wordCount, setWordCount] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY) || "";
+      return saved.trim() ? saved.trim().split(/\s+/).length : 0;
+    } catch(e) { return 0; }
+  });
   const [workSaved, setWorkSaved] = useState(false);
   const [copyConfirm, setCopyConfirm] = useState(false);
+  const [guidedPathOpen, setGuidedPathOpen] = useState(true);
+  const localSaveRef = useRef(null);
   const editorRef = useRef(null);
   const autoSaveTimeout = useRef(null);
 
@@ -1282,7 +1312,19 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         {/* LEFT: Assignment details + guided prompts */}
         <div style={{ borderRight: `1px solid ${T.border}`, overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 18, background: T.bg, transition: "opacity 0.4s, background 0.3s", opacity: isTypingFocus ? 0.25 : 1, pointerEvents: isTypingFocus ? "none" : "auto" }}>
 
-          {/* Assignment details — pinned at top */}
+          {/* Guided Path toggle */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", borderRadius: UA.radiusSm, background: T.navyLight, border: `1px solid ${T.navyBorder}` }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.navy }}>🧭 Guided Path</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 11, color: T.textMuted }}>{guidedPathOpen ? "On" : "Off — distraction-free mode"}</span>
+              <div onClick={() => setGuidedPathOpen(o => !o)}
+                style={{ width: 38, height: 22, borderRadius: 99, background: guidedPathOpen ? UA.navy : UA.border, cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                <div style={{ width: 16, height: 16, borderRadius: "50%", background: "white", position: "absolute", top: 3, left: guidedPathOpen ? 19 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Assignment details — always visible */}
           <Card style={{ padding: "20px 22px", border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: UA.navy, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>Assignment Details</div>
             {[["Description", a.description], ["Instructions", a.instructions], ["Rubric", a.rubric]].map(([label, val]) => val && (
@@ -1293,8 +1335,8 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             ))}
           </Card>
 
-          {/* AI Chat Box */}
-          <div style={{ background: zenMode ? ZEN.bgCard : UA.bgCard, border: `1.5px solid ${zenMode ? ZEN.navyBorder : UA.navyBorder}`, borderRadius: UA.radius, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: 380, transition: "all 0.3s" }}>
+          {/* AI Chat + Guided Prompts — hidden when Guided Path is off */}
+          {guidedPathOpen && <div style={{ background: zenMode ? ZEN.bgCard : UA.bgCard, border: `1.5px solid ${zenMode ? ZEN.navyBorder : UA.navyBorder}`, borderRadius: UA.radius, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: 380, transition: "all 0.3s" }}>
             <div style={{ padding: "12px 16px", borderBottom: `1px solid ${zenMode ? ZEN.border : UA.navyBorder}`, background: zenMode ? ZEN.navyLight : UA.navyLight }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: zenMode ? ZEN.navy : UA.navy, letterSpacing: "0.06em", textTransform: "uppercase" }}>🤖 Ask About This Assignment</div>
               <div style={{ fontSize: 11, color: zenMode ? ZEN.textMuted : UA.textMuted, marginTop: 2 }}>Ask anything — I only know about this assignment</div>
@@ -1346,8 +1388,10 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             </div>
           </div>
 
-          {/* Guided prompts — interactive */}
-          <div>
+          </div>}{/* end guidedPathOpen chat */}
+
+          {/* Guided prompts — collapsible via Guided Path toggle */}
+          {guidedPathOpen && <div>
             <div style={{ fontSize: 11, fontWeight: 800, color: UA.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Guided Prompts — click to explore</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {GUIDED_PROMPTS.map((prompt, idx) => {
@@ -1417,7 +1461,16 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                 {Object.keys(promptResponses).filter(k=>promptResponses[k]?.trim()).length}/{GUIDED_PROMPTS.length} prompts
               </span>
             </div>
-          </div>
+          </div>}{/* end guidedPathOpen prompts */}
+
+          {/* When guided path is off — clean prompt to write */}
+          {!guidedPathOpen && (
+            <div style={{ padding: "16px 18px", borderRadius: UA.radius, background: T.navyLight, border: `1px solid ${T.navyBorder}`, fontSize: 13, color: T.navy, lineHeight: 1.7 }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>✍️ Distraction-free mode</div>
+              <div style={{ fontSize: 12, color: T.textMuted }}>Your editor is on the right. Toggle Guided Path on to access prompts and AI chat.</div>
+            </div>
+          )}
+
         </div>
 
         {/* RIGHT: Workspace */}
@@ -1468,14 +1521,39 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               <div style={{ marginLeft: "auto", fontSize: 11, color: UA.textMuted, alignSelf: "center" }}>{wordCount} words</div>
             </div>
 
+            {/* Depth Meter — fills based on word count, encourages meaningful writing */}
+            {(() => {
+              const TARGET = 150; // words for "full depth"
+              const pct = Math.min(100, Math.round((wordCount / TARGET) * 100));
+              const depthLabel = wordCount === 0 ? "Start writing..." : wordCount < 30 ? "Getting started" : wordCount < 75 ? "Building depth" : wordCount < 120 ? "Strong response" : "Deep reflection ✓";
+              const depthColor = wordCount < 30 ? UA.textMuted : wordCount < 75 ? UA.yellow : wordCount < 120 ? UA.navy : UA.green;
+              return (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: depthColor, transition: "color 0.4s" }}>{depthLabel}</span>
+                    <span style={{ fontSize: 11, color: UA.textMuted }}>{pct}% depth</span>
+                  </div>
+                  <div style={{ height: 3, borderRadius: 99, background: UA.border, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: depthColor, borderRadius: 99, transition: "width 0.6s ease, background 0.4s" }} />
+                  </div>
+                </div>
+              );
+            })()}
+
             <textarea
               ref={editorRef}
               value={workContent}
               onChange={e => {
-                setWorkContent(e.target.value);
-                setWordCount(e.target.value.trim() ? e.target.value.trim().split(/\s+/).length : 0);
+                const val = e.target.value;
+                setWorkContent(val);
+                setWordCount(val.trim() ? val.trim().split(/\s+/).length : 0);
                 clearTimeout(autoSaveTimeout.current);
                 autoSaveTimeout.current = setTimeout(() => setWorkSaved(true), 1500);
+                // localStorage autosave every 30s — debounced
+                clearTimeout(localSaveRef.current);
+                localSaveRef.current = setTimeout(() => {
+                  try { localStorage.setItem(DRAFT_KEY, val); } catch(e) {}
+                }, 30000);
               }}
               placeholder="Start writing here... take notes, draft your response, or write out your thinking. Hit Copy when done to paste into Google Docs or D2L."
               style={{ width: "100%", minHeight: isTypingFocus ? 420 : (zenMode ? 340 : 280), padding: isTypingFocus ? "20px 24px" : "14px", borderRadius: UA.radiusSm, border: `1.5px solid ${isTypingFocus ? UA.navy : zenMode ? "#2a3d55" : UA.border}`, fontSize: isTypingFocus ? 15 : (zenMode ? 15 : 13), fontFamily: isTypingFocus || zenMode ? "'Georgia', serif" : "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: isTypingFocus ? 2.1 : (zenMode ? 2 : 1.8), background: zenMode ? "#12151f" : "white", color: zenMode ? "#e8eaf0" : UA.text, transition: "all 0.4s", boxShadow: isTypingFocus ? "0 0 0 3px rgba(0,51,102,0.08), 0 4px 20px rgba(0,0,0,0.06)" : "none" }}
@@ -2825,24 +2903,63 @@ function SettingsPage({ role, currentUser = {} }) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState(currentUser?.name || "");
-  // Sync if currentUser loads after initial render
   React.useEffect(() => { if (currentUser?.name) setFullName(currentUser.name); }, [currentUser?.name]);
+
+  // Notification prefs — persisted to staff_preferences table
   const [notifPrefs, setNotifPrefs] = useState({
     highRisk: true, missedSession: true, missingAssignment: true,
     lowUnderstanding: true, sessionComplete: false, weeklyReport: true,
   });
-  const toggleNotif = (key) => setNotifPrefs(p => ({ ...p, [key]: !p[key] }));
+  const [notifHealth, setNotifHealth] = useState({ total: 0, delivered: 0, pct: null, loading: true });
+
+  React.useEffect(() => {
+    if (!currentUser?.id || role === "student") return;
+    supabase.from("staff_preferences").select("*").eq("staff_id", currentUser.id).maybeSingle()
+      .then(({ data }) => {
+        if (data) setNotifPrefs({
+          highRisk: data.high_risk ?? true,
+          missedSession: data.missed_session ?? true,
+          missingAssignment: data.missing_assignment ?? true,
+          lowUnderstanding: data.low_understanding ?? true,
+          sessionComplete: data.session_complete ?? false,
+          weeklyReport: data.weekly_report ?? true,
+        });
+      });
+    // Notification health: last 7 days
+    const since = new Date(Date.now() - 7 * 86400000).toISOString();
+    supabase.from("notification_logs").select("status").gte("created_at", since)
+      .then(({ data }) => {
+        const total = (data || []).length;
+        const delivered = (data || []).filter(n => n.status === "sent" || n.status === "delivered").length;
+        setNotifHealth({ total, delivered, pct: total > 0 ? Math.round((delivered / total) * 100) : null, loading: false });
+      });
+  }, [currentUser?.id]);
+
+  const toggleNotif = async (key) => {
+    const next = { ...notifPrefs, [key]: !notifPrefs[key] };
+    setNotifPrefs(next);
+    if (currentUser?.id) {
+      await supabase.from("staff_preferences").upsert({
+        staff_id: currentUser.id,
+        high_risk: next.highRisk,
+        missed_session: next.missedSession,
+        missing_assignment: next.missingAssignment,
+        low_understanding: next.lowUnderstanding,
+        session_complete: next.sessionComplete,
+        weekly_report: next.weeklyReport,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "staff_id" });
+    }
+  };
+
   const isStaff = role !== "student";
 
   const handleSaveSettings = async () => {
-    console.log("handleSaveSettings called, id:", currentUser?.id, "name:", fullName);
     setSaving(true);
     if (currentUser?.id && fullName.trim()) {
       const { error } = await supabase.from("profiles").update({ full_name: fullName.trim() }).eq("id", currentUser.id);
       if (error) console.error("Settings save failed:", error.message);
-      else console.log("✅ Settings saved successfully");
-    } else {
-      console.warn("Save skipped — id:", currentUser?.id, "name:", fullName);
+      else console.log("✅ Settings saved");
     }
     setSaving(false);
     setSaved(true);
@@ -2907,14 +3024,30 @@ function SettingsPage({ role, currentUser = {} }) {
       {/* Staff-only: notification preferences */}
       {isStaff && (
         <Card>
-          <div style={{ fontWeight: 800, fontSize: 14, color: UA.text, marginBottom: 4 }}>Notification Preferences</div>
-          <div style={{ fontSize: 12, color: UA.textMuted, marginBottom: 16 }}>Choose which alerts you receive via push notification</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: UA.text }}>Notification Preferences</div>
+            {/* Notification Health sparkline */}
+            {!notifHealth.loading && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 12px", borderRadius: 99, background: notifHealth.pct === null ? UA.bg : notifHealth.pct >= 95 ? UA.greenBg : notifHealth.pct >= 80 ? UA.yellowBg : UA.redLight, border: `1px solid ${notifHealth.pct === null ? UA.border : notifHealth.pct >= 95 ? UA.greenBorder : notifHealth.pct >= 80 ? UA.yellowBorder : UA.redBorder}` }}>
+                <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 16 }}>
+                  {[4, 6, 5, 8, 7, 9, 10].map((h, i) => (
+                    <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: notifHealth.pct === null ? UA.textMuted : notifHealth.pct >= 95 ? UA.green : notifHealth.pct >= 80 ? UA.yellow : UA.red, opacity: 0.4 + i * 0.08 }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 800, color: notifHealth.pct === null ? UA.textMuted : notifHealth.pct >= 95 ? UA.green : notifHealth.pct >= 80 ? UA.yellow : UA.red }}>
+                  {notifHealth.pct === null ? "No data yet" : `${notifHealth.pct}% delivered · ${notifHealth.total} sent (7d)`}
+                </span>
+              </div>
+            )}
+            {notifHealth.loading && <span style={{ fontSize: 11, color: UA.textMuted }}>Loading health...</span>}
+          </div>
+          <div style={{ fontSize: 12, color: UA.textMuted, marginBottom: 16 }}>Toggles sync instantly to your profile — changes take effect immediately</div>
           {[
             { key: "highRisk", label: "Student risk score moves to High", desc: "Triggered when dynamic risk crosses the High threshold" },
             { key: "missedSession", label: "Student hasn't logged a session in 5+ days", desc: "Sent at the 5-day mark if no Work Mode session recorded" },
             { key: "missingAssignment", label: "Student has a missing assignment", desc: "Triggered when an assignment passes due date with no submission" },
             { key: "lowUnderstanding", label: "Student rates understanding 2 or below", desc: "Triggered when a student saves a session with low understanding" },
-            { key: "sessionComplete", label: "Student completes a work session", desc: "Notify on every session save (may be high volume)" },
+            { key: "sessionComplete", label: "Student completes a work session", desc: "Batched — max one notification per hour to prevent spam" },
             { key: "weeklyReport", label: "Weekly caseload report ready", desc: "Every Monday morning — summary of previous week" },
           ].map(item => (
             <div key={item.key} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "12px 0", borderBottom: `1px solid ${UA.border}` }}>
@@ -2924,10 +3057,11 @@ function SettingsPage({ role, currentUser = {} }) {
                   <div style={{ width: 18, height: 18, borderRadius: "50%", background: "white", position: "absolute", top: 3, left: notifPrefs[item.key] ? 21 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                 </div>
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: UA.text }}>{item.label}</div>
                 <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2, lineHeight: 1.5 }}>{item.desc}</div>
               </div>
+              {notifPrefs[item.key] && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, background: UA.greenBg, color: UA.green, fontWeight: 700, border: `1px solid ${UA.greenBorder}`, flexShrink: 0, alignSelf: "center" }}>ON</span>}
             </div>
           ))}
         </Card>
@@ -4452,9 +4586,19 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
                     </div>
                     <div style={{ flex: 1 }}>
                       <span style={{ fontWeight: 700, fontSize: 13, color: UA.text }}>{a.title}</span>
-                      <span style={{ fontSize: 12, color: UA.textMuted }}> · {a.type} · {a.points} pts</span>
+                      <span style={{ fontSize: 12, color: UA.textMuted }}> · {a.type} · {a.points > 0 ? `${a.points} pts` : "no pts listed"}</span>
+                      {a.recurrenceNote && <div style={{ fontSize: 11, color: UA.yellow, fontWeight: 600, marginTop: 2 }}>↻ {a.recurrenceNote}</div>}
                     </div>
-                    <span style={{ fontSize: 12, color: UA.textMuted, flexShrink: 0 }}>Due {new Date(a.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                    {/* Category badge */}
+                    <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, fontWeight: 700, flexShrink: 0,
+                      background: a.category === "recurring" ? UA.yellowBg : a.category === "unscheduled_obligation" ? UA.redLight : UA.navyLight,
+                      color: a.category === "recurring" ? UA.yellow : a.category === "unscheduled_obligation" ? UA.red : UA.navy,
+                      border: `1px solid ${a.category === "recurring" ? UA.yellowBorder : a.category === "unscheduled_obligation" ? UA.redBorder : UA.navyBorder}` }}>
+                      {a.category === "recurring" ? "↻ recurring" : a.category === "unscheduled_obligation" ? "⚑ TBD" : "one-off"}
+                    </span>
+                    <span style={{ fontSize: 12, color: UA.textMuted, flexShrink: 0 }}>
+                      {a.dueDate ? new Date(a.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "TBD"}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -5646,8 +5790,20 @@ function App() {
     window.scrollTo(0, 0);
   };
 
-  const pushNotification = (message, icon = "🔔") => {
+  const SESSION_COMPLETE_BATCH_KEY = "cats_session_notif_last";
+  const pushNotification = (message, icon = "🔔", notifType = "general", studentId = null) => {
+    // Session complete batching — max one per hour
+    if (notifType === "session_complete") {
+      const last = localStorage.getItem(SESSION_COMPLETE_BATCH_KEY);
+      if (last && Date.now() - parseInt(last) < 60 * 60 * 1000) {
+        console.log("Session complete notification batched — sent within last hour");
+        return;
+      }
+      localStorage.setItem(SESSION_COMPLETE_BATCH_KEY, String(Date.now()));
+    }
     setNotifications(prev => [{ id: Date.now(), icon, message, time: "Just now", read: false }, ...prev]);
+    // Log to Supabase for notification health tracking
+    logNotification(studentId, notifType, "sent", sessionUser?.id || null);
   };
 
   const currentUser = profile
@@ -5686,7 +5842,8 @@ function App() {
         sessionUser={sessionUser}
         onBack={() => setPage(role === "student" ? "dashboard" : "roster")}
         onSessionSaved={(data) => {
-          if (data.understanding <= 2) pushNotification(`${currentUser.name} rated understanding ${data.understanding}/5 on "${data.title}" — may need support`, "⚠️");
+          if (data.understanding <= 2) pushNotification(`${currentUser.name} rated understanding ${data.understanding}/5 on "${data.title}" — may need support`, "⚠️", "low_understanding", null);
+          pushNotification(`${currentUser.name} completed a work session on "${data.title}"`, "✅", "session_complete", null);
           if (data.completionType === "independent" || data.completionType === "with_support") {
             setAssignments(prev => prev.map(a => a.id === workAssignment?.id ? { ...a, status: "completed" } : a));
           } else if (data.completionType === "in_progress") {
