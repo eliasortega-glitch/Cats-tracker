@@ -1399,10 +1399,13 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
           <div style={{ flex: 1, maxWidth: 160, height: 4, borderRadius: 99, background: T.border, overflow: "hidden", flexShrink: 0 }}>
             <div style={{ height: "100%", width: `${overallPct}%`, background: depthColor, borderRadius: 99, transition: "width 0.6s ease, background 0.4s" }} />
           </div>
-          {/* Status pill */}
-          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, flexShrink: 0 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor, transition: "background 0.3s" }} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: statusColor, whiteSpace: "nowrap" }}>{statusLabel}</span>
+          {/* Live save indicator */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, flexShrink: 0, transition: "all 0.3s" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor, transition: "background 0.3s",
+              boxShadow: workSaved ? `0 0 0 2px ${UA.green}44` : "none" }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: statusColor, whiteSpace: "nowrap" }}>
+              {workSaved ? `Saved ${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : statusLabel}
+            </span>
           </div>
         </div>
 
@@ -1524,6 +1527,58 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                 </div>
               ))}
             </div>
+
+            {/* ─ Section: Add Instructions photo ─ */}
+            {(() => {
+              const [instrLoading, setInstrLoading] = React.useState(false);
+              const [instrDone, setInstrDone] = React.useState(false);
+              const instrRef = React.useRef();
+              const handleInstrPhoto = async (file) => {
+                if (!file) return;
+                setInstrLoading(true);
+                try {
+                  const reader = new FileReader();
+                  reader.onload = async (ev) => {
+                    const base64 = ev.target.result.split(",")[1];
+                    const mediaType = file.type || "image/jpeg";
+                    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
+                      body: JSON.stringify({ imageBase64: base64, imageMediaType: mediaType,
+                        assignment: { title: "Extract Instructions", course: "", description: "Extract any assignment instructions, prompts, rubric criteria, or requirements from this image. Return as plain text, organized clearly." },
+                        prompt: { question: "What are the assignment instructions?", aiPrompt: "Read this image carefully. Extract all assignment instructions, prompts, requirements, and rubric criteria you can see. Format them clearly as plain text. Be thorough — include every requirement listed." }
+                      }),
+                    });
+                    const data = await response.json();
+                    const extracted = data.text || "";
+                    if (extracted) {
+                      // Append to chat as assistant context message
+                      setChatMessages(prev => [...prev, {
+                        role: "assistant",
+                        content: "📋 I read your assignment photo. Here's what I found:
+
+" + extracted + "
+
+What would you like help with?"
+                      }]);
+                      setInstrDone(true);
+                      setTimeout(() => setInstrDone(false), 3000);
+                    }
+                    setInstrLoading(false);
+                  };
+                  reader.readAsDataURL(file);
+                } catch(e) { console.warn("Instruction photo failed:", e.message); setInstrLoading(false); }
+              };
+              return (
+                <div style={{ padding: "10px 18px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 8 }}>
+                  <input ref={instrRef} type="file" accept="image/*;capture=camera" onChange={e => handleInstrPhoto(e.target.files[0])} style={{ display: "none" }} />
+                  <button onClick={() => instrRef.current.click()} disabled={instrLoading}
+                    style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${T.navyBorder}`, background: T.navyLight, color: T.navy, fontSize: 12, fontWeight: 700, cursor: instrLoading ? "wait" : "pointer", fontFamily: "inherit", justifyContent: "center" }}>
+                    {instrLoading ? "⏳ Reading..." : instrDone ? "✓ Added to chat" : "📷 Add Instructions Photo"}
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* ─ Section: AI Chat ─ */}
             <div style={{ display: "flex", flexDirection: "column", borderBottom: `1px solid ${T.border}`, minHeight: 0, flex: "0 0 auto" }}>
@@ -4593,7 +4648,123 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
 
   const inputStyle = { width: "100%", padding: "9px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", background: "white" };
 
+  // Snap Your Semester state
+  const [snapFiles, setSnapFiles] = useState([]);
+  const [snapPreviews, setSnapPreviews] = useState([]);
+  const [snapExtracting, setSnapExtracting] = useState(false);
+  const [snapResults, setSnapResults] = useState([]);
+  const [snapSelected, setSnapSelected] = useState({});
+  const [snapAdded, setSnapAdded] = useState(false);
+  const [snapError, setSnapError] = useState("");
+  const snapRef = useRef();
+
+  const handleSnapFiles = (files) => {
+    const arr = Array.from(files).slice(0, 10);
+    setSnapFiles(arr);
+    setSnapResults([]);
+    setSnapSelected({});
+    setSnapAdded(false);
+    setSnapError("");
+    // Generate previews
+    const previews = [];
+    arr.forEach((f, i) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previews[i] = e.target.result;
+        if (previews.filter(Boolean).length === arr.length) setSnapPreviews([...previews]);
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+
+  const handleSnapExtract = async () => {
+    if (!snapFiles.length) return;
+    setSnapExtracting(true);
+    setSnapError("");
+    setSnapResults([]);
+    try {
+      // Convert all files to base64
+      const b64s = await Promise.all(snapFiles.map(f => new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res({ base64: e.target.result.split(",")[1], mediaType: f.type || "image/jpeg" });
+        r.onerror = rej;
+        r.readAsDataURL(f);
+      })));
+
+      const prompt = "These are " + b64s.length + " screenshots from a D2L (Brightspace) learning management system or a course syllabus. Analyze ALL images as a single unified course view. Extract EVERY assignment, quiz, exam, discussion post, lab, and recurring obligation you can see across all images. For each item return: title (string), course (string, e.g. 'SRL 201'), dueDate (YYYY-MM-DD or null if TBD), points (number or 0), type (Essay/Exam/Quiz/Discussion/Lab/Homework/Project/Other). If you see a recurring pattern like 'due every Wednesday', generate one entry per occurrence through the end of the semester. Return ONLY a valid JSON array, no markdown, no explanation.";
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          multipleImages: b64s,
+          prompt: { question: "Extract assignments", aiPrompt: prompt },
+          assignment: { title: "Snap Extraction", course: "", description: prompt },
+        }),
+      });
+
+      const data = await response.json();
+      const raw = data.text || data.content?.[0]?.text || "";
+      let parsed = [];
+      try {
+        const clean = raw.replace(/\`\`\`json|\`\`\`/g, "").trim();
+        parsed = JSON.parse(clean);
+        if (!Array.isArray(parsed)) parsed = [];
+      } catch(e) {
+        setSnapError("Couldn't parse AI response. Try again or use fewer images.");
+        setSnapExtracting(false);
+        return;
+      }
+
+      if (!parsed.length) {
+        setSnapError("No assignments detected in these images. Make sure screenshots show the assignment list clearly.");
+        setSnapExtracting(false);
+        return;
+      }
+
+      const sel = {};
+      parsed.forEach((_, i) => sel[i] = true);
+      setSnapSelected(sel);
+      setSnapResults(parsed);
+    } catch(e) {
+      setSnapError("Something went wrong: " + e.message);
+    }
+    setSnapExtracting(false);
+  };
+
+  const handleSnapAdd = async () => {
+    const toAdd = snapResults.filter((_, i) => snapSelected[i]);
+    if (!toAdd.length) return;
+    for (const a of toAdd) {
+      const dueDateObj = a.dueDate ? new Date(a.dueDate) : null;
+      const days = dueDateObj ? (dueDateObj - Date.now()) / 86400000 : 30;
+      const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
+      const item = {
+        title: a.title || "Untitled",
+        course: a.course || syllabusCourseName || "Course",
+        courseCode: syllabusCode || "",
+        dueDate: dueDateObj || new Date(Date.now() + 30 * 86400000),
+        points: parseInt(a.points) || 0,
+        urgency,
+        status: "not_started",
+        description: "",
+        instructions: "",
+        rubric: "",
+        d2lLink: "https://d2l.arizona.edu",
+        studentId: effectiveStudentId,
+      };
+      if (onAddAssignment) await onAddAssignment(item);
+    }
+    setSnapAdded(true);
+    setTimeout(() => setSnapAdded(false), 3000);
+  };
+
   const tabs = [
+    { id: "snap", label: "📸 Sync via Screenshots" },
     { id: "d2l", label: "📅 D2L Import" },
     ...(!isStudent ? [{ id: "quickadd", label: "⚡ Quick Add" }] : []),
     ...(!isStudent ? [{ id: "courses", label: "📚 Courses" }] : []),
@@ -4644,6 +4815,100 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
           </button>
         ))}
       </div>
+
+      {/* SNAP YOUR SEMESTER TAB */}
+      {activeTab === "snap" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Card style={{ border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
+            <div style={{ fontWeight: 800, fontSize: 15, color: UA.navy, marginBottom: 6 }}>📸 Sync via Screenshots</div>
+            <div style={{ fontSize: 13, color: UA.textMuted, marginBottom: 16, lineHeight: 1.6 }}>
+              Screenshot your D2L assignments page or syllabus — up to 10 images at once. The AI reads every assignment across all your screenshots and adds them to your profile in one go.
+              <br /><strong style={{ color: UA.navy }}>How:</strong> In D2L, go to Assignments → scroll through and screenshot the list → come back here and upload all at once.
+            </div>
+            <input ref={snapRef} type="file" accept="image/*" multiple
+              onChange={e => handleSnapFiles(e.target.files)}
+              style={{ display: "none" }} />
+            <div style={{ display: "flex", gap: 10, marginBottom: snapFiles.length ? 16 : 0 }}>
+              <Btn onClick={() => snapRef.current.click()} variant="secondary">
+                📂 Select Screenshots ({snapFiles.length ? `${snapFiles.length} selected` : "up to 10"})
+              </Btn>
+              {snapFiles.length > 0 && !snapExtracting && !snapResults.length && (
+                <Btn onClick={handleSnapExtract}>✨ Extract Assignments</Btn>
+              )}
+              {snapFiles.length > 0 && (
+                <Btn variant="ghost" size="sm" onClick={() => { setSnapFiles([]); setSnapPreviews([]); setSnapResults([]); setSnapSelected({}); setSnapError(""); }}>Clear</Btn>
+              )}
+            </div>
+            {/* Thumbnail previews */}
+            {snapPreviews.length > 0 && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                {snapPreviews.map((src, i) => src && (
+                  <div key={i} style={{ position: "relative" }}>
+                    <img src={src} alt={`Screenshot ${i+1}`} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: UA.radiusSm, border: `2px solid ${UA.navyBorder}` }} />
+                    <div style={{ position: "absolute", bottom: 2, right: 2, background: "rgba(0,0,0,0.6)", color: "white", fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3 }}>{i+1}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {snapExtracting && (
+              <div style={{ padding: "20px 0", textAlign: "center", color: UA.navy, fontSize: 13, fontWeight: 600 }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>🔍</div>
+                Analyzing {snapFiles.length} image{snapFiles.length !== 1 ? "s" : ""}... This takes about 10-15 seconds.
+              </div>
+            )}
+            {snapError && (
+              <div style={{ padding: "10px 14px", borderRadius: UA.radiusSm, background: UA.redLight, border: `1px solid ${UA.redBorder}`, fontSize: 13, color: UA.red, fontWeight: 600, marginTop: 8 }}>
+                ⚠️ {snapError}
+              </div>
+            )}
+          </Card>
+
+          {/* Review & Confirm */}
+          {snapResults.length > 0 && (
+            <Card>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: UA.text }}>✅ Review & Confirm</div>
+                  <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{snapResults.length} assignments found — deselect any you don't want</div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button onClick={() => { const all = {}; snapResults.forEach((_, i) => all[i] = true); setSnapSelected(all); }}
+                    style={{ fontSize: 12, fontWeight: 700, color: UA.navy, background: UA.navyLight, border: `1px solid ${UA.navyBorder}`, borderRadius: UA.radiusSm, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                    Select All
+                  </button>
+                  <Btn onClick={handleSnapAdd} disabled={!Object.values(snapSelected).some(Boolean)}>
+                    {snapAdded ? "✓ Added!" : `+ Add ${Object.values(snapSelected).filter(Boolean).length} Assignments`}
+                  </Btn>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {snapResults.map((a, i) => {
+                  const dueDateStr = a.dueDate ? new Date(a.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "TBD";
+                  const typeColors = { Exam: UA.red, Quiz: UA.yellow, Lab: UA.navy, Discussion: UA.green, Project: UA.orange };
+                  const typeColor = typeColors[a.type] || UA.textMuted;
+                  return (
+                    <div key={i} onClick={() => setSnapSelected(p => ({ ...p, [i]: !p[i] }))}
+                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: UA.radiusSm, background: snapSelected[i] ? "white" : UA.bg, border: `1.5px solid ${snapSelected[i] ? UA.navy : UA.border}`, cursor: "pointer", transition: "all 0.12s" }}>
+                      <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${snapSelected[i] ? UA.navy : UA.border}`, background: snapSelected[i] ? UA.navy : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {snapSelected[i] && <span style={{ color: "white", fontSize: 10, fontWeight: 900 }}>✓</span>}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: UA.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</div>
+                        <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.points > 0 ? `${a.points} pts` : "no pts listed"}</div>
+                      </div>
+                      <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, fontWeight: 700, color: typeColor, background: `${typeColor}18`, border: `1px solid ${typeColor}44`, flexShrink: 0 }}>
+                        {a.type || "Homework"}
+                      </span>
+                      <span style={{ fontSize: 12, color: UA.textMuted, flexShrink: 0, minWidth: 50, textAlign: "right" }}>Due {dueDateStr}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {snapAdded && <div style={{ marginTop: 12, fontSize: 13, color: UA.green, fontWeight: 700 }}>✓ Assignments added to {isStudent ? "your profile" : `${student?.name?.split(" ")[0]}'s profile`}</div>}
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* D2L IMPORT TAB */}
       {activeTab === "d2l" && (
