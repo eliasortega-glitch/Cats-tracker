@@ -175,6 +175,19 @@ async function updateAssignmentStatus(assignmentId, status) {
 
 // Save session log to Supabase
 async function insertSessionLog(log) {
+  // Guard: warn loudly if studentId is missing — this is the #1 save failure cause
+  if (!log.studentId) {
+    console.error("❌ insertSessionLog: studentId is null — session will not save. Check UUID resolution.");
+    console.error("Log data:", JSON.stringify({ assignmentTitle: log.assignmentTitle, loggedBy: log.loggedBy }));
+    // Try to recover from localStorage cache
+    const cached = localStorage.getItem("cats_student_uuid");
+    if (cached) {
+      console.log("🔄 Recovering studentId from localStorage cache:", cached);
+      log = { ...log, studentId: cached };
+    } else {
+      return null;
+    }
+  }
   const { data, error } = await supabase.from("session_logs").insert({
     student_id: log.studentId,
     assignment_id: log.assignmentId || null,
@@ -193,8 +206,12 @@ async function insertSessionLog(log) {
     prompt_responses_filled: log.promptResponsesFilled || 0,
     days_before_due: log.daysBeforeDue !== undefined ? log.daysBeforeDue : null,
   }).select().single();
-  if (error) { console.warn("Session log insert failed:", error.message); return null; }
-  console.log("✅ Session log saved:", data.id);
+  if (error) {
+    console.error("❌ Session log insert failed:", error.message, "Code:", error.code);
+    console.error("Hint:", error.hint || "Check RLS policies on session_logs table");
+    return null;
+  }
+  console.log("✅ Session log saved:", data.id, "for student:", log.studentId);
   return data;
 }
 
@@ -1159,7 +1176,11 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       const reply = data.text || "I couldn't generate a response. Try again.";
       setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
     } catch (e) {
-      setChatMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+      console.error("AI Chat error:", e.message, e);
+      const errMsg = e.message?.includes("fetch") 
+        ? "Connection error — check your network and try again." 
+        : "Something went wrong. Please try again.";
+      setChatMessages(prev => [...prev, { role: "assistant", content: errMsg }]);
     }
     setChatLoading(false);
     setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
@@ -1290,14 +1311,29 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [fabStage, setFabStage] = React.useState("save"); // save | check | d2l
   const [fabOpen, setFabOpen] = React.useState(false);
 
+  const [saveError, setSaveError] = React.useState("");
+
   const handleFabSave = async () => {
     setSaving(true);
+    setSaveError("");
     clearInterval(timerRef.current);
+    // Always pass workContent explicitly — don't rely on closure capture in overrides
     const logData = buildLogData(time, {
-      effort, understanding, completionType, notes,
+      effort,
+      understanding,
+      completionType,
+      notes: workContent,  // explicit — this is the editor content
       promptResponsesFilled: promptsFilled,
     });
-    await insertSessionLog(logData);
+    console.log("💾 Saving session — studentId:", logData.studentId, "words:", wordCount, "effort:", effort, "understanding:", understanding);
+    const result = await insertSessionLog(logData);
+    if (!result) {
+      setSaveError("Save failed — check your connection or contact your learning specialist.");
+      setSaving(false);
+      return;
+    }
+    // Also flush the localStorage draft now that we have a real save
+    try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
     if ((completionType === "independent" || completionType === "with_support") && typeof a.id === "string" && a.id.includes("-")) {
       await updateAssignmentStatus(a.id, "completed");
     }
@@ -1342,7 +1378,10 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
           <button onClick={async () => {
             clearInterval(timerRef.current);
             const currentTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
-            if (currentTime > 10 && a.studentId) await insertSessionLog(buildLogData(currentTime));
+            // Only auto-save on close if student has actually written something and session is long enough
+            if (currentTime > 10 && (a.studentId || localStorage.getItem("cats_student_uuid"))) {
+              await insertSessionLog(buildLogData(currentTime, { notes: workContent, effort, understanding, completionType }));
+            }
             onBack();
           }} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, fontSize: 13, padding: 0, fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
             ← Back
@@ -1664,6 +1703,12 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                 </button>
               );
             })}
+          </div>
+        )}
+        {/* Save error message */}
+        {saveError && (
+          <div style={{ background: UA.redLight, border: `1px solid ${UA.redBorder}`, borderRadius: UA.radiusSm, padding: "8px 14px", fontSize: 12, color: UA.red, fontWeight: 600, maxWidth: 260, textAlign: "right" }}>
+            ⚠️ {saveError}
           </div>
         )}
         {/* Main FAB button */}
@@ -5652,6 +5697,9 @@ function App() {
         .maybeSingle();
 
       if (studentRow?.students) {
+        // Cache student UUID in localStorage so WorkMode can always find it
+        localStorage.setItem("cats_student_uuid", studentRow.students);
+        console.log("✅ Student UUID cached:", studentRow.students);
         const { data, error } = await supabase
           .from("assignments")
           .select("*")
@@ -5825,9 +5873,21 @@ function App() {
 
   const navigate = (target, data) => {
     if (target === "workmode") {
-      const studentUUID = role === "student"
-        ? (STUDENTS.find(s => s.email === sessionUser?.email)?.id || null)
-        : (data?.studentId || null);
+      let studentUUID = null;
+      if (role === "student") {
+        // Strategy 1: match by email in STUDENTS array (populated from Supabase)
+        const fromStudents = STUDENTS.find(s => s.email === sessionUser?.email)?.id;
+        // Strategy 2: the assignment itself already has studentId set during load
+        const fromAssignment = data?.studentId;
+        // Strategy 3: use the cached student UUID stored at login
+        const fromCache = localStorage.getItem("cats_student_uuid");
+        studentUUID = fromStudents || fromAssignment || fromCache || null;
+        // Cache it for future use
+        if (studentUUID) localStorage.setItem("cats_student_uuid", studentUUID);
+        console.log("WorkMode studentUUID resolved:", studentUUID, "via", fromStudents ? "STUDENTS array" : fromAssignment ? "assignment" : fromCache ? "localStorage" : "NONE");
+      } else {
+        studentUUID = data?.studentId || null;
+      }
       setWorkAssignment(data ? { ...data, studentId: studentUUID } : data);
     }
     if (target === "studentProfile") { setSelectedStudent(data); setPage("studentProfile"); return; }
