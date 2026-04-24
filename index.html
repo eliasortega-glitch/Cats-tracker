@@ -746,6 +746,95 @@ function Sidebar({ role, activePage, onNavigate, user, onLogout, collapsed, setC
 }
 
 // --- STUDENT DASHBOARD ---------------------------------------------------------
+function PlanMyWeek({ overdue, upcoming }) {
+  const [planOpen, setPlanOpen] = React.useState(false);
+  const [planText, setPlanText] = React.useState("");
+  const [planLoading, setPlanLoading] = React.useState(false);
+  const [planCopied, setPlanCopied] = React.useState(false);
+
+  const generatePlan = async () => {
+    setPlanLoading(true);
+    setPlanOpen(true);
+    const today = new Date();
+    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const allPending = [...overdue, ...upcoming].sort(function(a,b){ return (a.dueDate||0) - (b.dueDate||0); });
+
+    if (!allPending.length) {
+      setPlanText("No upcoming assignments this week. Get ahead on readings or enjoy the break.");
+      setPlanLoading(false);
+      return;
+    }
+
+    try {
+      const assignSummary = allPending.slice(0, 10).map(function(a) {
+        const due = a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}) : "TBD";
+        return a.title + " (" + a.course + ", due " + due + (a.isOverdue ? " PAST DUE" : "") + ")";
+      }).join("; ");
+
+      const aiPrompt = "You are an academic learning specialist helping a student-athlete plan their week. Today is " + dayNames[today.getDay()] + " " + today.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + ". Pending assignments: " + assignSummary + ". Create a realistic day-by-day study plan for the next 5 days. For each day list 1-2 tasks with estimated time. Be brief and direct. Format each day as: DAY (Date): task -- est. time. Start with most urgent. End with one short encouraging line.";
+
+      const response = await fetch(SUPABASE_URL + "/functions/v1/ai-breakdown-", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + SUPABASE_ANON_KEY },
+        body: JSON.stringify({ assignment: { title: "Weekly Plan", course: "", description: "" }, prompt: { question: "Plan my week", aiPrompt: aiPrompt } })
+      });
+      const data = await response.json();
+      const text = data.text || "";
+      if (text && text.length > 50) { setPlanText(text); setPlanLoading(false); return; }
+    } catch(e) { console.warn("AI weekly plan failed, using fallback:", e.message); }
+
+    // Local fallback
+    const workdays = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today); d.setDate(today.getDate() + i);
+      if (d.getDay() !== 0 && workdays.length < 5) workdays.push(d);
+    }
+    const lines = ["Your Study Plan -- " + today.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}), ""];
+    allPending.slice(0, workdays.length * 2).forEach(function(a, i) {
+      const day = workdays[Math.floor(i / 2)];
+      if (!day) return;
+      if (i % 2 === 0) lines.push(day.toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"}) + ":");
+      const est = a.points >= 100 ? "~90 min" : a.points >= 50 ? "~60 min" : a.points >= 25 ? "~45 min" : "~30 min";
+      lines.push("  - " + a.title + " (" + a.course + ") -- " + est + (a.isOverdue ? " [OVERDUE]" : ""));
+    });
+    lines.push("", "You've got this. One task at a time.");
+    setPlanText(lines.join("\n"));
+    setPlanLoading(false);
+  };
+
+  return (
+    <Card style={{ padding: "20px 24px", border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: UA.navy }}>Plan My Week</div>
+          <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>
+            {upcoming.length + overdue.length} assignment{upcoming.length + overdue.length !== 1 ? "s" : ""} to fit into your week
+          </div>
+        </div>
+        <Btn onClick={generatePlan} disabled={planLoading}>
+          {planLoading ? "Planning..." : planOpen ? "Regenerate" : "Generate Plan"}
+        </Btn>
+      </div>
+      {planOpen && (
+        <div style={{ marginTop: 16 }}>
+          <textarea value={planLoading ? "" : planText} onChange={e => setPlanText(e.target.value)}
+            rows={planLoading ? 3 : 10} readOnly={planLoading}
+            style={{ width: "100%", padding: "12px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", lineHeight: 1.7, resize: "vertical", boxSizing: "border-box", background: planLoading ? UA.bg : "white", color: UA.text }}
+            placeholder={planLoading ? "Generating your plan..." : "Edit your plan here, then copy it."} />
+          <div style={{ display: "flex", gap: 10, marginTop: 10, justifyContent: "flex-end" }}>
+            <Btn variant="ghost" size="sm" onClick={() => { setPlanOpen(false); setPlanText(""); }}>Close</Btn>
+            <Btn variant="secondary" size="sm" onClick={() => {
+              navigator.clipboard.writeText(planText)
+                .then(() => { setPlanCopied(true); setTimeout(() => setPlanCopied(false), 2500); })
+                .catch(() => alert("Copy failed -- select and copy manually."));
+            }}>{planCopied ? "Copied!" : "Copy Plan"}</Btn>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewProfile }) {
   const now = new Date();
   const midnight = new Date(now); midnight.setHours(0,0,0,0);
@@ -847,6 +936,9 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
           </Card>
         ))}
       </div>
+
+      {/* Plan My Week */}
+      <PlanMyWeek overdue={overdue} upcoming={upcoming} />
 
       {/* This week's assignments — all upcoming, sorted by due date, missing shown distinctly */}
       <Card style={{ padding: "20px 24px" }}>
@@ -1120,6 +1212,9 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
     } catch(e) { return 0; }
   });
   const [workSaved, setWorkSaved] = useState(false);
+  const [showReflection, setShowReflection] = useState(false);
+  const [reflectCompleted, setReflectCompleted] = useState("");
+  const [reflectNext, setReflectNext] = useState("");
   const [copyConfirm, setCopyConfirm] = useState(false);
   const [guidedPathOpen, setGuidedPathOpen] = useState(true);
   const localSaveRef = useRef(null);
@@ -1389,6 +1484,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
     setSaving(false);
     setWorkSaved(true);
     setFabStage("check");
+    setShowReflection(true);
   };
 
   const handleFabCheck = () => {
@@ -1771,6 +1867,57 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
           {fabOpen ? "✕" : fabStage === "save" ? "💾" : fabStage === "check" ? "🎯" : "🚀"}
         </button>
       </div>
+
+      {/* ─ End-of-Session Reflection Modal ─ */}
+      {showReflection && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "white", borderRadius: UA.radius, padding: "28px 32px", maxWidth: 480, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ fontSize: 22, marginBottom: 4 }}>✅ Session saved!</div>
+            <div style={{ fontWeight: 800, fontSize: 17, color: UA.text, marginBottom: 4 }}>Quick reflection</div>
+            <div style={{ fontSize: 13, color: UA.textMuted, marginBottom: 20 }}>Takes 30 seconds — helps your LS know where you left off.</div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: UA.text, display: "block", marginBottom: 6 }}>What did you complete this session?</label>
+              <textarea value={reflectCompleted} onChange={e => setReflectCompleted(e.target.value)} rows={2}
+                placeholder="e.g. Finished the intro paragraph, outlined 3 main points..."
+                style={{ width: "100%", padding: "8px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", resize: "none", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: UA.text, display: "block", marginBottom: 6 }}>What will you do next time?</label>
+              <textarea value={reflectNext} onChange={e => setReflectNext(e.target.value)} rows={2}
+                placeholder="e.g. Write the body paragraphs, find 2 more sources..."
+                style={{ width: "100%", padding: "8px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 13, fontFamily: "inherit", resize: "none", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowReflection(false)}
+                style={{ padding: "8px 18px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, background: "white", color: UA.textMuted, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                Skip
+              </button>
+              <button onClick={async () => {
+                if (reflectCompleted || reflectNext) {
+                  const reflectNote = [
+                    reflectCompleted ? "Completed: " + reflectCompleted : "",
+                    reflectNext ? "Next time: " + reflectNext : ""
+                  ].filter(Boolean).join(" | ");
+                  // Append to session log as a follow-up note
+                  try {
+                    await supabase.from("session_logs").insert({
+                      student_id: a.studentId || null,
+                      assignment_id: typeof a.id === "string" && a.id.includes("-") ? a.id : null,
+                      notes: reflectNote,
+                      completion_type: "reflection",
+                      created_at: new Date().toISOString(),
+                    });
+                  } catch(e) { console.warn("Reflection log failed:", e.message); }
+                }
+                setShowReflection(false);
+              }}
+                style={{ padding: "8px 22px", borderRadius: UA.radiusSm, border: "none", background: UA.navy, color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                Save Reflection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -2164,14 +2311,37 @@ function RosterPage({ onSelectStudent }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 15, color: UA.text }}>{student.name}</div>
               <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{student.sport} · {student.year} · GPA {student.gpa}</div>
+              {/* Insight flags */}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                {student.avgEffort > 0 && student.avgEffort < 2.5 && (
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: UA.redLight, color: UA.red, fontWeight: 700, border: `1px solid ${UA.redBorder}` }}>⚠️ Low effort</span>
+                )}
+                {student.avgUnderstanding > 0 && student.avgUnderstanding < 2.5 && (
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: UA.yellowBg, color: "#b45309", fontWeight: 700, border: `1px solid ${UA.yellowBorder}` }}>❓ Needs help</span>
+                )}
+                {student.missedAssignments > 2 && (
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: UA.redLight, color: UA.red, fontWeight: 700, border: `1px solid ${UA.redBorder}` }}>📋 {student.missedAssignments} overdue</span>
+                )}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", minWidth: 140 }}>
               <RiskBadge level={student.dynamicRisk} score={student.riskScore} />
-              {student.missedAssignments > 0 && <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: UA.redLight, color: UA.red, fontWeight: 700, border: `1px solid ${UA.redBorder}` }}>{student.missedAssignments} past due</span>}
+              <div style={{ display: "flex", gap: 8 }}>
+                {student.avgEffort > 0 && (
+                  <span style={{ fontSize: 11, color: student.avgEffort >= 3.5 ? UA.green : student.avgEffort >= 2.5 ? UA.yellow : UA.red, fontWeight: 700 }}>
+                    💪 {student.avgEffort.toFixed(1)} effort
+                  </span>
+                )}
+                {student.avgUnderstanding > 0 && (
+                  <span style={{ fontSize: 11, color: student.avgUnderstanding >= 3.5 ? UA.green : student.avgUnderstanding >= 2.5 ? UA.yellow : UA.red, fontWeight: 700 }}>
+                    🧠 {student.avgUnderstanding.toFixed(1)} understanding
+                  </span>
+                )}
+              </div>
               {student.lastSession && (student.lastSession.includes("7 days") || student.lastSession.includes("8 days") || student.lastSession.includes("9 days") || student.lastSession.includes("10 days") || student.lastSession === "No sessions yet") && (
-                <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: UA.yellowBg, color: UA.yellow, fontWeight: 700, border: `1px solid ${UA.yellowBorder}` }}>⚠️ No recent session</span>
+                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: UA.yellowBg, color: UA.yellow, fontWeight: 700, border: `1px solid ${UA.yellowBorder}` }}>⚠️ No recent session</span>
               )}
-              <div style={{ fontSize: 12, color: UA.textMuted }}>Last session: {student.lastSession}</div>
+              <div style={{ fontSize: 11, color: UA.textMuted }}>Last: {student.lastSession}</div>
             </div>
             <span style={{ color: UA.textMuted, fontSize: 18 }}>›</span>
             <button onClick={e => handleDeleteStudent(e, student.id)}
@@ -2503,6 +2673,28 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               </div>
             </div>
             <Btn variant="outline" size="sm" onClick={() => onExportReport && onExportReport(student, notes)}>📄 Export Report</Btn>
+            <Btn variant="outline" size="sm" onClick={() => {
+              const assignList = (student.assignments || []);
+              const overdue = assignList.filter(a => a.isOverdue && a.status !== "completed");
+              const recent = assignList.filter(a => a.status === "in_progress" || a.status === "completed").slice(0, 5);
+              const lines = [
+                "Weekly Summary — " + student.name + " (" + student.sport + ")",
+                "Generated: " + new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
+                "",
+                "Risk Level: " + (student.dynamicRisk || "unknown").toUpperCase() + "  |  Avg Effort: " + (student.avgEffort || "N/A") + "/5  |  Avg Understanding: " + (student.avgUnderstanding || "N/A") + "/5",
+                "",
+                overdue.length > 0 ? ("OVERDUE (" + overdue.length + "):") : "No overdue assignments.",
+                ...overdue.map(a => "  • " + a.title + " — " + a.course + " (was due " + (a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "unknown") + ")"),
+                "",
+                recent.length > 0 ? "RECENTLY WORKED ON:" : "",
+                ...recent.map(a => "  • " + a.title + " — " + a.course + " [" + a.status.replace("_"," ") + "]"),
+                "",
+                student.weeklyPlan ? ("WEEKLY PLAN:\n" + student.weeklyPlan) : "",
+              ].filter(l => l !== undefined).join("\n");
+              navigator.clipboard.writeText(lines)
+                .then(() => alert("Summary copied to clipboard!"))
+                .catch(() => alert("Copy failed. Try again."));
+            }}>📋 Copy Summary</Btn>
           </div>
         </div>
       </div>
