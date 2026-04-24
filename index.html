@@ -1689,7 +1689,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                             {hasBreakdown && (
                               <div style={{ padding: "8px 10px", background: "white", border: `1px solid ${UA.navyBorder}`, borderRadius: UA.radiusSm, fontSize: 12, color: UA.text, lineHeight: 1.6 }}>
                                 <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>✨ Guidance</div>
-                                {aiBreakdownText[prompt.id] || "Loading..."}
+                                {aiBreakdownText[prompt.id] || "Generating guidance... If this takes more than 10 seconds, try refreshing the page or ask your learning specialist."}
                               </div>
                             )}
                             <textarea value={promptResponses[prompt.id] || ""} onChange={e => setPromptResponses(p => ({ ...p, [prompt.id]: e.target.value }))}
@@ -2224,7 +2224,7 @@ function QuickAddAssignments({ courses, onAdd }) {
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
       const course = courses?.find(c => c.code === r.courseCode);
       onAdd({
-        id: Date.now() + Math.random(),
+        id: crypto.randomUUID(),
         title: r.title,
         course: course?.name || r.courseCode || "Other",
         courseCode: r.courseCode,
@@ -2416,6 +2416,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
       const { error } = await supabase.from("students").update({ weekly_plan: weeklyPlan }).eq("students", student.id);
       if (error) {
         console.error("Plan save failed:", error.message);
+        alert("Weekly plan didn't save. Check your connection and try again.");
         alert("Save failed: " + error.message);
         return;
       }
@@ -2437,7 +2438,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
     const note = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       author: currentUserName || "Staff",
       authorInitials: initialsFromName(currentUserName || "Staff"),
       date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
@@ -3102,7 +3103,7 @@ function SettingsPage({ role, currentUser = {} }) {
     setSaving(true);
     if (currentUser?.id && fullName.trim()) {
       const { error } = await supabase.from("profiles").update({ full_name: fullName.trim() }).eq("id", currentUser.id);
-      if (error) console.error("Settings save failed:", error.message);
+      if (error) { console.error("Settings save failed:", error.message); alert("Settings didn't save. Try again."); }
       else console.log("✅ Settings saved");
     }
     setSaving(false);
@@ -3120,7 +3121,7 @@ function SettingsPage({ role, currentUser = {} }) {
     if (!newStudent.name.trim() || !newStudent.sport.trim()) return;
     const initials = newStudent.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2);
     const student = {
-      id: Date.now(), name: newStudent.name, email: newStudent.email,
+      id: crypto.randomUUID(), name: newStudent.name, email: newStudent.email,
       sport: newStudent.sport, initials, year: newStudent.year,
       gpa: 0, intakeRisk: "medium", dynamicRisk: "medium", riskScore: 50,
       lastSession: "Not yet", missedAssignments: 0, avgEffort: 0,
@@ -3311,7 +3312,7 @@ function AdminPage({ onSelectStudent }) {
   const handleAddStaff = () => {
     if (!newStaff.name.trim()) return;
     const initials = newStaff.name.split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2);
-    setStaff(prev => [...prev, { id: Date.now(), ...newStaff, initials, students: [], status: "active" }]);
+    setStaff(prev => [...prev, { id: crypto.randomUUID(), ...newStaff, initials, students: [], status: "active" }]);
     setNewStaff({ name: "", email: "", title: "Learning Specialist", room: "" });
     setShowAddStaff(false);
     setStaffSaved(true);
@@ -3322,7 +3323,7 @@ function AdminPage({ onSelectStudent }) {
     if (!newStudent.name.trim() || !newStudent.sport.trim()) return;
     const initials = newStudent.name.split(" ").map(n=>n[0]).join("").toUpperCase().slice(0,2);
     const s = {
-      id: Date.now(), name: newStudent.name, email: newStudent.email,
+      id: crypto.randomUUID(), name: newStudent.name, email: newStudent.email,
       sport: newStudent.sport, initials, year: newStudent.year,
       gpa: 0, intakeRisk: "medium", dynamicRisk: "medium", riskScore: 50,
       lastSession: "Not yet", missedAssignments: 0, avgEffort: 0,
@@ -3597,7 +3598,7 @@ function RiskMarkersPage({ onSelectStudent }) {
 
   const handleAddMarker = () => {
     if (!newMarker.text.trim()) return;
-    const marker = { id: Date.now(), author: "Dr. Martinez", date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), ...newMarker };
+    const marker = { id: crypto.randomUUID(), author: "Dr. Martinez", date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), ...newMarker };
     setCustomMarkers(prev => ({ ...prev, [selectedId]: [marker, ...(prev[selectedId] || [])] }));
     setNewMarker({ category: "Academic", severity: "medium", text: "" });
     setMarkerSaved(true);
@@ -3838,7 +3839,7 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
       const days = (dueDateObj - Date.now()) / 86400000;
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
       const item = {
-        id: `doc-${Date.now()}-${Math.random()}`,
+        id: crypto.randomUUID(),
         title: a.title, course: doc.course_name || doc.course_code || "Course",
         courseCode: doc.course_code || "", dueDate: dueDateObj,
         points: a.points || 0, urgency, status: "not_started",
@@ -4251,7 +4252,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
       const days = (new Date(r.dueDate) - Date.now()) / 86400000;
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
       const course = student?.courses?.find(c => c.code === r.courseCode);
-      if (onAddAssignment) onAddAssignment({ id: Date.now() + Math.random(), title: r.title, course: course?.name || r.courseCode || "Other", courseCode: r.courseCode, dueDate: new Date(r.dueDate), points: parseInt(r.points) || 0, status: "not_started", urgency, description: "", instructions: "", rubric: "", d2lLink: "", studentId: effectiveStudentId });
+      if (onAddAssignment) onAddAssignment({ id: crypto.randomUUID(), title: r.title, course: course?.name || r.courseCode || "Other", courseCode: r.courseCode, dueDate: new Date(r.dueDate), points: parseInt(r.points) || 0, status: "not_started", urgency, description: "", instructions: "", rubric: "", d2lLink: "", studentId: effectiveStudentId });
     });
     setRows([{ title: "", courseCode: "", dueDate: "", points: "" }]);
     setQuickSaved(true); setTimeout(() => setQuickSaved(false), 2500);
@@ -4597,7 +4598,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
       const days = (dueDateObj - Date.now()) / 86400000;
       const urgency = days < 3 ? "red" : days < 7 ? "yellow" : "green";
       const item = {
-        id: `extracted-${Date.now()}-${Math.random()}`,
+        id: crypto.randomUUID(),
         title: a.title,
         course: syllabusCourseName || syllabusCode || "Course",
         courseCode: syllabusCode || "",
@@ -4637,7 +4638,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
     } else {
       console.warn("Document insert failed — check Supabase logs. effectiveStudentId:", effectiveStudentId);
       // Save locally even if Supabase fails
-      setDocs(prev => [{ id: Date.now(), file_name: syllabusFile, course_code: syllabusCode, course_name: syllabusCourseName, document_type: "Syllabus", created_at: new Date().toISOString(), uploaded_by_role: isStudent ? "student" : "staff", extracted_assignments: extractedItems }, ...prev]);
+      setDocs(prev => [{ id: crypto.randomUUID(), file_name: syllabusFile, course_code: syllabusCode, course_name: syllabusCourseName, document_type: "Syllabus", created_at: new Date().toISOString(), uploaded_by_role: isStudent ? "student" : "staff", extracted_assignments: extractedItems }, ...prev]);
       setSyllabusSaved(true);
       if (extractedItems.length) selectAllExtracted();
       setTimeout(() => setSyllabusSaved(false), 3000);
@@ -5762,7 +5763,7 @@ function AddAssignmentModal({ onClose, onAdd }) {
       if (days < 7) return "yellow";
       return "green";
     })();
-    onAdd({ id: Date.now(), ...form, points: parseInt(form.points) || 0, dueDate: new Date(form.dueDate), urgency, d2lLink: "" });
+    onAdd({ id: crypto.randomUUID(), ...form, points: parseInt(form.points) || 0, dueDate: new Date(form.dueDate), urgency, d2lLink: "" });
     onClose();
   };
 
@@ -6270,7 +6271,7 @@ function App() {
       }
       localStorage.setItem(SESSION_COMPLETE_BATCH_KEY, String(Date.now()));
     }
-    setNotifications(prev => [{ id: Date.now(), icon, message, time: "Just now", read: false }, ...prev]);
+    setNotifications(prev => [{ id: crypto.randomUUID(), icon, message, time: "Just now", read: false }, ...prev]);
     // Log to Supabase for notification health tracking
     logNotification(studentId, notifType, "sent", sessionUser?.id || null);
   };
