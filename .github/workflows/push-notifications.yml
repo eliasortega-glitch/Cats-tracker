@@ -1,0 +1,70 @@
+# .github/workflows/push-notifications.yml
+# Sends daily push notifications to students for due-soon and overdue assignments
+# Runs every day at 8:00 AM Arizona time (MST = UTC-7, so 15:00 UTC)
+#
+# Setup:
+# 1. Go to your GitHub repo → Settings → Secrets and variables → Actions
+# 2. Add these secrets:
+#    SUPABASE_URL          = https://uzpwmnyqeoehctgnsjie.supabase.co
+#    SUPABASE_SERVICE_KEY  = (from Supabase → Settings → API → service_role)
+
+name: Daily Student Push Notifications
+
+on:
+  schedule:
+    # 8:00 AM Arizona time (MST = UTC-7, MDT = UTC-6)
+    # Using 15:00 UTC which covers both MST and MDT
+    - cron: '0 15 * * *'
+  workflow_dispatch:  # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  send-notifications:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Send due-soon notifications
+        run: |
+          echo "Triggering due-soon push notifications..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/send-push-notification" \
+            -H "Content-Type: application/json" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -d '{
+              "studentIds": "all",
+              "title": "Assignment Due Soon",
+              "message": "You have an assignment due within 24 hours. Open the CATS app to work on it now.",
+              "type": "due_soon",
+              "url": "https://eliasortega-glitch.github.io/Cats-tracker/"
+            }')
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "Status: $HTTP_STATUS"
+          echo "Response: $BODY"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Warning: Non-200 response from push function"
+          fi
+
+      - name: Send overdue notifications
+        run: |
+          echo "Triggering overdue push notifications..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/send-push-notification" \
+            -H "Content-Type: application/json" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -d '{
+              "studentIds": "all",
+              "title": "Missing Assignment",
+              "message": "You have an overdue assignment. Open the CATS app to get caught up.",
+              "type": "overdue",
+              "url": "https://eliasortega-glitch.github.io/Cats-tracker/"
+            }')
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "Status: $HTTP_STATUS"
+          echo "Response: $BODY"
+
+      - name: Log completion
+        run: echo "Push notification job completed at $(date -u)"
