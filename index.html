@@ -1049,9 +1049,21 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
-  
-  const activeAssignments = assignments.filter(a => !a.isArchived);
-  const archivedAssignments = assignments.filter(a => a.isArchived);
+
+  // Runtime archive check — overrides stored isArchived to fix timezone bugs
+  const midnight0 = new Date(); midnight0.setHours(0,0,0,0);
+  const isArchivedRuntime = (a) => {
+    if (!(a.dueDate instanceof Date)) return a.isArchived;
+    if (a.dueDate >= midnight0) return false; // Never archive future dates
+    const t3 = new Date(); t3.setDate(t3.getDate() - 3);
+    const s7 = new Date(); s7.setDate(s7.getDate() - 7);
+    const isOver = a.dueDate < midnight0 && a.status !== "completed";
+    return (a.status === "completed" && a.updatedAt && new Date(a.updatedAt) < t3) ||
+           (isOver && a.dueDate < s7);
+  };
+
+  const activeAssignments = assignments.filter(a => !isArchivedRuntime(a));
+  const archivedAssignments = assignments.filter(a => isArchivedRuntime(a));
   const archivedCount = archivedAssignments.length;
   const searchFiltered = activeAssignments.filter(a =>
     (a.title + a.course).toLowerCase().includes(search.toLowerCase())
@@ -2956,7 +2968,9 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               const t3 = new Date(now3); t3.setDate(now3.getDate()-3);
               const s7 = new Date(now3); s7.setDate(now3.getDate()-7);
               const isArchivedFn = a => {
-                const isOver = a.dueDate instanceof Date && a.dueDate < mid3 && a.status !== "completed";
+                if (!(a.dueDate instanceof Date)) return false;
+                if (a.dueDate >= mid3) return false; // Never archive future assignments
+                const isOver = a.dueDate < mid3 && a.status !== "completed";
                 return (a.status === "completed" && a.updatedAt && new Date(a.updatedAt) < t3) || (isOver && a.dueDate < s7);
               };
               const visible = localAssignments.filter(a => (selectedCourse === "all" || a.courseCode === selectedCourse) && (showArchivedStaff || !isArchivedFn(a)));
