@@ -164,8 +164,19 @@ async function fetchAllAssignments() {
   const threeDaysAgo = new Date(now); threeDaysAgo.setDate(now.getDate() - 3);
   const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(now.getDate() - 7);
 
+  // Parse date strings safely — treat YYYY-MM-DD as local noon to avoid UTC timezone shift
+  const parseDate = (str) => {
+    if (!str) return new Date();
+    if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      // Append noon local time so date never shifts to previous day due to UTC offset
+      const [y, m, d] = str.split("-");
+      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
+    }
+    return new Date(str);
+  };
+
   const mapped = data.map(a => {
-    const dueDate = a.due_date ? new Date(a.due_date) : new Date();
+    const dueDate = parseDate(a.due_date);
     const currentStatus = a.status || "not_started";
     const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
     const isOverdue = dueDate < midnight && currentStatus !== "completed";
@@ -173,9 +184,13 @@ async function fetchAllAssignments() {
     // Auto-archive logic:
     // Completed assignments older than 3 days → archived
     // Past due assignments older than 7 days → archived
-    const isArchived = 
-      (currentStatus === "completed" && updatedAt && updatedAt < threeDaysAgo) ||
-      (isOverdue && dueDate < sevenDaysAgo);
+    // NEVER archive future assignments regardless of other conditions
+    const isFuture = dueDate >= midnight;
+    const isArchived =
+      !isFuture && (
+        (currentStatus === "completed" && updatedAt && updatedAt < threeDaysAgo) ||
+        (isOverdue && dueDate < sevenDaysAgo)
+      );
 
     return {
       id: a.id, title: a.title || "", course: a.course || "",
@@ -1088,12 +1103,25 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {archivedAssignments.filter(a => (a.title + a.course).toLowerCase().includes(search.toLowerCase())).map(a => (
-              <div key={a.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: 0.7, boxShadow: UA.shadow }}>
+              <div key={a.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, opacity: 0.8, boxShadow: UA.shadow }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: UA.textMuted }}>{a.title}</div>
                   <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.status} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate}</div>
                 </div>
                 <StatusBadge status={a.status} />
+                <button onClick={async () => {
+                  // Restore by setting status back to not_started and clearing updated_at
+                  if (onUpdateStatus) onUpdateStatus(a.id, "not_started");
+                  try {
+                    await supabase.from("assignments").update({
+                      status: "not_started",
+                      updated_at: new Date(Date.now() + 4 * 86400000).toISOString() // set updated_at to future so archive logic doesn't re-trigger
+                    }).eq("id", a.id);
+                  } catch(e) { console.warn("Restore failed:", e.message); }
+                }}
+                  style={{ padding: "6px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+                  ↩ Restore
+                </button>
               </div>
             ))}
           </div>
@@ -2580,12 +2608,24 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
           const nowL = new Date(); const midnightL = new Date(nowL); midnightL.setHours(0,0,0,0);
           const threeDaysAgoL = new Date(nowL); threeDaysAgoL.setDate(nowL.getDate()-3);
           const sevenDaysAgoL = new Date(nowL); sevenDaysAgoL.setDate(nowL.getDate()-7);
+          const parseDateL = (str) => {
+            if (!str) return new Date();
+            if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+              const [y, m, d] = str.split("-");
+              return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
+            }
+            return new Date(str);
+          };
           setLocalAssignments(data.map(a => {
-            const dueDate = a.due_date ? new Date(a.due_date) : new Date();
+            const dueDate = parseDateL(a.due_date);
             const status = a.status || "not_started";
             const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
             const isOverdue = dueDate < midnightL && status !== "completed";
-            const isArchived = (status === "completed" && updatedAt && updatedAt < threeDaysAgoL) || (isOverdue && dueDate < sevenDaysAgoL);
+            const isFutureL = dueDate >= midnightL;
+            const isArchived = !isFutureL && (
+              (status === "completed" && updatedAt && updatedAt < threeDaysAgoL) ||
+              (isOverdue && dueDate < sevenDaysAgoL)
+            );
             return {
               id: a.id, title: a.title || "", course: a.course || "",
               courseCode: a.course_code || "",
