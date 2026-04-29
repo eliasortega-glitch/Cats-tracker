@@ -2964,28 +2964,37 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               return (<>
                 {archCount > 0 && <button onClick={() => setShowArchivedStaff(s => !s)} style={{ padding: "5px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, background: showArchivedStaff ? UA.navyLight : "white", color: UA.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginBottom: 8, display: "block" }}>{showArchivedStaff ? "Hide Archived" : `Show Archived (${archCount})`}</button>}
                 {visible.map(a => (
-                <div key={a.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: UA.shadow }}>
+                <div key={a.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, boxShadow: UA.shadow, opacity: isArchivedFn(a) ? 0.75 : 1 }}>
                   <UrgencyBar urgency={a.urgency} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: UA.text }}>{a.title}</div>
                     <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.course} · {a.courseCode} · Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : a.dueDate}</div>
+                    {isArchivedFn(a) && <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 3, fontStyle: "italic" }}>Archived</div>}
                   </div>
-                  <select value={a.status} onChange={async (e) => {
-                    const newStatus = e.target.value;
-                    setLocalAssignments(prev => prev.map(x => x.id === a.id ? { ...x, status: newStatus } : x));
-                    await updateAssignmentStatus(a.id, newStatus);
-                    if (onUpdateAssignmentStatus) onUpdateAssignmentStatus(a.id, newStatus);
-                  }} style={{ fontSize: 11, fontWeight: 700, padding: "4px 8px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontFamily: "inherit", cursor: "pointer", background: a.status === "completed" ? UA.greenBg : a.status === "in_progress" ? UA.navyLight : a.status === "missing" ? UA.redLight : "#F3F4F6", color: a.status === "completed" ? UA.green : a.status === "in_progress" ? UA.navy : a.status === "missing" ? UA.red : "#6B7280" }}>
-                    <option value="not_started">Not Started</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="missing">Missing</option>
-                  </select>
+                  {isArchivedFn(a) ? (
+                    <button onClick={async () => {
+                      setLocalAssignments(prev => prev.map(x => x.id === a.id ? { ...x, status: "not_started", updatedAt: new Date(Date.now() + 4 * 86400000) } : x));
+                      await supabase.from("assignments").update({ status: "not_started", updated_at: new Date(Date.now() + 4 * 86400000).toISOString() }).eq("id", a.id);
+                    }} style={{ padding: "5px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+                      ↩ Restore
+                    </button>
+                  ) : (
+                    <select value={a.status} onChange={async (e) => {
+                      const newStatus = e.target.value;
+                      setLocalAssignments(prev => prev.map(x => x.id === a.id ? { ...x, status: newStatus } : x));
+                      await updateAssignmentStatus(a.id, newStatus);
+                      if (onUpdateAssignmentStatus) onUpdateAssignmentStatus(a.id, newStatus);
+                    }} style={{ fontSize: 11, fontWeight: 700, padding: "4px 8px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontFamily: "inherit", cursor: "pointer", background: a.status === "completed" ? UA.greenBg : a.status === "in_progress" ? UA.navyLight : a.status === "missing" ? UA.redLight : "#F3F4F6", color: a.status === "completed" ? UA.green : a.status === "in_progress" ? UA.navy : a.status === "missing" ? UA.red : "#6B7280" }}>
+                      <option value="not_started">Not Started</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="missing">Missing</option>
+                    </select>
+                  )}
                   <button onClick={() => setEditingAssignment(a)}
                     style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>✏️</button>
                   <button onClick={async () => { if (window.confirm("Delete this assignment?")) {
                     setLocalAssignments(prev => prev.filter(x => x.id !== a.id));
-                    console.log("Delete clicked, id:", a.id, "type:", typeof a.id);
                     await deleteAssignmentFromDB(a.id);
                     if (onDeleteAssignmentProp) onDeleteAssignmentProp(a.id);
                   }}}
