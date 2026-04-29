@@ -1046,7 +1046,7 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
 }
 
 // --- ASSIGNMENTS PAGE ----------------------------------------------------------
-function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignment, onUpdateStatus, onEditAssignment, onDeleteAssignment, initialFilter = "all" }) {
+function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignment, onUpdateStatus, onRestoreAssignment, onEditAssignment, onDeleteAssignment, initialFilter = "all" }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState(initialFilter);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1133,12 +1133,17 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
                 </div>
                 <StatusBadge status={a.status} />
                 <button onClick={async () => {
-                  // Restore by setting status back to not_started and clearing updated_at
-                  if (onUpdateStatus) onUpdateStatus(a.id, "not_started");
+                  // Restore: update local state with future updatedAt so isArchivedRuntime doesn't re-archive
+                  const futureDate = new Date(Date.now() + 4 * 86400000);
+                  if (onRestoreAssignment) {
+                    onRestoreAssignment(a.id, futureDate);
+                  } else if (onUpdateStatus) {
+                    onUpdateStatus(a.id, "not_started");
+                  }
                   try {
                     await supabase.from("assignments").update({
                       status: "not_started",
-                      updated_at: new Date(Date.now() + 4 * 86400000).toISOString() // set updated_at to future so archive logic doesn't re-trigger
+                      updated_at: futureDate.toISOString(),
                     }).eq("id", a.id);
                   } catch(e) { console.warn("Restore failed:", e.message); }
                 }}
@@ -6828,7 +6833,9 @@ function App() {
     if (page === "settings") return <SettingsPage role={role} currentUser={currentUser} />;
     if (page === "notes") return <GlobalNotesFeed />;
     if (page === "risk") return <RiskMarkersPage key={`risk-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
-    if (page === "assignments") return <AssignmentsPage onNavigate={navigate} assignments={assignments} onAddAssignment={addAssignment} initialFilter={assignmentFilter} onUpdateStatus={async (id, status) => {
+    if (page === "assignments") return <AssignmentsPage onNavigate={navigate} assignments={assignments} onAddAssignment={addAssignment} initialFilter={assignmentFilter} onRestoreAssignment={(id, futureDate) => {
+      setAssignments(prev => prev.map(a => a.id === id ? { ...a, status: "not_started", updatedAt: futureDate, isArchived: false } : a));
+    }} onUpdateStatus={async (id, status) => {
       setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
       await updateAssignmentStatus(id, status);
     }} onEditAssignment={editAssignment} onDeleteAssignment={deleteAssignment} />;
