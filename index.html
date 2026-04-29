@@ -186,11 +186,14 @@ async function fetchAllAssignments() {
     // Past due assignments older than 7 days → archived
     // NEVER archive future assignments regardless of other conditions
     const isFuture = dueDate >= midnight;
-    const isArchived =
-      !isFuture && (
-        (currentStatus === "completed" && updatedAt && updatedAt < threeDaysAgo) ||
-        (isOverdue && dueDate < sevenDaysAgo)
-      );
+    const dueDateStr = dueDate.toLocaleDateString("en-CA");
+    const todayStrA = new Date().toLocaleDateString("en-CA");
+    const s7StrA = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
+    const t3StrA = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
+    const updatedStr = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
+    const isArchived = dueDateStr >= todayStrA ? false :
+      (currentStatus === "completed" && updatedStr && updatedStr < t3StrA) ||
+      (isOverdue && dueDateStr < s7StrA);
 
     return {
       id: a.id, title: a.title || "", course: a.course || "",
@@ -1050,16 +1053,24 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
 
-  // Runtime archive check — overrides stored isArchived to fix timezone bugs
-  const midnight0 = new Date(); midnight0.setHours(0,0,0,0);
+  // Auto-archive: compare date strings directly to avoid UTC timezone shift
+  // "2026-04-30" < "2026-04-30" is false, so today's assignments never archive
+  const todayStr = new Date().toISOString().split("T")[0];
+  const t3Str = new Date(Date.now() - 3 * 86400000).toISOString().split("T")[0];
+  const s7Str = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
+
   const isArchivedRuntime = (a) => {
-    if (!(a.dueDate instanceof Date)) return a.isArchived;
-    if (a.dueDate >= midnight0) return false; // Never archive future dates
-    const t3 = new Date(); t3.setDate(t3.getDate() - 3);
-    const s7 = new Date(); s7.setDate(s7.getDate() - 7);
-    const isOver = a.dueDate < midnight0 && a.status !== "completed";
-    return (a.status === "completed" && a.updatedAt && new Date(a.updatedAt) < t3) ||
-           (isOver && a.dueDate < s7);
+    // Get the due date as a YYYY-MM-DD string for safe comparison
+    const dueDateStr = a.dueDate instanceof Date
+      ? a.dueDate.toLocaleDateString("en-CA") // en-CA gives YYYY-MM-DD in local time
+      : "";
+    if (!dueDateStr || dueDateStr >= todayStr) return false; // Future or today = never archive
+    const isOver = dueDateStr < todayStr && a.status !== "completed";
+    const updatedStr = a.updatedAt
+      ? (a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt)).toLocaleDateString("en-CA")
+      : null;
+    return (a.status === "completed" && updatedStr && updatedStr < t3Str) ||
+           (isOver && dueDateStr < s7Str);
   };
 
   const activeAssignments = assignments.filter(a => !isArchivedRuntime(a));
@@ -2642,10 +2653,14 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
             const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
             const isOverdue = dueDate < midnightL && status !== "completed";
             const isFutureL = dueDate >= midnightL;
-            const isArchived = !isFutureL && (
-              (status === "completed" && updatedAt && updatedAt < threeDaysAgoL) ||
-              (isOverdue && dueDate < sevenDaysAgoL)
-            );
+            const dueDateStrL = dueDate.toLocaleDateString("en-CA");
+            const todayStrL = new Date().toLocaleDateString("en-CA");
+            const s7StrL = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
+            const t3StrL = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
+            const updatedStrL = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
+            const isArchived = dueDateStrL >= todayStrL ? false :
+              (status === "completed" && updatedStrL && updatedStrL < t3StrL) ||
+              (isOverdue && dueDateStrL < s7StrL);
             return {
               id: a.id, title: a.title || "", course: a.course || "",
               courseCode: a.course_code || "",
@@ -2969,9 +2984,15 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               const s7 = new Date(now3); s7.setDate(now3.getDate()-7);
               const isArchivedFn = a => {
                 if (!(a.dueDate instanceof Date)) return false;
-                if (a.dueDate >= mid3) return false; // Never archive future assignments
-                const isOver = a.dueDate < mid3 && a.status !== "completed";
-                return (a.status === "completed" && a.updatedAt && new Date(a.updatedAt) < t3) || (isOver && a.dueDate < s7);
+                const dueDateStrFn = a.dueDate.toLocaleDateString("en-CA");
+                const todayStrFn = new Date().toLocaleDateString("en-CA");
+                if (dueDateStrFn >= todayStrFn) return false;
+                const s7StrFn = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
+                const t3StrFn = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
+                const updatedStrFn = a.updatedAt ? (a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt)).toLocaleDateString("en-CA") : null;
+                const isOver = dueDateStrFn < todayStrFn && a.status !== "completed";
+                return (a.status === "completed" && updatedStrFn && updatedStrFn < t3StrFn) ||
+                       (isOver && dueDateStrFn < s7StrFn);
               };
               const visible = localAssignments.filter(a => (selectedCourse === "all" || a.courseCode === selectedCourse) && (showArchivedStaff || !isArchivedFn(a)));
               const archCount = localAssignments.filter(a => (selectedCourse === "all" || a.courseCode === selectedCourse) && isArchivedFn(a)).length;
@@ -6476,10 +6497,14 @@ function App() {
             const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
             const isOverdue = dueDate < midnight2 && currentStatus !== "completed";
             const isFuture2 = dueDate >= midnight2;
-            const isArchived = !isFuture2 && (
-              (currentStatus === "completed" && updatedAt && updatedAt < threeDaysAgo2) ||
-              (isOverdue && dueDate < sevenDaysAgo2)
-            );
+            const dueDateStr2 = dueDate.toLocaleDateString("en-CA");
+            const todayStr2 = new Date().toLocaleDateString("en-CA");
+            const s7Str2 = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
+            const t3Str2 = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
+            const updatedStr2 = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
+            const isArchived = dueDateStr2 >= todayStr2 ? false :
+              (currentStatus === "completed" && updatedStr2 && updatedStr2 < t3Str2) ||
+              (isOverdue && dueDateStr2 < s7Str2);
             return {
               id: a.id, title: a.title || "", course: a.course || "",
               courseCode: a.course_code || "",
