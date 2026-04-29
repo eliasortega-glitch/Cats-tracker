@@ -2214,9 +2214,17 @@ function TodayActivityFeed({ onSelectStudent }) {
         .order("due_date", { ascending: true });
 
       if (!error && data) {
+        const parseDateFeed = (str) => {
+          if (!str) return new Date();
+          if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+            const [y, m, d] = str.split("-");
+            return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
+          }
+          return new Date(str);
+        };
         const enriched = data.map(a => {
           const student = STUDENTS.find(s => s.id === a.student_id);
-          const due = new Date(a.due_date);
+          const due = parseDateFeed(a.due_date);
           const isToday = due >= todayStart && due <= todayEnd;
           return {
             ...a,
@@ -5637,7 +5645,10 @@ function GlobalNotesFeed() {
       const studentSummaries = STUDENTS.map(s => {
         const recentSessions = (sessionData || []).filter(l => l.student_id === s.id).slice(0, 3);
         const pastDue = (assignmentData || []).filter(a => {
-          const due = new Date(a.due_date);
+          const rawDue = a.due_date;
+          const due = (typeof rawDue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDue))
+            ? (() => { const [y,m,d] = rawDue.split("-"); return new Date(parseInt(y), parseInt(m)-1, parseInt(d), 12, 0, 0); })()
+            : new Date(rawDue);
           const midnight = new Date(); midnight.setHours(0,0,0,0);
           return a.student_id === s.id && due < midnight && a.status !== "completed";
         });
@@ -6428,14 +6439,24 @@ function App() {
           const midnight2 = new Date(now2); midnight2.setHours(0,0,0,0);
           const threeDaysAgo2 = new Date(now2); threeDaysAgo2.setDate(now2.getDate() - 3);
           const sevenDaysAgo2 = new Date(now2); sevenDaysAgo2.setDate(now2.getDate() - 7);
+          const parseDateSafe2 = (str) => {
+            if (!str) return new Date();
+            if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+              const [y, m, d] = str.split("-");
+              return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
+            }
+            return new Date(str);
+          };
           liveAssignments = data.map(a => {
-            const dueDate = a.due_date ? new Date(a.due_date) : new Date();
+            const dueDate = parseDateSafe2(a.due_date);
             const currentStatus = a.status || "not_started";
             const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
             const isOverdue = dueDate < midnight2 && currentStatus !== "completed";
-            const isArchived =
+            const isFuture2 = dueDate >= midnight2;
+            const isArchived = !isFuture2 && (
               (currentStatus === "completed" && updatedAt && updatedAt < threeDaysAgo2) ||
-              (isOverdue && dueDate < sevenDaysAgo2);
+              (isOverdue && dueDate < sevenDaysAgo2)
+            );
             return {
               id: a.id, title: a.title || "", course: a.course || "",
               courseCode: a.course_code || "",
