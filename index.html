@@ -233,12 +233,13 @@ async function insertSessionLog(log) {
   if (!log.studentId) {
     console.error("❌ insertSessionLog: studentId is null — session will not save. Check UUID resolution.");
     console.error("Log data:", JSON.stringify({ assignmentTitle: log.assignmentTitle, loggedBy: log.loggedBy }));
-    // Try to recover from localStorage cache
+    // Try to recover from localStorage cache — validate it's a real UUID before using
     const cached = localStorage.getItem("cats_student_uuid");
-    if (cached) {
+    if (cached && typeof cached === "string" && cached.includes("-") && cached.length > 20) {
       console.log("🔄 Recovering studentId from localStorage cache:", cached);
       log = { ...log, studentId: cached };
     } else {
+      console.warn("🚫 Cached UUID invalid or missing — aborting save:", cached);
       return null;
     }
   }
@@ -1291,7 +1292,6 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   };
   const [effort, setEffort] = useState(3);
   const [understanding, setUnderstanding] = useState(3);
-  const [notes, setNotes] = useState("");
   // Load draft from localStorage on open
   const DRAFT_KEY = `cats_draft_${a?.id || "unknown"}`;
   const [workContent, setWorkContent] = useState(() => {
@@ -1309,11 +1309,16 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [reflectNext, setReflectNext] = useState("");
   const [copyConfirm, setCopyConfirm] = useState(false);
   const [guidedPathOpen, setGuidedPathOpen] = useState(true);
+  // Step-based progression: 0=orient, 1=guided prompts, 2=write (full editor), 3=checkin
+  // Students can skip ahead at any time — this is a nudge not a gate
+  const [workStep, setWorkStep] = useState(0);
+  const [activePromptStep, setActivePromptStep] = useState(0); // which of the 4 prompts is active in step 1
   const localSaveRef = useRef(null);
   const editorRef = useRef(null);
   const autoSaveTimeout = useRef(null);
 
-  // Load previous work content for this assignment
+  // Load previous work content — Supabase session log wins over localStorage draft
+  // Priority: DB (most recent confirmed save) > localStorage draft (unconfirmed local work)
   useEffect(() => {
     if (!a?.id || !a?.studentId) return;
     const isRealUUID = typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-");
@@ -1327,9 +1332,12 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       .maybeSingle()
       .then(({ data }) => {
         if (data?.notes && data.notes.trim()) {
+          // DB content is authoritative — use it and clear any stale local draft
           setWorkContent(data.notes);
           setWordCount(data.notes.trim().split(/\s+/).length);
+          try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
         }
+        // If no DB content, keep localStorage draft (already loaded as initial state)
       });
   }, [a?.id]);
 
@@ -1352,6 +1360,8 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activePrompt, setActivePrompt] = useState(null);
+  // Sync sidebar active prompt with step-based flow
+  const currentStepPrompt = GUIDED_PROMPTS[activePromptStep];
   const [promptResponses, setPromptResponses] = useState({});
   const [expandedBreakdown, setExpandedBreakdown] = useState({});
   const [isLoadingBreakdown, setIsLoadingBreakdown] = useState({});
@@ -1423,7 +1433,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const timerRef = useRef(null);
   const startTimeRef = useRef(Date.now());
   const autoSaveRef = useRef(null);
-  const hasSavedRef = useRef(false);
+  const hasSavedRef = useRef(false); // guard: prevents double-save when Back fires after FAB save
   // Silent engagement tracking
   const promptsExpandedRef = useRef([]);
   const aiBreakdownsUsedRef = useRef(0);
@@ -1552,12 +1562,11 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
     setSaving(true);
     setSaveError("");
     clearInterval(timerRef.current);
-    // Always pass workContent explicitly — don't rely on closure capture in overrides
     const logData = buildLogData(time, {
       effort,
       understanding,
       completionType,
-      notes: workContent,  // explicit — this is the editor content
+      notes: workContent,
       promptResponsesFilled: promptsFilled,
     });
     console.log("💾 Saving session — studentId:", logData.studentId, "words:", wordCount, "effort:", effort, "understanding:", understanding);
@@ -1567,14 +1576,17 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       setSaving(false);
       return;
     }
-    // Also flush the localStorage draft now that we have a real save
+    // Mark as saved — guard against double-save on Back
+    hasSavedRef.current = true;
+    // Clear localStorage draft now that DB save succeeded
     try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+    // Only show ✓ Saved after confirmed DB write — not on keystroke
+    setWorkSaved(true);
     if ((completionType === "independent" || completionType === "with_support") && typeof a.id === "string" && a.id.includes("-")) {
       await updateAssignmentStatus(a.id, "completed");
     }
     if (onSessionSaved) onSessionSaved({ title: a.title, effort, understanding, time, durationMinutes: minutesSpent, completionType });
     setSaving(false);
-    setWorkSaved(true);
     setFabStage("check");
     setShowReflection(true);
   };
@@ -1613,10 +1625,18 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         <div style={{ display: "flex", alignItems: "center", gap: 16, minWidth: 0, flex: 1 }}>
           <button onClick={async () => {
             clearInterval(timerRef.current);
-            const currentTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
-            // Only auto-save on close if student has actually written something and session is long enough
-            if (currentTime > 10 && (a.studentId || localStorage.getItem("cats_student_uuid"))) {
-              await insertSessionLog(buildLogData(currentTime, { notes: workContent, effort, understanding, completionType }));
+            // Don't double-save if FAB save already completed
+            if (!hasSavedRef.current) {
+              const currentTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
+              if (currentTime > 10 && (a.studentId || localStorage.getItem("cats_student_uuid"))) {
+                await insertSessionLog(buildLogData(currentTime, {
+                  notes: workContent,
+                  effort,
+                  understanding,
+                  completionType,
+                  promptResponsesFilled: promptsFilled,
+                }));
+              }
             }
             onBack();
           }} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, fontSize: 13, padding: 0, fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
@@ -1670,6 +1690,122 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         {/* ══ LEFT 70%: EDITOR ══ */}
         <div style={{ overflow: "auto", padding: "24px 28px 96px", display: "flex", flexDirection: "column", gap: 16, background: T.bg, borderRight: `1px solid ${T.border}` }}>
 
+          {/* ── STEP 0: ORIENT ── Show assignment summary + single CTA to start */}
+          {workStep === 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 600 }}>
+              <div style={{ padding: "24px 28px", background: T.bgCard, borderRadius: UA.radius, border: `1.5px solid ${T.border}`, boxShadow: UA.shadow }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+                  {a.courseCode || a.course}
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: T.text, lineHeight: 1.3, marginBottom: 12 }}>{a.title}</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: a.description || a.instructions ? 16 : 0 }}>
+                  <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: a.isOverdue ? UA.redLight : UA.yellowBg, border: `1px solid ${a.isOverdue ? UA.redBorder : UA.yellowBorder}`, color: a.isOverdue ? UA.red : UA.yellow, fontWeight: 700 }}>
+                    {a.isOverdue ? "Past due" : "Due"} {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "")}
+                  </span>
+                  {a.points > 0 && <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, color: T.textMuted, fontWeight: 600 }}>{a.points} pts</span>}
+                </div>
+                {(a.description || a.instructions) && (
+                  <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, padding: "12px 16px", background: T.bg, borderRadius: UA.radiusSm, borderLeft: `3px solid ${UA.navy}` }}>
+                    {a.instructions || a.description}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setWorkStep(1)}
+                  style={{ flex: 1, padding: "14px 24px", borderRadius: UA.radius, border: "none", background: UA.navy, color: "white", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 16px rgba(0,51,102,0.2)" }}>
+                  Start here — Question 1 of 4 →
+                </button>
+                <button onClick={() => setWorkStep(2)}
+                  style={{ padding: "14px 20px", borderRadius: UA.radius, border: `1.5px solid ${T.border}`, background: T.bgCard, color: T.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                  Skip to editor
+                </button>
+              </div>
+              {wordCount > 0 && (
+                <div style={{ fontSize: 12, color: UA.green, fontWeight: 700, textAlign: "center" }}>
+                  ✓ You have a draft in progress — {wordCount} words
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── STEP 1: GUIDED PROMPT (one at a time) ── */}
+          {workStep === 1 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 600 }}>
+              {/* Step indicator */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {GUIDED_PROMPTS.map((_, i) => (
+                  <div key={i} onClick={() => setActivePromptStep(i)} style={{ width: i === activePromptStep ? 24 : 8, height: 8, borderRadius: 99, background: promptResponses[GUIDED_PROMPTS[i].id]?.trim() ? UA.green : i === activePromptStep ? UA.navy : T.border, cursor: "pointer", transition: "all 0.3s" }} />
+                ))}
+                <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 600, marginLeft: 4 }}>Question {activePromptStep + 1} of {GUIDED_PROMPTS.length}</span>
+                <button onClick={() => setWorkStep(2)} style={{ marginLeft: "auto", fontSize: 12, color: T.textMuted, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", textDecoration: "underline" }}>Skip to editor</button>
+              </div>
+
+              {/* Current prompt card */}
+              <div style={{ padding: "24px 28px", background: T.bgCard, borderRadius: UA.radius, border: `1.5px solid ${UA.navy}`, boxShadow: UA.shadow }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: T.text, lineHeight: 1.4, marginBottom: 10 }}>
+                  {currentStepPrompt.question}
+                </div>
+                <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, padding: "10px 14px", background: UA.navyLight, borderRadius: UA.radiusSm, borderLeft: `3px solid ${UA.navy}`, marginBottom: 16 }}>
+                  {currentStepPrompt.why}
+                </div>
+
+                {/* AI breakdown — only appears after student starts typing */}
+                {(promptResponses[currentStepPrompt.id] || "").length > 10 && !expandedBreakdown[currentStepPrompt.id] && (
+                  <button onClick={() => handleBreakdown(currentStepPrompt.id)} disabled={isLoadingBreakdown[currentStepPrompt.id]}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 12, fontWeight: 700, cursor: isLoadingBreakdown[currentStepPrompt.id] ? "wait" : "pointer", fontFamily: "inherit", marginBottom: 12 }}>
+                    {isLoadingBreakdown[currentStepPrompt.id] ? "⏳ Analyzing..." : "✨ Get AI guidance on this question"}
+                  </button>
+                )}
+                {expandedBreakdown[currentStepPrompt.id] && aiBreakdownText[currentStepPrompt.id] && (
+                  <div style={{ padding: "12px 16px", background: UA.navyLight, border: `1px solid ${UA.navyBorder}`, borderRadius: UA.radiusSm, fontSize: 13, color: UA.text, lineHeight: 1.7, marginBottom: 12 }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>✨ AI Guidance</div>
+                    {aiBreakdownText[currentStepPrompt.id]}
+                  </div>
+                )}
+
+                <textarea
+                  value={promptResponses[currentStepPrompt.id] || ""}
+                  onChange={e => setPromptResponses(p => ({ ...p, [currentStepPrompt.id]: e.target.value }))}
+                  placeholder={currentStepPrompt.followUp}
+                  rows={4}
+                  autoFocus
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 14, fontFamily: "inherit", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.6, background: T.bg, color: T.text }}
+                  onFocus={e => e.target.style.borderColor = UA.navy}
+                  onBlur={e => e.target.style.borderColor = UA.border}
+                />
+              </div>
+
+              {/* Navigation */}
+              <div style={{ display: "flex", gap: 10 }}>
+                {activePromptStep > 0 && (
+                  <button onClick={() => setActivePromptStep(s => s - 1)}
+                    style={{ padding: "10px 18px", borderRadius: UA.radiusSm, border: `1.5px solid ${T.border}`, background: T.bgCard, color: T.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                    ← Back
+                  </button>
+                )}
+                {activePromptStep < GUIDED_PROMPTS.length - 1 ? (
+                  <button onClick={() => {
+                    if (!promptsExpandedRef.current.includes(currentStepPrompt.id)) {
+                      promptsExpandedRef.current = [...promptsExpandedRef.current, currentStepPrompt.id];
+                    }
+                    setActivePromptStep(s => s + 1);
+                  }}
+                    style={{ flex: 1, padding: "12px 24px", borderRadius: UA.radiusSm, border: "none", background: UA.navy, color: "white", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                    Next question →
+                  </button>
+                ) : (
+                  <button onClick={() => setWorkStep(2)}
+                    style={{ flex: 1, padding: "12px 24px", borderRadius: UA.radiusSm, border: "none", background: UA.green, color: "white", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                    Start writing →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── STEPS 2+: FULL EDITOR (shown for workStep >= 2) ── */}
+          {workStep >= 2 && (<>
+
           {/* Formatting toolbar */}
           <div style={{ display: "flex", gap: 3, padding: "6px 10px", background: T.bgCard, borderRadius: UA.radiusSm, border: `1px solid ${T.border}`, flexWrap: "wrap", alignItems: "center" }}>
             {[
@@ -1714,8 +1850,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               const val = e.target.value;
               setWorkContent(val);
               setWordCount(val.trim() ? val.trim().split(/\s+/).length : 0);
-              clearTimeout(autoSaveTimeout.current);
-              autoSaveTimeout.current = setTimeout(() => setWorkSaved(true), 1500);
+              // workSaved only goes true after a confirmed DB write — never on keystroke
               clearTimeout(localSaveRef.current);
               localSaveRef.current = setTimeout(() => {
                 try { localStorage.setItem(DRAFT_KEY, val); } catch(e) {}
@@ -1737,8 +1872,9 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = zenMode ? "none" : "0 1px 4px rgba(0,0,0,0.04)"; }}
           />
           <div style={{ fontSize: 11, color: T.textMuted }}>
-            {workSaved ? "✓ Saved to cloud" : "Draft saves every 30s to local storage"}
+            {workSaved ? "✓ Session saved to cloud" : "Draft saves locally every 30s — hit 💾 to save to cloud"}
           </div>
+          </>)} {/* end workStep >= 2 */}
         </div>
 
         {/* ══ RIGHT 30%: INTELLIGENT SIDEBAR ══ */}
