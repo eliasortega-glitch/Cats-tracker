@@ -1061,11 +1061,15 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
   const s7Str = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
 
   const isArchivedRuntime = (a) => {
-    // Get the due date as a YYYY-MM-DD string for safe comparison
+    // Use pre-computed flag when available — avoids date recalc edge cases
+    // and respects in-session restore (which sets isArchived: false)
+    if (a.isArchived === true) return true;
+    if (a.isArchived === false) return false;
+    // Fallback recalc for assignments without the flag set
     const dueDateStr = a.dueDate instanceof Date
-      ? a.dueDate.toLocaleDateString("en-CA") // en-CA gives YYYY-MM-DD in local time
+      ? a.dueDate.toLocaleDateString("en-CA")
       : "";
-    if (!dueDateStr || dueDateStr >= todayStr) return false; // Future or today = never archive
+    if (!dueDateStr || dueDateStr >= todayStr) return false;
     const isOver = dueDateStr < todayStr && a.status !== "completed";
     const updatedStr = a.updatedAt
       ? (a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt)).toLocaleDateString("en-CA")
@@ -3123,7 +3127,10 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               const now3 = new Date(); const mid3 = new Date(now3); mid3.setHours(0,0,0,0);
               const t3 = new Date(now3); t3.setDate(now3.getDate()-3);
               const s7 = new Date(now3); s7.setDate(now3.getDate()-7);
+              // Use pre-computed isArchived from loadAssignments — avoids date parsing edge cases
               const isArchivedFn = a => {
+                if (a.isArchived) return true;
+                // Fallback recalc for assignments loaded before isArchived was set
                 if (!(a.dueDate instanceof Date)) return false;
                 const dueDateStrFn = a.dueDate.toLocaleDateString("en-CA");
                 const todayStrFn = new Date().toLocaleDateString("en-CA");
@@ -3149,8 +3156,9 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                   </div>
                   {isArchivedFn(a) ? (
                     <button onClick={async () => {
-                      setLocalAssignments(prev => prev.map(x => x.id === a.id ? { ...x, status: "not_started", updatedAt: new Date(Date.now() + 4 * 86400000) } : x));
-                      await supabase.from("assignments").update({ status: "not_started", updated_at: new Date(Date.now() + 4 * 86400000).toISOString() }).eq("id", a.id);
+                      const futureDate = new Date(Date.now() + 4 * 86400000);
+                      setLocalAssignments(prev => prev.map(x => x.id === a.id ? { ...x, status: "not_started", updatedAt: futureDate, isArchived: false } : x));
+                      await supabase.from("assignments").update({ status: "not_started", updated_at: futureDate.toISOString() }).eq("id", a.id);
                     }} style={{ padding: "5px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
                       ↩ Restore
                     </button>
