@@ -1495,11 +1495,40 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const minutesSpent = Math.max(1, Math.round(time / 60));
 
   // Calls Supabase Edge Function ai-breakdown — Claude API runs server-side
-  const handleBreakdown = async (promptId) => {
+  // Passes the student's actual typed response so AI evaluates their thinking, not just the assignment
+  const handleBreakdown = async (promptId, isRefine) => {
     const prompt = GUIDED_PROMPTS.find(p => p.id === promptId);
     if (!prompt) return;
     setIsLoadingBreakdown(p => ({ ...p, [promptId]: true }));
-    aiBreakdownsUsedRef.current += 1;
+    if (!isRefine) aiBreakdownsUsedRef.current += 1;
+
+    const studentResponse = (promptResponses[promptId] || "").trim();
+    const assignmentContext = [
+      "Title: " + (a.title || ""),
+      a.description ? "Description: " + a.description : "",
+      a.instructions ? "Instructions: " + a.instructions : "",
+      a.rubric ? "Rubric: " + a.rubric : "",
+      a.points ? "Points: " + a.points : "",
+    ].filter(Boolean).join("\n");
+
+    const coachingPrompt = isRefine
+      ? "You are a learning specialist giving brief follow-up coaching. The student has refined their answer.\n\n" +
+        "ASSIGNMENT:\n" + assignmentContext + "\n\n" +
+        "PROMPT THEY ANSWERED: " + prompt.question + "\n\n" +
+        "STUDENT'S UPDATED ANSWER: \"" + studentResponse + "\"\n\n" +
+        "Give a SHORT version of the same 4 sections. 1 bullet max per section. Be direct. No fluff.\n\n" +
+        "SECTION 1: What you got right\n- \nSECTION 2: What to fix or rethink\n- \nSECTION 3: Step-by-step plan\n- Step 1:\n- Step 2:\n- Step 3:\nSECTION 4: Starter sentences\n- \n- "
+      : "You are a learning specialist coaching a student-athlete through an assignment. Your job is to evaluate what the STUDENT wrote and give specific, honest feedback — not just explain the assignment.\n\n" +
+        "ASSIGNMENT:\n" + assignmentContext + "\n\n" +
+        "PROMPT THEY ANSWERED: " + prompt.question + "\n\n" +
+        "STUDENT'S ANSWER: \"" + studentResponse + "\"\n\n" +
+        "Evaluate their answer against the actual assignment. Be direct and specific. If they got something wrong or incomplete, say so clearly but supportively. Reference their exact words when relevant.\n\n" +
+        "Return EXACTLY this format — no intro, no extra text:\n\n" +
+        "SECTION 1: What you got right\n- [1-2 bullets referencing what they wrote]\n\n" +
+        "SECTION 2: What to fix or rethink\n- [1-2 bullets on gaps or misunderstandings]\n\n" +
+        "SECTION 3: Step-by-step plan\n- Step 1: [specific to this assignment]\n- Step 2:\n- Step 3:\n- Step 4:\n\n" +
+        "SECTION 4: Starter sentences\n- [sentence they can use directly in their work]\n- [another starter sentence]\n- [optional third]";
+
     try {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
         method: "POST",
@@ -1515,7 +1544,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             points: a.points || "", description: a.description || "",
             instructions: a.instructions || "", rubric: a.rubric || "",
           },
-          prompt: { id: prompt.id, question: prompt.question, aiPrompt: prompt.aiPrompt },
+          prompt: { id: prompt.id, question: prompt.question, aiPrompt: coachingPrompt },
         }),
       });
       const data = await response.json();
@@ -1764,7 +1793,11 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                 {expandedBreakdown[currentStepPrompt.id] && aiBreakdownText[currentStepPrompt.id] && (
                   <div style={{ padding: "12px 16px", background: UA.navyLight, border: `1px solid ${UA.navyBorder}`, borderRadius: UA.radiusSm, fontSize: 13, color: UA.text, lineHeight: 1.7, marginBottom: 12 }}>
                     <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>✨ AI Guidance</div>
-                    {aiBreakdownText[currentStepPrompt.id]}
+                    <div style={{ whiteSpace: "pre-wrap" }}>{aiBreakdownText[currentStepPrompt.id]}</div>
+                    <button onClick={() => handleBreakdown(currentStepPrompt.id, true)} disabled={isLoadingBreakdown[currentStepPrompt.id]}
+                      style={{ marginTop: 10, padding: "6px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: "white", color: UA.navy, fontSize: 11, fontWeight: 700, cursor: isLoadingBreakdown[currentStepPrompt.id] ? "wait" : "pointer", fontFamily: "inherit" }}>
+                      {isLoadingBreakdown[currentStepPrompt.id] ? "⏳ Analyzing..." : "🔄 Refine my answer"}
+                    </button>
                   </div>
                 )}
 
@@ -2018,7 +2051,11 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                             {hasBreakdown && (
                               <div style={{ padding: "8px 10px", background: "white", border: `1px solid ${UA.navyBorder}`, borderRadius: UA.radiusSm, fontSize: 12, color: UA.text, lineHeight: 1.6 }}>
                                 <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>✨ Guidance</div>
-                                {aiBreakdownText[prompt.id] || "Generating guidance... If this takes more than 10 seconds, try refreshing the page or ask your learning specialist."}
+                                <div style={{ whiteSpace: "pre-wrap" }}>{aiBreakdownText[prompt.id] || "Generating guidance... If this takes more than 10 seconds, try refreshing the page or ask your learning specialist."}</div>
+                                <button onClick={() => handleBreakdown(prompt.id, true)} disabled={isLoading}
+                                  style={{ marginTop: 8, padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 10, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
+                                  {isLoading ? "⏳ Analyzing..." : "🔄 Refine my answer"}
+                                </button>
                               </div>
                             )}
                             <textarea value={promptResponses[prompt.id] || ""} onChange={e => setPromptResponses(p => ({ ...p, [prompt.id]: e.target.value }))}
