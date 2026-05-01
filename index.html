@@ -191,7 +191,8 @@ async function fetchAllAssignments() {
     const s7StrA = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
     const t3StrA = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
     const updatedStr = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
-    const isArchived = dueDateStr >= todayStrA ? false :
+    const isArchived = a.archived_override === true ? false :
+      dueDateStr >= todayStrA ? false :
       (currentStatus === "completed" && updatedStr && updatedStr < t3StrA) ||
       (isOverdue && dueDateStr < s7StrA);
 
@@ -200,6 +201,7 @@ async function fetchAllAssignments() {
       courseCode: a.course_code || "", dueDate,
       points: a.points || 0, status: currentStatus,
       isOverdue, isArchived,
+      archivedOverride: a.archived_override === true,
       urgency: a.urgency || "green", description: a.description || "",
       instructions: a.instructions || "", rubric: a.rubric || "",
       d2lLink: a.d2l_link || "https://d2l.arizona.edu", studentId: a.student_id,
@@ -1061,6 +1063,8 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
   const s7Str = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
 
   const isArchivedRuntime = (a) => {
+    // If explicitly restored via archived_override, never treat as archived
+    if (a.archivedOverride === false) return false;
     // Use pre-computed flag when available — avoids date recalc edge cases
     // and respects in-session restore (which sets isArchived: false)
     if (a.isArchived === true) return true;
@@ -1138,19 +1142,16 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
                 </div>
                 <StatusBadge status={a.status} />
                 <button onClick={async () => {
-                  // Restore: update local state with future updatedAt so isArchivedRuntime doesn't re-archive
-                  const futureDate = new Date(Date.now() + 4 * 86400000);
+                  const idStr = String(a.id);
+                  if (!idStr.includes("-")) { console.warn("Restore: invalid UUID", a.id); return; }
+                  // Optimistic update — flip isArchived off immediately
                   if (onRestoreAssignment) {
-                    onRestoreAssignment(a.id, futureDate);
-                  } else if (onUpdateStatus) {
-                    onUpdateStatus(a.id, "not_started");
+                    onRestoreAssignment(a.id);
                   }
                   try {
-                    await supabase.from("assignments").update({
-                      status: "not_started",
-                      updated_at: futureDate.toISOString(),
-                    }).eq("id", a.id);
-                  } catch(e) { console.warn("Restore failed:", e.message); }
+                    const { error } = await supabase.from("assignments").update({ archived_override: false }).eq("id", a.id);
+                    if (error) console.warn("Restore failed:", error.message);
+                  } catch(e) { console.warn("Restore exception:", e.message); }
                 }}
                   style={{ padding: "6px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
                   ↩ Restore
@@ -2803,7 +2804,8 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
             const s7StrL = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
             const t3StrL = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
             const updatedStrL = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
-            const isArchived = dueDateStrL >= todayStrL ? false :
+            const isArchived = a.archived_override === true ? false :
+              dueDateStrL >= todayStrL ? false :
               (status === "completed" && updatedStrL && updatedStrL < t3StrL) ||
               (isOverdue && dueDateStrL < s7StrL);
             return {
@@ -2812,6 +2814,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               dueDate, updatedAt,
               points: a.points || 0, status,
               isOverdue, isArchived,
+              archivedOverride: a.archived_override === true,
               urgency: a.urgency || "green", description: a.description || "",
               instructions: a.instructions || "", rubric: a.rubric || "",
               d2lLink: a.d2l_link || "", studentId: a.student_id,
@@ -3129,6 +3132,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
               const s7 = new Date(now3); s7.setDate(now3.getDate()-7);
               // Use pre-computed isArchived from loadAssignments — avoids date parsing edge cases
               const isArchivedFn = a => {
+                if (a.archivedOverride === false) return false;
                 if (a.isArchived) return true;
                 // Fallback recalc for assignments loaded before isArchived was set
                 if (!(a.dueDate instanceof Date)) return false;
@@ -3156,9 +3160,13 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
                   </div>
                   {isArchivedFn(a) ? (
                     <button onClick={async () => {
-                      const futureDate = new Date(Date.now() + 4 * 86400000);
-                      setLocalAssignments(prev => prev.map(x => x.id === a.id ? { ...x, status: "not_started", updatedAt: futureDate, isArchived: false } : x));
-                      await supabase.from("assignments").update({ status: "not_started", updated_at: futureDate.toISOString() }).eq("id", a.id);
+                      const idStr = String(a.id);
+                      if (!idStr.includes("-")) { console.warn("Restore: invalid UUID", a.id); return; }
+                      setLocalAssignments(prev => prev.map(x => x.id === a.id ? { ...x, isArchived: false, archivedOverride: false } : x));
+                      try {
+                        const { error } = await supabase.from("assignments").update({ archived_override: false }).eq("id", a.id);
+                        if (error) console.warn("Staff restore failed:", error.message);
+                      } catch(e) { console.warn("Staff restore exception:", e.message); }
                     }} style={{ padding: "5px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
                       ↩ Restore
                     </button>
@@ -6651,7 +6659,8 @@ function App() {
             const s7Str2 = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
             const t3Str2 = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
             const updatedStr2 = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
-            const isArchived = dueDateStr2 >= todayStr2 ? false :
+            const isArchived = a.archived_override === true ? false :
+              dueDateStr2 >= todayStr2 ? false :
               (currentStatus === "completed" && updatedStr2 && updatedStr2 < t3Str2) ||
               (isOverdue && dueDateStr2 < s7Str2);
             return {
@@ -6660,6 +6669,7 @@ function App() {
               dueDate,
               points: a.points || 0, status: currentStatus,
               isOverdue, isArchived,
+              archivedOverride: a.archived_override === true,
               urgency: a.urgency || "green", description: a.description || "",
               instructions: a.instructions || "", rubric: a.rubric || "",
               d2lLink: a.d2l_link || "https://d2l.arizona.edu",
@@ -6977,8 +6987,8 @@ function App() {
     if (page === "settings") return <SettingsPage role={role} currentUser={currentUser} />;
     if (page === "notes") return <GlobalNotesFeed />;
     if (page === "risk") return <RiskMarkersPage key={`risk-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
-    if (page === "assignments") return <AssignmentsPage onNavigate={navigate} assignments={assignments} onAddAssignment={addAssignment} initialFilter={assignmentFilter} onRestoreAssignment={(id, futureDate) => {
-      setAssignments(prev => prev.map(a => a.id === id ? { ...a, status: "not_started", updatedAt: futureDate, isArchived: false } : a));
+    if (page === "assignments") return <AssignmentsPage onNavigate={navigate} assignments={assignments} onAddAssignment={addAssignment} initialFilter={assignmentFilter} onRestoreAssignment={(id) => {
+      setAssignments(prev => prev.map(a => a.id === id ? { ...a, isArchived: false, archivedOverride: false } : a));
     }} onUpdateStatus={async (id, status) => {
       setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
       await updateAssignmentStatus(id, status);
