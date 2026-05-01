@@ -1418,7 +1418,17 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
           assignment: { title: "Chat Mode", course: "", description: assignmentContext },
           prompt: {
             question: msg,
-            aiPrompt: "Assignment context: " + assignmentContext + "\n\nConversation so far: " + updatedHistory.slice(-4).map(m => m.role + ": " + m.content).join("\n") + "\n\nStudent question: " + msg + "\n\nRespond helpfully and specifically. Keep it under 4 sentences. Do not write the assignment for them. If they ask for simpler language, use simpler language.",
+            aiPrompt: "You are a learning specialist coaching a student-athlete through an assignment. Do NOT write the assignment for them.\n\n" +
+              "ASSIGNMENT CONTEXT:\n" + assignmentContext + "\n\n" +
+              "CONVERSATION SO FAR:\n" + updatedHistory.slice(-4).map(m => m.role + ": " + m.content).join("\n") + "\n\n" +
+              "STUDENT SAID: " + msg + "\n\n" +
+              "RESPONSE RULES — follow based on what they asked:\n" +
+              "- If they ask to break it down, outline it, or want steps: respond with a numbered step-by-step plan (4-6 steps max, each one specific to this assignment). Format as Step 1: ... Step 2: ... etc.\n" +
+              "- If they ask what the assignment is asking: explain the task clearly in 3-4 sentences, reference the instructions directly.\n" +
+              "- If they ask where to start: give ONE specific first action they can take in the next 5 minutes.\n" +
+              "- If they ask about the rubric or points: break down where points come from, most important first.\n" +
+              "- For anything else: respond helpfully in 2-4 sentences, be direct and specific to this assignment.\n" +
+              "Never write paragraphs for them. Never give generic advice. Always reference the actual assignment.",
           },
         }),
       });
@@ -2027,7 +2037,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               {/* Starter chips */}
               {chatMessages.length === 0 && (
                 <div style={{ padding: "0 14px 10px", display: "flex", flexWrap: "wrap", gap: 5 }}>
-                  {["Where do I start?", "Break down the rubric", "What's the main argument?"].map(chip => (
+                  {["Break this into steps", "Where do I start?", "What's this asking me to do?"].map(chip => (
                     <button key={chip} onClick={() => sendChatMessage(chip)}
                       style={{ padding: "4px 10px", borderRadius: 99, border: `1px solid ${T.navyBorder}`, background: T.navyLight, color: T.navy, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                       {chip}
