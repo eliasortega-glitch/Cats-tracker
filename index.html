@@ -1724,8 +1724,8 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         {/* ══ LEFT 70%: EDITOR ══ */}
         <div style={{ overflow: "auto", padding: "24px 28px 96px", display: "flex", flexDirection: "column", gap: 16, background: T.bg, borderRight: `1px solid ${T.border}` }}>
 
-          {/* ── STEP 0: ORIENT ── Show assignment summary + single CTA to start */}
-          {workStep === 0 && (
+          {/* ── STEP 0: ORIENT — removed, editor always visible ── */}
+          {false && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 600 }}>
               <div style={{ padding: "24px 28px", background: T.bgCard, borderRadius: UA.radius, border: `1.5px solid ${T.border}`, boxShadow: UA.shadow }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
@@ -1762,8 +1762,8 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             </div>
           )}
 
-          {/* ── STEP 1: GUIDED PROMPT (one at a time) ── */}
-          {workStep === 1 && (
+          {/* ── STEP 1: GUIDED PROMPT — moved to right panel ── */}
+          {false && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 600 }}>
               {/* Step indicator */}
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1841,8 +1841,8 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             </div>
           )}
 
-          {/* ── STEPS 2+: FULL EDITOR (shown for workStep >= 2) ── */}
-          {workStep >= 2 && (<>
+          {/* ── EDITOR — always shown ── */}
+          {true && (<>
 
           {/* Formatting toolbar */}
           <div style={{ display: "flex", gap: 3, padding: "6px 10px", background: T.bgCard, borderRadius: UA.radiusSm, border: `1px solid ${T.border}`, flexWrap: "wrap", alignItems: "center" }}>
@@ -1919,27 +1919,77 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         {!zenMode && (
           <div style={{ overflow: "auto", display: "flex", flexDirection: "column", background: T.bgCard, borderLeft: `1px solid ${T.border}` }}>
 
-            {/* ─ Section: Assignment Details ─ */}
-            <div style={{ padding: "16px 18px", borderBottom: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Assignment</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: T.text, lineHeight: 1.4, marginBottom: 6 }}>{a.title}</div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, color: T.textMuted, fontWeight: 600 }}>{a.course}</span>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, color: T.textMuted, fontWeight: 600 }}>{a.points} pts</span>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: a.isOverdue ? UA.redLight : UA.yellowBg, border: `1px solid ${a.isOverdue ? UA.redBorder : UA.yellowBorder}`, color: a.isOverdue ? UA.red : UA.yellow, fontWeight: 700 }}>
-                  Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "")}
-                </span>
-              </div>
-              {[["Description", a.description], ["Instructions", a.instructions], ["Rubric", a.rubric]].map(([label, val]) => val && (
-                <div key={label} style={{ marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
-                  <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>{val}</div>
+            {/* ─ Section: Guided Questions (top, open by default) ─ */}
+            <div style={{ borderBottom: `1px solid ${T.border}` }}>
+              <div style={{ padding: "12px 18px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+                onClick={() => setGuidedPathOpen(o => !o)}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, letterSpacing: "0.08em", textTransform: "uppercase" }}>Guided Questions</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>Answer first, then get AI feedback</div>
                 </div>
-              ))}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ height: 3, width: 40, borderRadius: 99, background: T.border, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(promptsFilled / GUIDED_PROMPTS.length) * 100}%`, background: UA.green, borderRadius: 99, transition: "width 0.4s" }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: T.textMuted }}>{promptsFilled}/{GUIDED_PROMPTS.length}</span>
+                  <span style={{ fontSize: 12, color: T.textMuted, transform: guidedPathOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
+                </div>
+              </div>
+              {guidedPathOpen && (
+                <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  {GUIDED_PROMPTS.map((prompt, idx) => {
+                    const isActive = activePrompt === prompt.id;
+                    const isComplete = !!promptResponses[prompt.id]?.trim();
+                    const hasBreakdown = expandedBreakdown[prompt.id];
+                    const isLoading = isLoadingBreakdown[prompt.id];
+                    return (
+                      <div key={prompt.id} style={{ borderRadius: UA.radiusSm, border: `1.5px solid ${isActive ? UA.navy : isComplete ? UA.greenBorder : T.border}`, background: isActive ? UA.navyLight : isComplete ? UA.greenBg : T.bg, overflow: "hidden", transition: "all 0.2s" }}>
+                        <div onClick={() => {
+                          setActivePrompt(isActive ? null : prompt.id);
+                          if (!isActive && !promptsExpandedRef.current.includes(prompt.id)) {
+                            promptsExpandedRef.current = [...promptsExpandedRef.current, prompt.id];
+                          }
+                        }} style={{ padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isComplete ? UA.green : isActive ? UA.navy : T.border}`, background: isComplete ? UA.greenBg : isActive ? UA.navyLight : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: isComplete ? UA.green : isActive ? UA.navy : T.textMuted, flexShrink: 0 }}>
+                            {isComplete ? "✓" : idx + 1}
+                          </div>
+                          <div style={{ flex: 1, fontSize: 12, fontWeight: 600, color: isActive ? UA.navy : T.text, lineHeight: 1.4 }}>{prompt.question}</div>
+                          <span style={{ fontSize: 11, color: T.textMuted, transform: isActive ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
+                        </div>
+                        {isActive && (
+                          <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+                            <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6, padding: "8px 10px", background: "rgba(0,51,102,0.05)", borderRadius: UA.radiusSm, borderLeft: `2px solid ${UA.navy}` }}>
+                              {prompt.why}
+                            </div>
+                            <textarea value={promptResponses[prompt.id] || ""} onChange={e => setPromptResponses(p => ({ ...p, [prompt.id]: e.target.value }))}
+                              placeholder={prompt.followUp} rows={3}
+                              style={{ width: "100%", padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${T.border}`, fontSize: 12, fontFamily: "inherit", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.5, background: T.bg, color: T.text }}
+                              onFocus={e => e.target.style.borderColor = UA.navy}
+                              onBlur={e => e.target.style.borderColor = T.border} />
+                            {(promptResponses[prompt.id] || "").length > 10 && !hasBreakdown && (
+                              <button onClick={() => handleBreakdown(prompt.id)} disabled={isLoading}
+                                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
+                                {isLoading ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> Analyzing...</> : <>✨ Get AI feedback</>}
+                              </button>
+                            )}
+                            {hasBreakdown && (
+                              <div style={{ padding: "8px 10px", background: "white", border: `1px solid ${UA.navyBorder}`, borderRadius: UA.radiusSm, fontSize: 12, color: UA.text, lineHeight: 1.6 }}>
+                                <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>✨ Feedback</div>
+                                <div style={{ whiteSpace: "pre-wrap" }}>{aiBreakdownText[prompt.id] || "Generating..."}</div>
+                                <button onClick={() => handleBreakdown(prompt.id, true)} disabled={isLoading}
+                                  style={{ marginTop: 8, padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 10, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
+                                  {isLoading ? "⏳ Analyzing..." : "🔄 Refine my answer"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-
-            {/* ─ Section: Add Instructions photo ─ */}
-            <InstructionsPhotoBtn T={T} onExtracted={(msg) => setChatMessages(prev => [...prev, { role: "assistant", content: msg }])} />
 
             {/* ─ Section: AI Chat ─ */}
             <div style={{ display: "flex", flexDirection: "column", borderBottom: `1px solid ${T.border}`, minHeight: 0, flex: "0 0 auto" }}>
@@ -2003,74 +2053,39 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               </div>
             </div>
 
-            {/* ─ Section: Guided Prompts (collapsible) ─ */}
-            <div style={{ flex: 1 }}>
-              <div style={{ padding: "12px 18px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
-                onClick={() => setGuidedPathOpen(o => !o)}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, letterSpacing: "0.08em", textTransform: "uppercase" }}>Guided Questions</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ height: 3, width: 40, borderRadius: 99, background: T.border, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${(promptsFilled / GUIDED_PROMPTS.length) * 100}%`, background: UA.green, borderRadius: 99, transition: "width 0.4s" }} />
+            {/* ─ Section: Assignment Details (collapsed by default) ─ */}
+            {(() => {
+              const [detailsOpen, setDetailsOpen] = React.useState(false);
+              return (
+                <div style={{ borderBottom: `1px solid ${T.border}` }}>
+                  <div onClick={() => setDetailsOpen(o => !o)} style={{ padding: "12px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, letterSpacing: "0.08em", textTransform: "uppercase" }}>Assignment Details</div>
+                    <span style={{ fontSize: 12, color: T.textMuted, transform: detailsOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
                   </div>
-                  <span style={{ fontSize: 11, color: T.textMuted }}>{promptsFilled}/{GUIDED_PROMPTS.length}</span>
-                  <span style={{ fontSize: 12, color: T.textMuted, transform: guidedPathOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
-                </div>
-              </div>
-              {guidedPathOpen && (
-                <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {GUIDED_PROMPTS.map((prompt, idx) => {
-                    const isActive = activePrompt === prompt.id;
-                    const isComplete = !!promptResponses[prompt.id]?.trim();
-                    const hasBreakdown = expandedBreakdown[prompt.id];
-                    const isLoading = isLoadingBreakdown[prompt.id];
-                    return (
-                      <div key={prompt.id} style={{ borderRadius: UA.radiusSm, border: `1.5px solid ${isActive ? UA.red : isComplete ? UA.greenBorder : T.border}`, background: isActive ? UA.redLight : isComplete ? UA.greenBg : T.bg, overflow: "hidden", transition: "all 0.2s" }}>
-                        <div onClick={() => {
-                          setActivePrompt(isActive ? null : prompt.id);
-                          if (!isActive && !promptsExpandedRef.current.includes(prompt.id)) {
-                            promptsExpandedRef.current = [...promptsExpandedRef.current, prompt.id];
-                          }
-                        }} style={{ padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isComplete ? UA.green : isActive ? UA.red : T.border}`, background: isComplete ? UA.greenBg : isActive ? UA.redLight : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: isComplete ? UA.green : isActive ? UA.red : T.textMuted, flexShrink: 0 }}>
-                            {isComplete ? "✓" : idx + 1}
-                          </div>
-                          <div style={{ flex: 1, fontSize: 12, fontWeight: 600, color: isActive ? UA.red : T.text, lineHeight: 1.4 }}>{prompt.question}</div>
-                          <span style={{ fontSize: 11, color: T.textMuted, transform: isActive ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
-                        </div>
-                        {isActive && (
-                          <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-                            <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6, padding: "8px 10px", background: "rgba(0,51,102,0.05)", borderRadius: UA.radiusSm, borderLeft: `2px solid ${UA.navy}` }}>
-                              {prompt.why}
-                            </div>
-                            {!hasBreakdown && (
-                              <button onClick={() => handleBreakdown(prompt.id)} disabled={isLoading}
-                                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
-                                {isLoading ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> Analyzing...</> : <>✨ Break this down</>}
-                              </button>
-                            )}
-                            {hasBreakdown && (
-                              <div style={{ padding: "8px 10px", background: "white", border: `1px solid ${UA.navyBorder}`, borderRadius: UA.radiusSm, fontSize: 12, color: UA.text, lineHeight: 1.6 }}>
-                                <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>✨ Guidance</div>
-                                <div style={{ whiteSpace: "pre-wrap" }}>{aiBreakdownText[prompt.id] || "Generating guidance... If this takes more than 10 seconds, try refreshing the page or ask your learning specialist."}</div>
-                                <button onClick={() => handleBreakdown(prompt.id, true)} disabled={isLoading}
-                                  style={{ marginTop: 8, padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 10, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
-                                  {isLoading ? "⏳ Analyzing..." : "🔄 Refine my answer"}
-                                </button>
-                              </div>
-                            )}
-                            <textarea value={promptResponses[prompt.id] || ""} onChange={e => setPromptResponses(p => ({ ...p, [prompt.id]: e.target.value }))}
-                              placeholder={prompt.followUp} rows={2}
-                              style={{ width: "100%", padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.border}`, fontSize: 12, fontFamily: "inherit", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }}
-                              onFocus={e => e.target.style.borderColor = UA.red}
-                              onBlur={e => e.target.style.borderColor = UA.border} />
-                          </div>
-                        )}
+                  {detailsOpen && (
+                    <div style={{ padding: "0 18px 14px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: T.text, lineHeight: 1.4, marginBottom: 6 }}>{a.title}</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, color: T.textMuted, fontWeight: 600 }}>{a.course}</span>
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, color: T.textMuted, fontWeight: 600 }}>{a.points} pts</span>
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: a.isOverdue ? UA.redLight : UA.yellowBg, border: `1px solid ${a.isOverdue ? UA.redBorder : UA.yellowBorder}`, color: a.isOverdue ? UA.red : UA.yellow, fontWeight: 700 }}>
+                          Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "")}
+                        </span>
                       </div>
-                    );
-                  })}
+                      {[["Description", a.description], ["Instructions", a.instructions], ["Rubric", a.rubric]].map(([label, val]) => val && (
+                        <div key={label} style={{ marginBottom: 8 }}>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
+                          <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>{val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
+
+            {/* ─ Section: Add Instructions photo ─ */}
+            <InstructionsPhotoBtn T={T} onExtracted={(msg) => setChatMessages(prev => [...prev, { role: "assistant", content: msg }])} />
 
             {/* ─ Section: Self-Assessment (compact) ─ */}
             <div style={{ padding: "14px 18px", borderTop: `1px solid ${T.border}` }}>
