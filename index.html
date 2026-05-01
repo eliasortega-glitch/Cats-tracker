@@ -1662,67 +1662,53 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: T.bg, fontFamily: "'DM Sans', system-ui, sans-serif", transition: "background 0.3s", position: "relative" }}>
 
-      {/* ── BREADCRUMB HEADER ── */}
-      <div style={{ background: T.bgCard, borderBottom: `1px solid ${T.border}`, padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxShadow: zenMode ? "0 1px 8px rgba(0,0,0,0.4)" : "0 1px 3px rgba(0,0,0,0.05)", zIndex: 10 }}>
-
-        {/* Left: breadcrumb + progress */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, minWidth: 0, flex: 1 }}>
+      {/* ── HEADER ── */}
+      <div style={{ background: zenMode ? "#0f1117" : "white", borderBottom: `1px solid ${T.border}`, padding: "0 20px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxShadow: zenMode ? "0 1px 12px rgba(0,0,0,0.5)" : "0 1px 0 #E8EAF0", zIndex: 10 }}>
+        {/* Left */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
           <button onClick={async () => {
             clearInterval(timerRef.current);
-            // Don't double-save if FAB save already completed
             if (!hasSavedRef.current) {
               const currentTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
               if (currentTime > 10 && (a.studentId || localStorage.getItem("cats_student_uuid"))) {
-                await insertSessionLog(buildLogData(currentTime, {
-                  notes: workContent,
-                  effort,
-                  understanding,
-                  completionType,
-                  promptResponsesFilled: promptsFilled,
-                }));
+                await insertSessionLog(buildLogData(currentTime, { notes: workContent, effort, understanding, completionType, promptResponsesFilled: promptsFilled }));
               }
             }
             onBack();
-          }} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, fontSize: 13, padding: 0, fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+          }} style={{ background: "none", border: "none", cursor: "pointer", color: T.textMuted, fontSize: 13, padding: "6px 0", fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5, fontWeight: 600, transition: "color 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.color = T.text}
+            onMouseLeave={e => e.currentTarget.style.color = T.textMuted}>
             ← Back
           </button>
-          <div style={{ width: 1, height: 16, background: T.border, flexShrink: 0 }} />
-          {/* Breadcrumb */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: T.textMuted, minWidth: 0 }}>
-            <span style={{ color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>{a.courseCode || a.course || "Course"}</span>
-            <span style={{ color: T.border }}>›</span>
-            <span style={{ color: T.text, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{a.title}</span>
-            <span style={{ color: T.border }}>›</span>
-            <span style={{ color: depthColor, fontWeight: 600, flexShrink: 0 }}>{overallPct}% done</span>
+          <div style={{ width: 1, height: 20, background: T.border, flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.07em" }}>{a.courseCode || a.course || "Assignment"}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 280, lineHeight: 1.2 }}>{a.title}</div>
           </div>
-          {/* Progress bar */}
-          <div style={{ flex: 1, maxWidth: 160, height: 4, borderRadius: 99, background: T.border, overflow: "hidden", flexShrink: 0 }}>
-            <div style={{ height: "100%", width: `${overallPct}%`, background: depthColor, borderRadius: 99, transition: "width 0.6s ease, background 0.4s" }} />
+          {/* Progress pill */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, flexShrink: 0 }}>
+            <div style={{ width: 80, height: 4, borderRadius: 99, background: T.border, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${overallPct}%`, borderRadius: 99, transition: "width 0.6s ease, background 0.4s", background: overallPct < 30 ? "#94a3b8" : overallPct < 70 ? UA.navy : UA.green }} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: depthColor, whiteSpace: "nowrap" }}>{overallPct}%</span>
           </div>
-          {/* Live save indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, flexShrink: 0, transition: "all 0.3s" }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor, transition: "background 0.3s",
-              boxShadow: workSaved ? `0 0 0 2px ${UA.green}44` : "none" }} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: statusColor, whiteSpace: "nowrap" }}>
-              {workSaved ? `Saved ${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : statusLabel}
-            </span>
+          {/* Save status */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor, transition: "background 0.3s", boxShadow: workSaved ? `0 0 0 3px ${UA.green}30` : "none" }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: statusColor, whiteSpace: "nowrap" }}>{workSaved ? `Saved ${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : statusLabel}</span>
           </div>
         </div>
-
-        {/* Right: controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 16 }}>
-          {/* Active timer — subtle */}
-          <div style={{ fontSize: 11, fontWeight: 600, color: isIdle ? UA.yellow : T.textMuted, padding: "4px 10px", borderRadius: 99, background: isIdle ? UA.yellowBg : T.bg, border: `1px solid ${isIdle ? UA.yellowBorder : T.border}`, transition: "all 0.3s", whiteSpace: "nowrap" }}>
+        {/* Right */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: isIdle ? UA.yellow : T.textMuted, padding: "5px 10px", borderRadius: 99, background: isIdle ? UA.yellowBg : T.bg, border: `1px solid ${isIdle ? UA.yellowBorder : T.border}`, transition: "all 0.3s", whiteSpace: "nowrap" }}>
             {isIdle ? "⏸ Paused" : `⏱ ${fmt(activeSeconds)}`}
           </div>
-          {/* Zen toggle */}
           <button onClick={toggleZen}
-            style={{ padding: "6px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${zenMode ? "#4a90d9" : T.border}`, background: zenMode ? "#1a2535" : T.bg, color: zenMode ? "#4a90d9" : T.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-            {zenMode ? "☀️ Exit Focus" : "🌙 Focus"}
+            style={{ padding: "5px 12px", borderRadius: 99, border: `1.5px solid ${zenMode ? "#4a90d9" : T.border}`, background: zenMode ? "#1a2535" : T.bg, color: zenMode ? "#4a90d9" : T.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s", whiteSpace: "nowrap" }}>
+            {zenMode ? "☀️ Exit" : "🌙 Focus"}
           </button>
-          {/* D2L link */}
           <a href={a.d2lLink || "https://d2l.arizona.edu"} target="_blank" rel="noreferrer"
-            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${T.navyBorder}`, background: T.navyLight, color: T.navy, fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 12px", borderRadius: 99, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
             🔗 D2L
           </a>
         </div>
@@ -1732,7 +1718,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       <div className="work-split" style={{ flex: 1, display: "grid", gridTemplateColumns: zenMode ? "1fr 0" : "70% 30%", overflow: "hidden", transition: "grid-template-columns 0.35s cubic-bezier(.4,0,.2,1)" }}>
 
         {/* ══ LEFT 70%: EDITOR ══ */}
-        <div style={{ overflow: "auto", padding: "24px 28px 96px", display: "flex", flexDirection: "column", gap: 16, background: T.bg, borderRight: `1px solid ${T.border}` }}>
+        <div style={{ overflow: "auto", padding: "28px 36px 96px", display: "flex", flexDirection: "column", gap: 14, background: zenMode ? "#0f1117" : "#F5F6FA", borderRight: `1px solid ${T.border}` }}>
 
           {/* ── STEP 0: ORIENT — removed, editor always visible ── */}
           {false && (
@@ -1855,10 +1841,10 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
           {true && (<>
 
           {/* Formatting toolbar */}
-          <div style={{ display: "flex", gap: 3, padding: "6px 10px", background: T.bgCard, borderRadius: UA.radiusSm, border: `1px solid ${T.border}`, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 2, padding: "5px 8px", background: "white", borderRadius: 99, border: `1px solid ${T.border}`, flexWrap: "wrap", alignItems: "center", alignSelf: "flex-start", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
             {[
-              { label: "B", title: "Bold", style: { fontWeight: 900, fontFamily: "serif" }, action: () => insertFormat("**", "**", "bold text") },
-              { label: "I", title: "Italic", style: { fontStyle: "italic", fontFamily: "serif" }, action: () => insertFormat("_", "_", "italic text") },
+              { label: "B", title: "Bold", style: { fontWeight: 900, fontFamily: "Georgia, serif" }, action: () => insertFormat("**", "**", "bold text") },
+              { label: "I", title: "Italic", style: { fontStyle: "italic", fontFamily: "Georgia, serif" }, action: () => insertFormat("_", "_", "italic text") },
               { label: "H1", title: "Heading 1", style: {}, action: () => insertFormat("\n# ", "\n", "Heading") },
               { label: "H2", title: "Heading 2", style: {}, action: () => insertFormat("\n## ", "\n", "Subheading") },
               { label: "•", title: "Bullet list", style: {}, action: () => insertFormat("\n- ", "", "item") },
@@ -1866,28 +1852,29 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               { label: "—", title: "Divider", style: {}, action: () => insertFormat("\n---\n", "", "") },
             ].map(btn => (
               <button key={btn.label} title={btn.title} onClick={btn.action}
-                style={{ padding: "3px 9px", borderRadius: 5, border: `1px solid ${T.border}`, background: T.bgCard, color: T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", minWidth: 28, ...btn.style }}>
+                style={{ padding: "3px 8px", borderRadius: 99, border: "none", background: "transparent", color: T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", minWidth: 26, transition: "background 0.1s, color 0.1s", ...btn.style }}
+                onMouseEnter={e => { e.currentTarget.style.background = UA.navyLight; e.currentTarget.style.color = UA.navy; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textSecondary; }}>
                 {btn.label}
               </button>
             ))}
-            <div style={{ width: 1, height: 16, background: T.border, margin: "0 4px" }} />
+            <div style={{ width: 1, height: 14, background: T.border, margin: "0 4px" }} />
             <button onClick={() => { navigator.clipboard.writeText(workContent).then(() => { setCopyConfirm(true); setTimeout(() => setCopyConfirm(false), 2000); }); }}
-              style={{ padding: "3px 10px", borderRadius: 5, border: `1px solid ${T.border}`, background: copyConfirm ? UA.greenBg : T.bgCard, color: copyConfirm ? UA.green : T.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              style={{ padding: "3px 10px", borderRadius: 99, border: "none", background: copyConfirm ? UA.greenBg : "transparent", color: copyConfirm ? UA.green : T.textMuted, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
               {copyConfirm ? "✓ Copied" : "Copy"}
             </button>
-            <div style={{ marginLeft: "auto", fontSize: 11, color: T.textMuted, fontWeight: 600 }}>{wordCount} words</div>
+            <div style={{ width: 1, height: 14, background: T.border, margin: "0 4px" }} />
+            <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, paddingRight: 4 }}>{wordCount}w</span>
           </div>
 
           {/* Depth meter */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: depthColor, transition: "color 0.4s" }}>{depthLabel}</span>
-              <span style={{ fontSize: 11, color: T.textMuted }}>{depthPct}% depth</span>
-            </div>
-            <div style={{ height: 3, borderRadius: 99, background: T.border, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: depthColor, transition: "color 0.4s", whiteSpace: "nowrap", minWidth: 110 }}>{depthLabel}</span>
+            <div style={{ flex: 1, height: 5, borderRadius: 99, background: T.border, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${depthPct}%`, borderRadius: 99, transition: "width 0.6s ease, background 0.4s",
                 background: `linear-gradient(90deg, ${depthPct < 30 ? "#94a3b8" : depthPct < 60 ? "#f59e0b" : depthPct < 85 ? UA.navy : "#16a34a"} 0%, ${depthPct < 30 ? "#94a3b8" : depthPct < 60 ? "#fbbf24" : depthPct < 85 ? "#4a90d9" : "#4ade80"} 100%)` }} />
             </div>
+            <span style={{ fontSize: 11, color: T.textMuted, whiteSpace: "nowrap" }}>{depthPct}%</span>
           </div>
 
           {/* Main editor */}
@@ -1898,28 +1885,27 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               const val = e.target.value;
               setWorkContent(val);
               setWordCount(val.trim() ? val.trim().split(/\s+/).length : 0);
-              // workSaved only goes true after a confirmed DB write — never on keystroke
               clearTimeout(localSaveRef.current);
               localSaveRef.current = setTimeout(() => {
                 try { localStorage.setItem(DRAFT_KEY, val); } catch(e) {}
               }, 30000);
             }}
-            placeholder={"Start writing here...\n\nTake notes, draft your response, or write out your thinking. Use the sidebar on the right for guidance from the AI."}
+            placeholder={"Start writing here...\n\nJot down your ideas, outline your response, or draft your answer. The sidebar has everything you need — questions to guide your thinking, AI help when you need it."}
             style={{
-              flex: 1, width: "100%", minHeight: zenMode ? "calc(100vh - 200px)" : 480,
-              padding: "20px 24px", borderRadius: UA.radius,
-              border: `1.5px solid ${T.border}`,
-              fontSize: 15, fontFamily: "'DM Sans', system-ui, sans-serif",
-              lineHeight: 1.8, resize: "none", outline: "none", boxSizing: "border-box",
-              background: zenMode ? "#0d0f14" : "white",
-              color: zenMode ? "#e8eaf0" : UA.text,
-              boxShadow: zenMode ? "none" : "0 1px 4px rgba(0,0,0,0.04)",
-              transition: "background 0.3s, border-color 0.2s, box-shadow 0.2s",
+              flex: 1, width: "100%", minHeight: zenMode ? "calc(100vh - 180px)" : 500,
+              padding: "28px 32px", borderRadius: 16,
+              border: `1.5px solid ${zenMode ? "#2a2d3a" : "#E0E4EF"}`,
+              fontSize: 16, fontFamily: "'DM Sans', system-ui, sans-serif",
+              lineHeight: 1.85, resize: "none", outline: "none", boxSizing: "border-box",
+              background: zenMode ? "#131720" : "white",
+              color: zenMode ? "#e8eaf0" : "#0F1623",
+              boxShadow: zenMode ? "none" : "0 2px 12px rgba(0,0,0,0.06), 0 0 0 0 transparent",
+              transition: "border-color 0.2s, box-shadow 0.2s",
             }}
-            onFocus={e => { e.target.style.borderColor = zenMode ? "#4a90d9" : UA.navy; e.target.style.boxShadow = zenMode ? "0 0 0 3px rgba(74,144,217,0.12)" : "0 0 0 3px rgba(0,51,102,0.08)"; }}
-            onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = zenMode ? "none" : "0 1px 4px rgba(0,0,0,0.04)"; }}
+            onFocus={e => { e.target.style.borderColor = zenMode ? "#4a90d9" : UA.navy; e.target.style.boxShadow = zenMode ? "0 0 0 3px rgba(74,144,217,0.1)" : "0 2px 12px rgba(0,0,0,0.06), 0 0 0 3px rgba(0,51,102,0.07)"; }}
+            onBlur={e => { e.target.style.borderColor = zenMode ? "#2a2d3a" : "#E0E4EF"; e.target.style.boxShadow = zenMode ? "none" : "0 2px 12px rgba(0,0,0,0.06)"; }}
           />
-          <div style={{ fontSize: 11, color: T.textMuted }}>
+          <div style={{ fontSize: 11, color: T.textMuted, textAlign: "right" }}>
             {workSaved ? "✓ Session saved to cloud" : "Draft saves locally every 30s — hit 💾 to save to cloud"}
           </div>
           </>)} {/* end workStep >= 2 */}
@@ -1927,67 +1913,70 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
 
         {/* ══ RIGHT 30%: INTELLIGENT SIDEBAR ══ */}
         {!zenMode && (
-          <div style={{ overflow: "auto", display: "flex", flexDirection: "column", background: T.bgCard, borderLeft: `1px solid ${T.border}` }}>
+          <div style={{ overflow: "auto", display: "flex", flexDirection: "column", background: "white", borderLeft: `1px solid #E8EAF0` }}>
 
-            {/* ─ Section: Guided Questions (top, open by default) ─ */}
-            <div style={{ borderBottom: `1px solid ${T.border}` }}>
-              <div style={{ padding: "12px 18px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
-                onClick={() => setGuidedPathOpen(o => !o)}>
+            {/* ─ Section: Guided Questions ─ */}
+            <div style={{ borderBottom: `1px solid #E8EAF0` }}>
+              <div style={{ padding: "14px 18px", borderBottom: `1px solid #E8EAF0`, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "background 0.15s" }}
+                onClick={() => setGuidedPathOpen(o => !o)}
+                onMouseEnter={e => e.currentTarget.style.background = "#F8F9FB"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, letterSpacing: "0.08em", textTransform: "uppercase" }}>Guided Questions</div>
-                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>Answer first, then get AI feedback</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: UA.navy, letterSpacing: "0.05em", textTransform: "uppercase" }}>📝 Guided Questions</div>
+                  <div style={{ fontSize: 11, color: "#8890A8", marginTop: 2 }}>Answer first — then get AI feedback</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ height: 3, width: 40, borderRadius: 99, background: T.border, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${(promptsFilled / GUIDED_PROMPTS.length) * 100}%`, background: UA.green, borderRadius: 99, transition: "width 0.4s" }} />
+                  <div style={{ display: "flex", gap: 3 }}>
+                    {GUIDED_PROMPTS.map((p, i) => (
+                      <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: promptResponses[p.id]?.trim() ? UA.green : "#E8EAF0", transition: "background 0.3s" }} />
+                    ))}
                   </div>
-                  <span style={{ fontSize: 11, color: T.textMuted }}>{promptsFilled}/{GUIDED_PROMPTS.length}</span>
-                  <span style={{ fontSize: 12, color: T.textMuted, transform: guidedPathOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
+                  <span style={{ fontSize: 13, color: "#8890A8", transform: guidedPathOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
                 </div>
               </div>
               {guidedPathOpen && (
-                <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
                   {GUIDED_PROMPTS.map((prompt, idx) => {
                     const isActive = activePrompt === prompt.id;
                     const isComplete = !!promptResponses[prompt.id]?.trim();
                     const hasBreakdown = expandedBreakdown[prompt.id];
                     const isLoading = isLoadingBreakdown[prompt.id];
                     return (
-                      <div key={prompt.id} style={{ borderRadius: UA.radiusSm, border: `1.5px solid ${isActive ? UA.navy : isComplete ? UA.greenBorder : T.border}`, background: isActive ? UA.navyLight : isComplete ? UA.greenBg : T.bg, overflow: "hidden", transition: "all 0.2s" }}>
+                      <div key={prompt.id} style={{ borderRadius: 10, border: `1.5px solid ${isActive ? UA.navy : isComplete ? UA.greenBorder : "#E8EAF0"}`, background: isActive ? UA.navyLight : isComplete ? UA.greenBg : "#FAFBFC", overflow: "hidden", transition: "all 0.2s", boxShadow: isActive ? "0 2px 8px rgba(0,51,102,0.08)" : "none" }}>
                         <div onClick={() => {
                           setActivePrompt(isActive ? null : prompt.id);
                           if (!isActive && !promptsExpandedRef.current.includes(prompt.id)) {
                             promptsExpandedRef.current = [...promptsExpandedRef.current, prompt.id];
                           }
-                        }} style={{ padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isComplete ? UA.green : isActive ? UA.navy : T.border}`, background: isComplete ? UA.greenBg : isActive ? UA.navyLight : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: isComplete ? UA.green : isActive ? UA.navy : T.textMuted, flexShrink: 0 }}>
+                        }} style={{ padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isComplete ? UA.green : isActive ? UA.navy : "#D0D4E0"}`, background: isComplete ? UA.green : isActive ? UA.navy : "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: isComplete || isActive ? "white" : "#8890A8", flexShrink: 0, transition: "all 0.2s" }}>
                             {isComplete ? "✓" : idx + 1}
                           </div>
-                          <div style={{ flex: 1, fontSize: 12, fontWeight: 600, color: isActive ? UA.navy : T.text, lineHeight: 1.4 }}>{prompt.question}</div>
-                          <span style={{ fontSize: 11, color: T.textMuted, transform: isActive ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
+                          <div style={{ flex: 1, fontSize: 12, fontWeight: 700, color: isActive ? UA.navy : isComplete ? UA.green : "#0F1623", lineHeight: 1.4 }}>{prompt.question}</div>
+                          <span style={{ fontSize: 11, color: "#8890A8", transform: isActive ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
                         </div>
                         {isActive && (
                           <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-                            <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6, padding: "8px 10px", background: "rgba(0,51,102,0.05)", borderRadius: UA.radiusSm, borderLeft: `2px solid ${UA.navy}` }}>
+                            <div style={{ fontSize: 11, color: "#4A5068", lineHeight: 1.6, padding: "8px 10px", background: "rgba(0,51,102,0.04)", borderRadius: 8, borderLeft: `3px solid ${UA.navy}` }}>
                               {prompt.why}
                             </div>
                             <textarea value={promptResponses[prompt.id] || ""} onChange={e => setPromptResponses(p => ({ ...p, [prompt.id]: e.target.value }))}
                               placeholder={prompt.followUp} rows={3}
-                              style={{ width: "100%", padding: "8px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${T.border}`, fontSize: 12, fontFamily: "inherit", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.5, background: T.bg, color: T.text }}
+                              style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: `1.5px solid #D0D4E0`, fontSize: 12, fontFamily: "inherit", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.6, background: "white", color: "#0F1623", transition: "border-color 0.15s" }}
                               onFocus={e => e.target.style.borderColor = UA.navy}
-                              onBlur={e => e.target.style.borderColor = T.border} />
+                              onBlur={e => e.target.style.borderColor = "#D0D4E0"} />
                             {(promptResponses[prompt.id] || "").length > 10 && !hasBreakdown && (
                               <button onClick={() => handleBreakdown(prompt.id)} disabled={isLoading}
-                                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
+                                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: UA.navy, color: "white", fontSize: 11, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit", transition: "opacity 0.15s", opacity: isLoading ? 0.7 : 1 }}>
                                 {isLoading ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> Analyzing...</> : <>✨ Get AI feedback</>}
                               </button>
                             )}
                             {hasBreakdown && (
-                              <div style={{ padding: "8px 10px", background: "white", border: `1px solid ${UA.navyBorder}`, borderRadius: UA.radiusSm, fontSize: 12, color: UA.text, lineHeight: 1.6 }}>
-                                <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>✨ Feedback</div>
+                              <div style={{ padding: "10px 12px", background: UA.navyLight, border: `1px solid ${UA.navyBorder}`, borderRadius: 8, fontSize: 12, color: "#0F1623", lineHeight: 1.7 }}>
+                                <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>✨ Feedback</div>
                                 <div style={{ whiteSpace: "pre-wrap" }}>{aiBreakdownText[prompt.id] || "Generating..."}</div>
                                 <button onClick={() => handleBreakdown(prompt.id, true)} disabled={isLoading}
-                                  style={{ marginTop: 8, padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 10, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
+                                  style={{ marginTop: 8, padding: "5px 10px", borderRadius: 6, border: `1px solid ${UA.navyBorder}`, background: "white", color: UA.navy, fontSize: 10, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
                                   {isLoading ? "⏳ Analyzing..." : "🔄 Refine my answer"}
                                 </button>
                               </div>
@@ -2002,34 +1991,38 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             </div>
 
             {/* ─ Section: AI Chat ─ */}
-            <div style={{ display: "flex", flexDirection: "column", borderBottom: `1px solid ${T.border}`, minHeight: 0, flex: "0 0 auto" }}>
-              <div style={{ padding: "12px 18px 10px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", flexDirection: "column", borderBottom: `1px solid #E8EAF0`, minHeight: 0, flex: "0 0 auto" }}>
+              <div style={{ padding: "14px 18px 10px", borderBottom: `1px solid #E8EAF0`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, letterSpacing: "0.08em", textTransform: "uppercase" }}>AI Tutor</div>
-                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>Scoped to this assignment only</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: UA.navy, letterSpacing: "0.05em", textTransform: "uppercase" }}>💬 AI Tutor</div>
+                  <div style={{ fontSize: 11, color: "#8890A8", marginTop: 2 }}>Scoped to this assignment only</div>
                 </div>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: UA.green }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: UA.green, boxShadow: `0 0 0 2px ${UA.greenBg}` }} />
+                  <span style={{ fontSize: 10, fontWeight: 700, color: UA.green }}>Live</span>
+                </div>
               </div>
               {/* Messages */}
-              <div style={{ maxHeight: 240, overflowY: "auto", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ maxHeight: 220, overflowY: "auto", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
                 {chatMessages.length === 0 && (
-                  <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: "12px 0" }}>Send a message to get started</div>
+                  <div style={{ fontSize: 12, color: "#8890A8", textAlign: "center", padding: "16px 0" }}>Ask anything about this assignment</div>
                 )}
                 {chatMessages.map((msg, i) => (
                   <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
                     <div style={{
-                      maxWidth: "88%", padding: "7px 11px",
-                      borderRadius: msg.role === "user" ? "12px 12px 3px 12px" : "12px 12px 12px 3px",
-                      background: msg.role === "user" ? (zenMode ? "#4a90d9" : UA.navy) : (zenMode ? "#1a1d26" : "#F1F3F5"),
-                      color: msg.role === "user" ? "white" : T.text,
-                      fontSize: 12, lineHeight: 1.6,
-                      border: msg.role === "assistant" ? `1px solid ${T.border}` : "none",
+                      maxWidth: "88%", padding: "8px 12px",
+                      borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                      background: msg.role === "user" ? UA.navy : "#F1F3F8",
+                      color: msg.role === "user" ? "white" : "#0F1623",
+                      fontSize: 12, lineHeight: 1.65,
+                      border: msg.role === "assistant" ? `1px solid #E8EAF0` : "none",
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                     }}>{msg.content}</div>
                   </div>
                 ))}
                 {chatLoading && (
-                  <div style={{ alignSelf: "flex-start", padding: "7px 11px", borderRadius: "12px 12px 12px 3px", background: zenMode ? "#1a1d26" : "#F1F3F5", border: `1px solid ${T.border}`, fontSize: 12, color: T.textMuted }}>
-                    Thinking...
+                  <div style={{ alignSelf: "flex-start", padding: "8px 12px", borderRadius: "14px 14px 14px 4px", background: "#F1F3F8", border: `1px solid #E8EAF0`, fontSize: 12, color: "#8890A8" }}>
+                    <span style={{ animation: "pulse 1.2s ease-in-out infinite" }}>●</span> Thinking...
                   </div>
                 )}
                 <div ref={chatEndRef} />
@@ -2039,53 +2032,57 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                 <div style={{ padding: "0 14px 10px", display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {["Break this into steps", "Where do I start?", "What's this asking me to do?"].map(chip => (
                     <button key={chip} onClick={() => sendChatMessage(chip)}
-                      style={{ padding: "4px 10px", borderRadius: 99, border: `1px solid ${T.navyBorder}`, background: T.navyLight, color: T.navy, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                      style={{ padding: "5px 10px", borderRadius: 99, border: `1px solid ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = UA.navy; e.currentTarget.style.color = "white"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = UA.navyLight; e.currentTarget.style.color = UA.navy; }}>
                       {chip}
                     </button>
                   ))}
                 </div>
               )}
               {/* Input */}
-              <div style={{ padding: "8px 12px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 6 }}>
+              <div style={{ padding: "8px 12px", borderTop: `1px solid #E8EAF0`, display: "flex", gap: 6 }}>
                 <input
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendChatMessage()}
                   placeholder="Ask anything..."
-                  style={{ flex: 1, padding: "7px 11px", borderRadius: 99, border: `1.5px solid ${T.border}`, fontSize: 12, fontFamily: "inherit", outline: "none", background: T.bg, color: T.text }}
+                  style={{ flex: 1, padding: "8px 14px", borderRadius: 99, border: `1.5px solid #E0E4EF`, fontSize: 12, fontFamily: "inherit", outline: "none", background: "#F8F9FB", color: "#0F1623", transition: "border-color 0.15s" }}
                   onFocus={e => e.target.style.borderColor = UA.navy}
-                  onBlur={e => e.target.style.borderColor = T.border}
+                  onBlur={e => e.target.style.borderColor = "#E0E4EF"}
                 />
                 <button onClick={() => sendChatMessage()} disabled={chatLoading || !chatInput.trim()}
-                  style={{ padding: "7px 13px", borderRadius: 99, border: "none", background: UA.navy, color: "white", fontSize: 12, fontWeight: 700, cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: chatLoading || !chatInput.trim() ? 0.5 : 1 }}>
+                  style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: chatLoading || !chatInput.trim() ? "#E8EAF0" : UA.navy, color: chatLoading || !chatInput.trim() ? "#8890A8" : "white", fontSize: 14, fontWeight: 700, cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer", fontFamily: "inherit", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   ↑
                 </button>
               </div>
             </div>
 
-            {/* ─ Section: Assignment Details (collapsed by default) ─ */}
+            {/* ─ Section: Assignment Details (collapsed) ─ */}
             {(() => {
               const [detailsOpen, setDetailsOpen] = React.useState(false);
               return (
-                <div style={{ borderBottom: `1px solid ${T.border}` }}>
-                  <div onClick={() => setDetailsOpen(o => !o)} style={{ padding: "12px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, letterSpacing: "0.08em", textTransform: "uppercase" }}>Assignment Details</div>
-                    <span style={{ fontSize: 12, color: T.textMuted, transform: detailsOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
+                <div style={{ borderBottom: `1px solid #E8EAF0` }}>
+                  <div onClick={() => setDetailsOpen(o => !o)} style={{ padding: "12px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "background 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#F8F9FB"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: UA.navy, letterSpacing: "0.05em", textTransform: "uppercase" }}>📋 Assignment Details</div>
+                    <span style={{ fontSize: 13, color: "#8890A8", transform: detailsOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
                   </div>
                   {detailsOpen && (
-                    <div style={{ padding: "0 18px 14px" }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: T.text, lineHeight: 1.4, marginBottom: 6 }}>{a.title}</div>
+                    <div style={{ padding: "0 18px 16px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "#0F1623", lineHeight: 1.4, marginBottom: 8 }}>{a.title}</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, color: T.textMuted, fontWeight: 600 }}>{a.course}</span>
-                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: T.bg, border: `1px solid ${T.border}`, color: T.textMuted, fontWeight: 600 }}>{a.points} pts</span>
-                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background: a.isOverdue ? UA.redLight : UA.yellowBg, border: `1px solid ${a.isOverdue ? UA.redBorder : UA.yellowBorder}`, color: a.isOverdue ? UA.red : UA.yellow, fontWeight: 700 }}>
+                        <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: "#F1F3F8", color: "#4A5068", fontWeight: 600 }}>{a.course}</span>
+                        {a.points > 0 && <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: "#F1F3F8", color: "#4A5068", fontWeight: 600 }}>{a.points} pts</span>}
+                        <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: a.isOverdue ? UA.redLight : UA.yellowBg, color: a.isOverdue ? UA.red : UA.yellow, fontWeight: 700 }}>
                           Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "")}
                         </span>
                       </div>
                       {[["Description", a.description], ["Instructions", a.instructions], ["Rubric", a.rubric]].map(([label, val]) => val && (
                         <div key={label} style={{ marginBottom: 8 }}>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
-                          <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>{val}</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: "#8890A8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{label}</div>
+                          <div style={{ fontSize: 12, color: "#4A5068", lineHeight: 1.65 }}>{val}</div>
                         </div>
                       ))}
                     </div>
@@ -2098,15 +2095,15 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             <InstructionsPhotoBtn T={T} onExtracted={(msg) => setChatMessages(prev => [...prev, { role: "assistant", content: msg }])} />
 
             {/* ─ Section: Self-Assessment (compact) ─ */}
-            <div style={{ padding: "14px 18px", borderTop: `1px solid ${T.border}` }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Self-Assessment</div>
+            <div style={{ padding: "16px 18px", borderTop: `1px solid #E8EAF0` }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: UA.navy, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 12 }}>🎯 Self-Assessment</div>
               {[["Effort", effort, setEffort, UA.red], ["Understanding", understanding, setUnderstanding, UA.navy]].map(([label, val, setter, color]) => (
-                <div key={label} style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{label}</span>
-                    <div style={{ display: "flex", gap: 3 }}>
+                <div key={label} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#0F1623" }}>{label}</span>
+                    <div style={{ display: "flex", gap: 4 }}>
                       {[1,2,3,4,5].map(n => (
-                        <div key={n} onClick={() => setter(n)} style={{ width: 24, height: 24, borderRadius: 5, border: `1.5px solid ${n <= val ? color : T.border}`, background: n <= val ? color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 10, fontWeight: 800, color: n <= val ? "white" : T.textMuted, transition: "all 0.1s" }}>{n}</div>
+                        <div key={n} onClick={() => setter(n)} style={{ width: 26, height: 26, borderRadius: 7, border: `1.5px solid ${n <= val ? color : "#E0E4EF"}`, background: n <= val ? color : "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 10, fontWeight: 800, color: n <= val ? "white" : "#8890A8", transition: "all 0.15s", boxShadow: n <= val ? `0 2px 6px ${color}40` : "none" }}>{n}</div>
                       ))}
                     </div>
                   </div>
@@ -2120,7 +2117,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                   { value: "with_support", label: "Done w/ Help", icon: "🤝" },
                 ].map(opt => (
                   <div key={opt.value} onClick={() => setCompletionType(opt.value)}
-                    style={{ padding: "5px 10px", borderRadius: UA.radiusSm, border: `1.5px solid ${completionType === opt.value ? UA.navy : T.border}`, background: completionType === opt.value ? UA.navy : "transparent", cursor: "pointer", fontSize: 11, fontWeight: completionType === opt.value ? 700 : 500, color: completionType === opt.value ? "white" : T.textMuted, transition: "all 0.15s", display: "flex", alignItems: "center", gap: 4 }}>
+                    style={{ padding: "5px 11px", borderRadius: 99, border: `1.5px solid ${completionType === opt.value ? UA.navy : "#E0E4EF"}`, background: completionType === opt.value ? UA.navy : "white", cursor: "pointer", fontSize: 11, fontWeight: completionType === opt.value ? 700 : 500, color: completionType === opt.value ? "white" : "#8890A8", transition: "all 0.15s", display: "flex", alignItems: "center", gap: 4, boxShadow: completionType === opt.value ? "0 2px 8px rgba(0,51,102,0.2)" : "none" }}>
                     <span>{opt.icon}</span>{opt.label}
                   </div>
                 ))}
