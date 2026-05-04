@@ -1373,6 +1373,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activePrompt, setActivePrompt] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   // Sync sidebar active prompt with step-based flow
   const currentStepPrompt = GUIDED_PROMPTS[activePromptStep];
   const [promptResponses, setPromptResponses] = useState({});
@@ -2072,37 +2073,32 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             </div>
 
             {/* ─ Section: Assignment Details (collapsed) ─ */}
-            {(() => {
-              const [detailsOpen, setDetailsOpen] = React.useState(false);
-              return (
-                <div style={{ borderBottom: `1px solid #E8EAF0` }}>
-                  <div onClick={() => setDetailsOpen(o => !o)} style={{ padding: "12px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "background 0.15s" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#F8F9FB"}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: UA.navy, letterSpacing: "0.05em", textTransform: "uppercase" }}>📋 Assignment Details</div>
-                    <span style={{ fontSize: 13, color: "#8890A8", transform: detailsOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
+            <div style={{ borderBottom: `1px solid #E8EAF0` }}>
+              <div onClick={() => setDetailsOpen(o => !o)} style={{ padding: "12px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "background 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#F8F9FB"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: UA.navy, letterSpacing: "0.05em", textTransform: "uppercase" }}>📋 Assignment Details</div>
+                <span style={{ fontSize: 13, color: "#8890A8", transform: detailsOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
+              </div>
+              {detailsOpen && (
+                <div style={{ padding: "0 18px 16px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#0F1623", lineHeight: 1.4, marginBottom: 8 }}>{a.title}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: "#F1F3F8", color: "#4A5068", fontWeight: 600 }}>{a.course}</span>
+                    {a.points > 0 && <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: "#F1F3F8", color: "#4A5068", fontWeight: 600 }}>{a.points} pts</span>}
+                    <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: a.isOverdue ? UA.redLight : UA.yellowBg, color: a.isOverdue ? UA.red : UA.yellow, fontWeight: 700 }}>
+                      Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "")}
+                    </span>
                   </div>
-                  {detailsOpen && (
-                    <div style={{ padding: "0 18px 16px" }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: "#0F1623", lineHeight: 1.4, marginBottom: 8 }}>{a.title}</div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                        <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: "#F1F3F8", color: "#4A5068", fontWeight: 600 }}>{a.course}</span>
-                        {a.points > 0 && <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: "#F1F3F8", color: "#4A5068", fontWeight: 600 }}>{a.points} pts</span>}
-                        <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 99, background: a.isOverdue ? UA.redLight : UA.yellowBg, color: a.isOverdue ? UA.red : UA.yellow, fontWeight: 700 }}>
-                          Due {a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(a.dueDate || "")}
-                        </span>
-                      </div>
-                      {[["Description", a.description], ["Instructions", a.instructions], ["Rubric", a.rubric]].map(([label, val]) => val && (
-                        <div key={label} style={{ marginBottom: 8 }}>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: "#8890A8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{label}</div>
-                          <div style={{ fontSize: 12, color: "#4A5068", lineHeight: 1.65 }}>{val}</div>
-                        </div>
-                      ))}
+                  {[["Description", a.description], ["Instructions", a.instructions], ["Rubric", a.rubric]].map(([label, val]) => val && (
+                    <div key={label} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: "#8890A8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontSize: 12, color: "#4A5068", lineHeight: 1.65 }}>{val}</div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              );
-            })()}
+              )}
+            </div>
 
             {/* ─ Section: Add Instructions photo ─ */}
             <InstructionsPhotoBtn T={T} onExtracted={(msg) => setChatMessages(prev => [...prev, { role: "assistant", content: msg }])} />
@@ -2242,8 +2238,8 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
 function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const today = new Date();
-  // 0=Sun,1=Mon...6=Sat — map to our 1-5 day index
-  const todayIdx = today.getDay() === 0 ? 6 : today.getDay(); // 1=Mon..5=Fri
+  const todayIdx = today.getDay() === 0 ? 6 : today.getDay();
+  const [weekOpen, setWeekOpen] = React.useState(false);
 
   // Build schedule: for each student, for each slot, create appointment object
   const allAppts = [];
@@ -2369,9 +2365,6 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
       </Card>
 
       {/* Weekly schedule — collapsible */}
-      {(() => {
-        const [weekOpen, setWeekOpen] = React.useState(false);
-        return (
       <Card style={{ padding: "22px 24px" }}>
         <div onClick={() => setWeekOpen(o => !o)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", marginBottom: weekOpen ? 16 : 0 }}>
           <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>📆 This Week</div>
@@ -2385,14 +2378,12 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
             const isToday = dayIdx === todayIdx;
             return (
               <div key={dayIdx} style={{ display: "grid", gridTemplateColumns: "100px 1fr", borderBottom: `1px solid ${UA.border}`, padding: "12px 0" }}>
-                {/* Day label */}
                 <div style={{ display: "flex", alignItems: "flex-start", paddingTop: 2 }}>
                   <div style={{ fontSize: 13, fontWeight: isToday ? 900 : 600, color: isToday ? UA.red : UA.textMuted, display: "flex", alignItems: "center", gap: 6 }}>
                     {isToday && <div style={{ width: 6, height: 6, borderRadius: "50%", background: UA.red, flexShrink: 0 }} />}
                     {dayName}
                   </div>
                 </div>
-                {/* Appointments */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {dayAppts.length === 0 ? (
                     <div style={{ fontSize: 12, color: UA.textMuted, padding: "4px 0" }}>No sessions</div>
@@ -2402,7 +2393,6 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
                       const riskColor = s.dynamicRisk === "high" ? UA.red : s.dynamicRisk === "medium" ? UA.yellow : UA.green;
                       return (
                         <div key={j} onClick={() => onSelectStudent(s)}
-
                           style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: UA.radiusSm, background: isToday ? UA.redLight : UA.bg, border: `1px solid ${isToday ? UA.redBorder : UA.border}`, cursor: "pointer", transition: "all 0.15s" }}
                           onMouseEnter={e => { e.currentTarget.style.background = UA.navyLight; e.currentTarget.style.borderColor = UA.navyBorder; }}
                           onMouseLeave={e => { e.currentTarget.style.background = isToday ? UA.redLight : UA.bg; e.currentTarget.style.borderColor = isToday ? UA.redBorder : UA.border; }}>
@@ -2426,8 +2416,6 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
         </div>
         </div>}
       </Card>
-        );
-      })()}
 
       {/* Today's student activity */}
       <TodayActivityFeed onSelectStudent={onSelectStudent} />
