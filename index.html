@@ -714,7 +714,9 @@ function SupabaseAuthPage({ onSignedIn, initialEmail = "", errorMessage = "" }) 
           if (!email.trim()) { setLocalError("Enter your email address first, then tap Forgot password."); return; }
           const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
           setLocalError(error ? error.message : "✓ Password reset email sent — check your inbox.");
-        }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", padding: "2px 0", textAlign: "center" }}>
+        }} style={{ background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer", fontFamily: "inherit", padding: "10px 0", textAlign: "center", width: "100%", fontWeight: 500, transition: "all 0.2s" }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.35)"; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.6)"; }}>
           Forgot password?
         </button>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>This page uses your real Supabase Auth account. The app will fall back to demo records anywhere a backend table has not been created yet.</div>
