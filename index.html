@@ -2240,6 +2240,70 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
   const today = new Date();
   const todayIdx = today.getDay() === 0 ? 6 : today.getDay();
   const [weekOpen, setWeekOpen] = React.useState(false);
+  const [briefing, setBriefing] = React.useState("");
+  const [briefingLoading, setBriefingLoading] = React.useState(false);
+  const briefingGeneratedRef = React.useRef(false);
+
+  // Auto-generate briefing on mount — once per session
+  React.useEffect(() => {
+    if (briefingGeneratedRef.current || !STUDENTS.length) return;
+    briefingGeneratedRef.current = true;
+    generateDashboardBriefing();
+  }, []);
+
+  const generateDashboardBriefing = async () => {
+    setBriefingLoading(true);
+    try {
+      const { data: assignments } = await supabase
+        .from("assignments")
+        .select("student_id, title, status, due_date")
+        .neq("status", "completed")
+        .order("due_date", { ascending: true });
+
+      const { data: logs } = await supabase
+        .from("session_logs")
+        .select("student_id, created_at, understanding, effort")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      const today = new Date(); today.setHours(0,0,0,0);
+      const in7 = new Date(today); in7.setDate(today.getDate() + 7);
+
+      const summaries = STUDENTS.map(s => {
+        const sAssign = (assignments || []).filter(a => a.student_id === s.id);
+        const pastDue = sAssign.filter(a => {
+          const d = new Date(a.due_date + "T12:00:00");
+          return d < today;
+        });
+        const dueThisWeek = sAssign.filter(a => {
+          const d = new Date(a.due_date + "T12:00:00");
+          return d >= today && d <= in7;
+        });
+        const recentLog = (logs || []).find(l => l.student_id === s.id);
+        const daysSince = recentLog
+          ? Math.floor((Date.now() - new Date(recentLog.created_at)) / 86400000)
+          : null;
+        return `${s.name.split(" ")[0]} (${s.sport}, ${s.dynamicRisk} risk): ${pastDue.length} past due, ${dueThisWeek.length} due this week${daysSince !== null ? `, last session ${daysSince === 0 ? "today" : daysSince + "d ago"}` : ", no sessions yet"}`;
+      }).join(" | ");
+
+      const todayStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+      const prompt = `You are a learning specialist. Write a 2-3 sentence morning briefing for ${currentUserName} covering: who needs attention today (past due work, no recent sessions, high risk), and any quick wins to acknowledge. Be direct and specific — name students. Today: ${todayStr}. Data: ${summaries}`;
+
+      const _ctrl = new AbortController(); setTimeout(() => _ctrl.abort(), 12000);
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({ assignment: { title: "Morning Briefing", course: "", description: prompt }, prompt: { question: "Generate briefing", aiPrompt: prompt } }),
+        signal: _ctrl.signal,
+      });
+      if (!res.ok) throw new Error(`AI error: ${res.status}`);
+      const data = await res.json();
+      if (data.text) setBriefing(data.text);
+    } catch(e) {
+      console.warn("Morning briefing failed:", e.message);
+    }
+    setBriefingLoading(false);
+  };
 
   // Build schedule: for each student, for each slot, create appointment object
   const allAppts = [];
@@ -2276,6 +2340,29 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
           <p style={{ color: UA.textMuted, marginTop: 4, fontSize: 14 }}>
             {isWeekend ? "No sessions scheduled today — enjoy your weekend" : `${today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}`}
           </p>
+        </div>
+      </div>
+
+      {/* ── Morning Briefing ── */}
+      <div style={{ padding: "18px 22px", borderRadius: UA.radius, background: UA.navyLight, border: `1.5px solid ${UA.navyBorder}`, display: "flex", alignItems: "flex-start", gap: 14 }}>
+        <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>☀️</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: briefing || briefingLoading ? 8 : 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: UA.navy }}>Morning Briefing</div>
+            <button onClick={generateDashboardBriefing} disabled={briefingLoading}
+              style={{ fontSize: 11, fontWeight: 700, color: UA.navy, background: "white", border: `1px solid ${UA.navyBorder}`, borderRadius: 6, padding: "3px 10px", cursor: briefingLoading ? "wait" : "pointer", fontFamily: "inherit", opacity: briefingLoading ? 0.6 : 1 }}>
+              {briefingLoading ? "Generating..." : briefing ? "↻ Refresh" : "Generate"}
+            </button>
+          </div>
+          {briefingLoading && !briefing && (
+            <div style={{ fontSize: 13, color: UA.textMuted }}>Analyzing your caseload...</div>
+          )}
+          {briefing && (
+            <div style={{ fontSize: 13, color: UA.text, lineHeight: 1.7 }}>{briefing}</div>
+          )}
+          {!briefing && !briefingLoading && (
+            <div style={{ fontSize: 12, color: UA.textMuted }}>Auto-generates each time you open the dashboard.</div>
+          )}
         </div>
       </div>
 
@@ -2433,18 +2520,18 @@ function TodayActivityFeed({ onSelectStudent }) {
     const load = async () => {
       const todayStart = new Date(); todayStart.setHours(0,0,0,0);
       const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
-      const threeDaysOut = new Date(); threeDaysOut.setDate(threeDaysOut.getDate() + 3); threeDaysOut.setHours(23,59,59,999);
+      const todayStr = todayStart.toISOString().split("T")[0];
 
       const { data, error } = await supabase
         .from("assignments")
         .select("id, title, course, course_code, status, due_date, student_id")
-        .lte("due_date", threeDaysOut.toISOString().split("T")[0])
+        .eq("due_date", todayStr)
         .neq("status", "completed")
         .order("due_date", { ascending: true });
 
       if (!error && data) {
         const parseDateFeed = (str) => {
-          if (!str) return new Date(9999, 0, 1); // null due_date → far future, never archives
+          if (!str) return new Date(9999, 0, 1);
           if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
             const [y, m, d] = str.split("-");
             return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
@@ -2454,11 +2541,9 @@ function TodayActivityFeed({ onSelectStudent }) {
         const enriched = data.map(a => {
           const student = STUDENTS.find(s => s.id === a.student_id);
           const due = parseDateFeed(a.due_date);
-          const isToday = due >= todayStart && due <= todayEnd;
           return {
             ...a,
             dueDate: due,
-            isToday,
             studentName: student?.name || "Unknown",
             studentInitials: student?.initials || "?",
             studentRisk: student?.dynamicRisk || "low",
@@ -2473,73 +2558,48 @@ function TodayActivityFeed({ onSelectStudent }) {
     return () => clearInterval(interval);
   }, []);
 
+  const AssignmentRow = ({ a }) => {
+    const riskColor = a.studentRisk === "high" ? UA.red : a.studentRisk === "medium" ? UA.yellow : UA.green;
+    const statusColor = a.status === "in_progress" ? UA.navy : a.status === "missing" ? UA.red : UA.textMuted;
+    const statusLabel = a.status === "in_progress" ? "In Progress" : a.status === "missing" ? "Missing" : "Not Started";
+    return (
+      <div onClick={() => onSelectStudent(STUDENTS.find(s => s.id === a.student_id))}
+        style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: UA.radiusSm, background: a.status === "missing" ? UA.redLight : UA.bg, border: `1px solid ${a.status === "missing" ? UA.redBorder : UA.border}`, cursor: "pointer", transition: "all 0.15s" }}
+        onMouseEnter={e => e.currentTarget.style.background = UA.navyLight}
+        onMouseLeave={e => e.currentTarget.style.background = a.status === "missing" ? UA.redLight : UA.bg}>
+        <Avatar initials={a.studentInitials} size={32} color={riskColor} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: UA.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
+          <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.studentName} · {a.course || a.course_code}</div>
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: statusColor, flexShrink: 0 }}>{statusLabel}</div>
+      </div>
+    );
+  };
+
   return (
     <Card style={{ padding: "22px 24px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>
-          ⚡ Today's Activity
-        </div>
+        <div style={{ fontWeight: 800, fontSize: 16, color: UA.text }}>⚡ Due Today</div>
         <div style={{ fontSize: 12, color: UA.textMuted }}>
-          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })} · auto-refreshes every minute
+          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })} · live
         </div>
       </div>
       {loading ? (
-        <div style={{ textAlign: "center", padding: "24px 0", color: UA.textMuted, fontSize: 13 }}>Loading activity...</div>
+        <div style={{ textAlign: "center", padding: "24px 0", color: UA.textMuted, fontSize: 13 }}>Loading...</div>
       ) : activity.length === 0 ? (
         <div style={{ textAlign: "center", padding: "24px 0", color: UA.textMuted }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>📭</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: UA.text, marginBottom: 4 }}>No activity yet today</div>
-          <div style={{ fontSize: 12 }}>When students mark assignments complete, it will appear here in real time.</div>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: UA.text }}>Nothing due today across your caseload</div>
         </div>
-      ) : (() => {
-        const dueToday = activity.filter(a => a.isToday);
-        const upcoming = activity.filter(a => !a.isToday);
-        const AssignmentRow = ({ a }) => {
-          const riskColor = a.studentRisk === "high" ? UA.red : a.studentRisk === "medium" ? UA.yellow : UA.green;
-          const statusColor = a.status === "in_progress" ? UA.navy : a.status === "missing" ? UA.red : UA.textMuted;
-          const statusLabel = a.status === "in_progress" ? "In Progress" : a.status === "missing" ? "Missing" : "Not Started";
-          const dueStr = a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-          return (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: UA.radiusSm, background: a.status === "missing" ? UA.redLight : UA.bg, border: `1px solid ${a.status === "missing" ? UA.redBorder : UA.border}` }}>
-              <Avatar initials={a.studentInitials} size={32} color={riskColor} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: UA.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
-                <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{a.studentName} · {a.course || a.course_code}</div>
-              </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: statusColor }}>{statusLabel}</div>
-                <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>Due {dueStr}</div>
-              </div>
-            </div>
-          );
-        };
-        return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {dueToday.length > 0 && (
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: UA.red, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>🔴 Due Today — {dueToday.length} assignment{dueToday.length !== 1 ? "s" : ""}</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {dueToday.map((a, i) => <AssignmentRow key={i} a={a} />)}
-                </div>
-              </div>
-            )}
-            {upcoming.length > 0 && (
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: UA.yellow, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>📅 Coming Up — Next 3 Days</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {upcoming.map((a, i) => <AssignmentRow key={i} a={a} />)}
-                </div>
-              </div>
-            )}
-            {dueToday.length === 0 && upcoming.length === 0 && (
-              <div style={{ textAlign: "center", padding: "24px 0", color: UA.textMuted }}>
-                <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: UA.text }}>Nothing due today or in the next 3 days</div>
-              </div>
-            )}
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: UA.red, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+            🔴 {activity.length} assignment{activity.length !== 1 ? "s" : ""} due today — not yet completed
           </div>
-        );
-      })()}
+          {activity.map((a, i) => <AssignmentRow key={i} a={a} />)}
+        </div>
+      )}
     </Card>
   );
 }
