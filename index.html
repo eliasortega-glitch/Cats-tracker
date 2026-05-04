@@ -2240,70 +2240,6 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
   const today = new Date();
   const todayIdx = today.getDay() === 0 ? 6 : today.getDay();
   const [weekOpen, setWeekOpen] = React.useState(false);
-  const [briefing, setBriefing] = React.useState("");
-  const [briefingLoading, setBriefingLoading] = React.useState(false);
-  const briefingGeneratedRef = React.useRef(false);
-
-  // Auto-generate briefing on mount — once per session
-  React.useEffect(() => {
-    if (briefingGeneratedRef.current || !STUDENTS.length) return;
-    briefingGeneratedRef.current = true;
-    generateDashboardBriefing();
-  }, []);
-
-  const generateDashboardBriefing = async () => {
-    setBriefingLoading(true);
-    try {
-      const { data: assignments } = await supabase
-        .from("assignments")
-        .select("student_id, title, status, due_date")
-        .neq("status", "completed")
-        .order("due_date", { ascending: true });
-
-      const { data: logs } = await supabase
-        .from("session_logs")
-        .select("student_id, created_at, understanding, effort")
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      const today = new Date(); today.setHours(0,0,0,0);
-      const in7 = new Date(today); in7.setDate(today.getDate() + 7);
-
-      const summaries = STUDENTS.map(s => {
-        const sAssign = (assignments || []).filter(a => a.student_id === s.id);
-        const pastDue = sAssign.filter(a => {
-          const d = new Date(a.due_date + "T12:00:00");
-          return d < today;
-        });
-        const dueThisWeek = sAssign.filter(a => {
-          const d = new Date(a.due_date + "T12:00:00");
-          return d >= today && d <= in7;
-        });
-        const recentLog = (logs || []).find(l => l.student_id === s.id);
-        const daysSince = recentLog
-          ? Math.floor((Date.now() - new Date(recentLog.created_at)) / 86400000)
-          : null;
-        return `${s.name.split(" ")[0]} (${s.sport}, ${s.dynamicRisk} risk): ${pastDue.length} past due, ${dueThisWeek.length} due this week${daysSince !== null ? `, last session ${daysSince === 0 ? "today" : daysSince + "d ago"}` : ", no sessions yet"}`;
-      }).join(" | ");
-
-      const todayStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-      const prompt = `You are a learning specialist. Write a 2-3 sentence morning briefing for ${currentUserName} covering: who needs attention today (past due work, no recent sessions, high risk), and any quick wins to acknowledge. Be direct and specific — name students. Today: ${todayStr}. Data: ${summaries}`;
-
-      const _ctrl = new AbortController(); setTimeout(() => _ctrl.abort(), 12000);
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ assignment: { title: "Morning Briefing", course: "", description: prompt }, prompt: { question: "Generate briefing", aiPrompt: prompt } }),
-        signal: _ctrl.signal,
-      });
-      if (!res.ok) throw new Error(`AI error: ${res.status}`);
-      const data = await res.json();
-      if (data.text) setBriefing(data.text);
-    } catch(e) {
-      console.warn("Morning briefing failed:", e.message);
-    }
-    setBriefingLoading(false);
-  };
 
   // Build schedule: for each student, for each slot, create appointment object
   const allAppts = [];
@@ -2343,28 +2279,55 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
         </div>
       </div>
 
-      {/* ── Morning Briefing ── */}
-      <div style={{ padding: "18px 22px", borderRadius: UA.radius, background: UA.navyLight, border: `1.5px solid ${UA.navyBorder}`, display: "flex", alignItems: "flex-start", gap: 14 }}>
-        <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>☀️</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: briefing || briefingLoading ? 8 : 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: UA.navy }}>Morning Briefing</div>
-            <button onClick={generateDashboardBriefing} disabled={briefingLoading}
-              style={{ fontSize: 11, fontWeight: 700, color: UA.navy, background: "white", border: `1px solid ${UA.navyBorder}`, borderRadius: 6, padding: "3px 10px", cursor: briefingLoading ? "wait" : "pointer", fontFamily: "inherit", opacity: briefingLoading ? 0.6 : 1 }}>
-              {briefingLoading ? "Generating..." : briefing ? "↻ Refresh" : "Generate"}
-            </button>
+      {/* ── Action Items ── */}
+      {(() => {
+        const now = new Date();
+        const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 5);
+        const noRecentSession = STUDENTS.filter(s =>
+          !s.lastSession || s.lastSession === "No sessions yet" ||
+          (s.lastSession.includes("days ago") && parseInt(s.lastSession) >= 5)
+        );
+        const highRiskNoSession = STUDENTS.filter(s => s.dynamicRisk === "high");
+        const actionItems = [];
+        highRiskNoSession.forEach(s => {
+          const issues = [];
+          if (s.missedAssignments > 0) issues.push(`${s.missedAssignments} past due`);
+          if (s.lastSession === "No sessions yet" || (s.lastSession?.includes("days") && parseInt(s.lastSession) >= 5)) issues.push("no recent session");
+          if (s.avgUnderstanding > 0 && s.avgUnderstanding < 2.5) issues.push(`understanding ${s.avgUnderstanding}/5`);
+          if (issues.length) actionItems.push({ student: s, issues });
+        });
+        noRecentSession.filter(s => s.dynamicRisk !== "high").forEach(s => {
+          actionItems.push({ student: s, issues: ["no session in 5+ days"] });
+        });
+        if (!actionItems.length) return (
+          <div style={{ padding: "14px 18px", borderRadius: UA.radius, background: UA.greenBg, border: `1px solid ${UA.greenBorder}`, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 20 }}>✅</span>
+            <div style={{ fontSize: 13, fontWeight: 700, color: UA.green }}>No urgent action items — caseload looks stable</div>
           </div>
-          {briefingLoading && !briefing && (
-            <div style={{ fontSize: 13, color: UA.textMuted }}>Analyzing your caseload...</div>
-          )}
-          {briefing && (
-            <div style={{ fontSize: 13, color: UA.text, lineHeight: 1.7 }}>{briefing}</div>
-          )}
-          {!briefing && !briefingLoading && (
-            <div style={{ fontSize: 12, color: UA.textMuted }}>Auto-generates each time you open the dashboard.</div>
-          )}
-        </div>
-      </div>
+        );
+        return (
+          <div style={{ background: "white", borderRadius: UA.radius, border: `1px solid ${UA.border}`, overflow: "hidden", boxShadow: UA.shadow }}>
+            <div style={{ padding: "14px 18px", borderBottom: `1px solid ${UA.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: UA.text }}>🎯 Action Items Today</div>
+              <div style={{ fontSize: 11, color: UA.textMuted }}>{actionItems.length} student{actionItems.length !== 1 ? "s" : ""} need attention</div>
+            </div>
+            {actionItems.map(({ student: s, issues }, i) => (
+              <div key={s.id} onClick={() => onSelectStudent(s)}
+                style={{ padding: "12px 18px", borderBottom: i < actionItems.length - 1 ? `1px solid ${UA.border}` : "none", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", transition: "background 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = UA.bg}
+                onMouseLeave={e => e.currentTarget.style.background = "white"}>
+                <Avatar initials={s.initials} size={34} color={s.dynamicRisk === "high" ? UA.red : UA.yellow} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: UA.text }}>{s.name}</div>
+                  <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{s.sport} · {issues.join(", ")}</div>
+                </div>
+                <RiskBadge level={s.dynamicRisk} />
+                <span style={{ fontSize: 13, color: UA.textMuted }}>→</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Caseload health summary — clickable tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
