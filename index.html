@@ -166,7 +166,7 @@ async function fetchAllAssignments() {
 
   // Parse date strings safely — treat YYYY-MM-DD as local noon to avoid UTC timezone shift
   const parseDate = (str) => {
-    if (!str) return new Date();
+    if (!str) return new Date(9999, 0, 1); // null due_date → far future, never archives
     if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
       // Append noon local time so date never shifts to previous day due to UTC offset
       const [y, m, d] = str.split("-");
@@ -366,6 +366,8 @@ async function deleteStaffNote(id) {
 
 
 async function insertAssignment(a, studentId, userId) {
+  if (!a.title?.trim()) { console.warn("insertAssignment: title is required"); return null; }
+  if (!studentId || !String(studentId).includes("-")) { console.warn("insertAssignment: invalid studentId", studentId); return null; }
   const { data, error } = await supabase
     .from("assignments")
     .insert({
@@ -717,6 +719,13 @@ function SupabaseAuthPage({ onSignedIn, initialEmail = "", errorMessage = "" }) 
         <button type="submit" disabled={loading} style={{ width: "100%", padding: "14px 0", borderRadius: 10, border: "none", background: loading ? "rgba(255,255,255,0.15)" : UA.red, color: "white", fontSize: 15, fontWeight: 700, cursor: loading ? "wait" : "pointer", transition: "all 0.2s", fontFamily: "inherit", letterSpacing: "0.01em" }}>
           {loading ? "Signing in..." : "Sign in"}
         </button>
+        <button type="button" onClick={async () => {
+          if (!email.trim()) { setLocalError("Enter your email address first, then tap Forgot password."); return; }
+          const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+          setLocalError(error ? error.message : "✓ Password reset email sent — check your inbox.");
+        }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", padding: "2px 0", textAlign: "center" }}>
+          Forgot password?
+        </button>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>This page uses your real Supabase Auth account. The app will fall back to demo records anywhere a backend table has not been created yet.</div>
       </form>
     </div>
@@ -830,11 +839,14 @@ function PlanMyWeek({ overdue, upcoming }) {
 
       const aiPrompt = "You are an academic learning specialist helping a student-athlete plan their week. Today is " + dayNames[today.getDay()] + " " + today.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + ". Pending assignments: " + assignSummary + ". Create a realistic day-by-day study plan for the next 5 days. For each day list 1-2 tasks with estimated time. Be brief and direct. Format each day as: DAY (Date): task -- est. time. Start with most urgent. End with one short encouraging line.";
 
+      const _ctrl838 = new AbortController(); setTimeout(() => _ctrl838.abort(), 12000);
       const response = await fetch(SUPABASE_URL + "/functions/v1/ai-breakdown-", {
         method: "POST",
         headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + SUPABASE_ANON_KEY },
-        body: JSON.stringify({ assignment: { title: "Weekly Plan", course: "", description: "" }, prompt: { question: "Plan my week", aiPrompt: aiPrompt } })
+        body: JSON.stringify({ assignment: { title: "Weekly Plan", course: "", description: "" }, prompt: { question: "Plan my week", aiPrompt: aiPrompt } }),
+        signal: _ctrl838.signal,
       });
+      if (!response.ok) throw new Error(`AI error: ${response.status}`);
       const data = await response.json();
       const text = data.text || "";
       if (text && text.length > 50) { setPlanText(text); setPlanLoading(false); return; }
@@ -1234,6 +1246,7 @@ function InstructionsPhotoBtn({ onExtracted, T }) {
       try {
         const base64 = ev.target.result.split(",")[1];
         const mediaType = file.type || "image/jpeg";
+        const _ctrl1246 = new AbortController(); setTimeout(() => _ctrl1246.abort(), 20000); // longer for image
         const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
@@ -1242,7 +1255,9 @@ function InstructionsPhotoBtn({ onExtracted, T }) {
             assignment: { title: "Extract Instructions", course: "", description: "Extract any assignment instructions, prompts, rubric criteria, or requirements from this image." },
             prompt: { question: "What are the assignment instructions?", aiPrompt: "Read this image carefully. Extract all assignment instructions, prompts, requirements, and rubric criteria you can see. Format them clearly as plain text. Be thorough — include every requirement listed." }
           }),
+          signal: _ctrl1246.signal,
         });
+        if (!response.ok) throw new Error(`AI error: ${response.status}`);
         const data = await response.json();
         const extracted = data.text || "";
         if (extracted && onExtracted) {
@@ -1407,6 +1422,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       (a.rubric ? " | Rubric: " + a.rubric : "");
 
     try {
+      const _ctrl1435 = new AbortController(); setTimeout(() => _ctrl1435.abort(), 12000);
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
         method: "POST",
         headers: {
@@ -1431,7 +1447,9 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               "Never write paragraphs for them. Never give generic advice. Always reference the actual assignment.",
           },
         }),
+        signal: _ctrl1435.signal,
       });
+      if (!response.ok) throw new Error(`AI error: ${response.status}`);
       const data = await response.json();
       const reply = data.text || "I couldn't generate a response. Try again.";
       setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
@@ -1540,6 +1558,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         "SECTION 4: Starter sentences\n- [sentence they can use directly in their work]\n- [another starter sentence]\n- [optional third]";
 
     try {
+      const _ctrl1560 = new AbortController(); setTimeout(() => _ctrl1560.abort(), 15000);
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
         method: "POST",
         headers: {
@@ -1556,7 +1575,9 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
           },
           prompt: { id: prompt.id, question: prompt.question, aiPrompt: coachingPrompt },
         }),
+        signal: _ctrl1560.signal,
       });
+      if (!response.ok) throw new Error(`AI error: ${response.status}`);
       const data = await response.json();
       if (data?.text) {
         setAiBreakdownText(p => ({ ...p, [promptId]: data.text }));
@@ -2443,7 +2464,7 @@ function TodayActivityFeed({ onSelectStudent }) {
 
       if (!error && data) {
         const parseDateFeed = (str) => {
-          if (!str) return new Date();
+          if (!str) return new Date(9999, 0, 1); // null due_date → far future, never archives
           if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
             const [y, m, d] = str.split("-");
             return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
@@ -2804,6 +2825,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
         "\nAvg effort (last sessions): " + (student.avgEffort || "no data") +
         "\n\nKeep the plan concise and actionable. Focus on what the student needs to do, not what they should feel. Plain text only, no markdown formatting.";
 
+      const _ctrl2819 = new AbortController(); setTimeout(() => _ctrl2819.abort(), 15000);
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
         method: "POST",
         headers: {
@@ -2815,7 +2837,9 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
           assignment: { title: "Session Summary Request", course: "", description: prompt },
           prompt: { question: "Generate weekly plan", aiPrompt: prompt },
         }),
+        signal: _ctrl2819.signal,
       });
+      if (!response.ok) throw new Error(`AI error: ${response.status}`);
       const data = await response.json();
       const text = data.text || data.content?.[0]?.text || "";
       if (text) setWeeklyPlan(text);
@@ -2845,7 +2869,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
           const threeDaysAgoL = new Date(nowL); threeDaysAgoL.setDate(nowL.getDate()-3);
           const sevenDaysAgoL = new Date(nowL); sevenDaysAgoL.setDate(nowL.getDate()-7);
           const parseDateL = (str) => {
-            if (!str) return new Date();
+            if (!str) return new Date(9999, 0, 1); // null due_date → far future, never archives
             if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
               const [y, m, d] = str.split("-");
               return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
@@ -4940,6 +4964,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
     // IMAGE MODE — send to vision API
     if (syllabusImageBase64) {
       try {
+        const _ctrl4958 = new AbortController(); setTimeout(() => _ctrl4958.abort(), 20000);
         const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
           method: "POST",
           headers: {
@@ -4951,7 +4976,9 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
             imageBase64: syllabusImageBase64,
             imageMediaType: syllabusImageMediaType || "image/jpeg",
           }),
+          signal: _ctrl4958.signal,
         });
+        if (!response.ok) throw new Error(`AI error: ${response.status}`);
         const data = await response.json();
         const text = data.text || "";
         if (text) {
@@ -5312,6 +5339,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
 
       const prompt = "These are " + b64s.length + " screenshots from a D2L (Brightspace) learning management system or a course syllabus. Analyze ALL images as a single unified course view. Extract EVERY assignment, quiz, exam, discussion post, lab, and recurring obligation you can see across all images. For each item return: title (string), course (string, e.g. 'SRL 201'), dueDate (YYYY-MM-DD or null if TBD), points (number or 0), type (Essay/Exam/Quiz/Discussion/Lab/Homework/Project/Other). If you see a recurring pattern like 'due every Wednesday', generate one entry per occurrence through the end of the semester. Return ONLY a valid JSON array, no markdown, no explanation.";
 
+      const _ctrl5333 = new AbortController(); setTimeout(() => _ctrl5333.abort(), 25000); // longer — multiple images
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
         method: "POST",
         headers: {
@@ -5324,7 +5352,9 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
           prompt: { question: "Extract assignments", aiPrompt: prompt },
           assignment: { title: "Snap Extraction", course: "", description: prompt },
         }),
+        signal: _ctrl5333.signal,
       });
+      if (!response.ok) throw new Error(`AI error: ${response.status}`);
 
       const data = await response.json();
       const raw = data.text || data.content?.[0]?.text || "";
@@ -5945,7 +5975,9 @@ function GlobalNotesFeed() {
           assignment: { title: "Session Summary Request", course: "", description: prompt },
           prompt: { question: "Generate caseload briefing", aiPrompt: prompt },
         }),
+        signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; })(),
       });
+      if (!response.ok) throw new Error(`AI error: ${response.status}`);
       const data = await response.json();
       setBriefing(data.text || "Could not generate briefing. Try again.");
     } catch (e) {
@@ -6125,7 +6157,9 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
           assignment: { title: "Session Summary Request", course: "", description: prompt },
           prompt: { question: "Generate clinical summary", aiPrompt: prompt },
         }),
+        signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; })(),
       });
+      if (!response.ok) throw new Error(`AI error: ${response.status}`);
       const data = await response.json();
       const text = data.text || data.content?.[0]?.text || "";
       if (!text) throw new Error("Empty response");
@@ -6632,7 +6666,7 @@ function App() {
     setAuthError("");
 
     const fallbackName = deriveDisplayNameFromEmail(user.email || "");
-    const fallbackRole = normalizeRole(localStorage.getItem("cats_role") || "staff");
+    const fallbackRole = normalizeRole(localStorage.getItem("cats_role") || "student"); // SECURITY: default student, never staff
     let resolvedProfile = { id: user.id, email: user.email || "", full_name: fallbackName, role: fallbackRole, initials: initialsFromName(fallbackName) };
 
     const profileResult = await fetchProfileForUser(user.id);
@@ -6700,7 +6734,7 @@ function App() {
           const threeDaysAgo2 = new Date(now2); threeDaysAgo2.setDate(now2.getDate() - 3);
           const sevenDaysAgo2 = new Date(now2); sevenDaysAgo2.setDate(now2.getDate() - 7);
           const parseDateSafe2 = (str) => {
-            if (!str) return new Date();
+            if (!str) return new Date(9999, 0, 1); // null due_date → far future, never archives
             if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
               const [y, m, d] = str.split("-");
               return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
