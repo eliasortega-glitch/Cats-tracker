@@ -62,7 +62,6 @@ async function subscribeToPush(studentUuid) {
       auth: subJson.keys.auth,
       updated_at: new Date().toISOString(),
     }, { onConflict: "student_id" });
-    console.log("Push subscription saved for", studentUuid);
   } catch(e) {
     console.warn("Push subscription failed:", e.message);
   }
@@ -214,7 +213,6 @@ async function fetchAllAssignments() {
 // Insert a new assignment into Supabase
 // Update assignment status in Supabase
 async function updateAssignmentStatus(assignmentId, status) {
-  console.log("updateAssignmentStatus called:", assignmentId, status);
   if (!assignmentId) { console.warn("No assignmentId provided"); return null; }
   const idStr = String(assignmentId);
   if (!idStr.includes("-")) { console.warn("Not a UUID:", idStr); return null; }
@@ -225,7 +223,6 @@ async function updateAssignmentStatus(assignmentId, status) {
     .select()
     .single();
   if (error) { console.warn("Status update failed:", error.message); return null; }
-  console.log("✅ Assignment status updated:", idStr, "→", status);
   return data;
 }
 
@@ -238,7 +235,6 @@ async function insertSessionLog(log) {
     // Try to recover from localStorage cache — validate it's a real UUID before using
     const cached = localStorage.getItem("cats_student_uuid");
     if (cached && typeof cached === "string" && cached.includes("-") && cached.length > 20) {
-      console.log("🔄 Recovering studentId from localStorage cache:", cached);
       log = { ...log, studentId: cached };
     } else {
       console.warn("🚫 Cached UUID invalid or missing — aborting save:", cached);
@@ -268,7 +264,6 @@ async function insertSessionLog(log) {
     console.error("Hint:", error.hint || "Check RLS policies on session_logs table");
     return null;
   }
-  console.log("✅ Session log saved:", data.id, "for student:", log.studentId);
   return data;
 }
 
@@ -311,7 +306,6 @@ async function insertStaffNote(note, studentId, userId) {
     created_by: userId || null,
   }).select().single();
   if (error) { console.warn("Staff note insert failed:", error.message); return null; }
-  console.log("\u2705 Staff note saved:", data.id);
   return data;
 }
 
@@ -351,10 +345,8 @@ async function updateAssignmentInDB(id, updates) {
 }
 
 async function deleteAssignmentFromDB(id) {
-  console.log("Deleting assignment from Supabase:", id);
   const { error } = await supabase.from("assignments").delete().eq("id", String(id));
   if (error) { console.error("Assignment delete failed:", error.message, "ID was:", id); return false; }
-  console.log("✅ Assignment deleted from Supabase:", id);
   return true;
 }
 
@@ -579,7 +571,6 @@ const NoteCard = ({ note, onDelete, onEdit }) => {
     if (error) {
       console.warn("Note edit failed:", error.message);
     } else {
-      console.log("✅ Note updated:", note.id);
       if (onEdit) onEdit(note.id, editText);
     }
     setSaving(false);
@@ -1634,7 +1625,6 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       notes: workContent,
       promptResponsesFilled: promptsFilled,
     });
-    console.log("💾 Saving session — studentId:", logData.studentId, "words:", wordCount, "effort:", effort, "understanding:", understanding);
     const result = await insertSessionLog(logData);
     if (!result) {
       setSaveError("Save failed — check your connection or contact your learning specialist.");
@@ -2923,7 +2913,6 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
 
   const handlePlanSave = async () => {
     const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
-    console.log("Saving plan for student:", student.id, "isRealUUID:", isRealUUID, "plan length:", weeklyPlan.length);
     if (isRealUUID) {
       const { error } = await supabase.from("students").update({ weekly_plan: weeklyPlan }).eq("students", student.id);
       if (error) {
@@ -2932,7 +2921,6 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
         alert("Save failed: " + error.message);
         return;
       }
-      console.log("✅ Plan saved successfully");
     }
     setPlanSaved(true);
     setTimeout(() => setPlanSaved(false), 2500);
@@ -3738,7 +3726,7 @@ function SettingsPage({ role, currentUser = {} }) {
     if (currentUser?.id && fullName.trim()) {
       const { error } = await supabase.from("profiles").update({ full_name: fullName.trim() }).eq("id", currentUser.id);
       if (error) { console.error("Settings save failed:", error.message); alert("Settings didn't save. Try again."); }
-      else console.log("✅ Settings saved");
+      else
     }
     setSaving(false);
     setSaved(true);
@@ -4414,7 +4402,6 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
         alert("Delete failed: " + error.message);
         return;
       }
-      console.log("✅ Document deleted from Supabase:", docId);
     }
     setDocs(prev => prev.filter(d => d.id !== docId));
     if (expandedDoc === docId) setExpandedDoc(null);
@@ -5218,7 +5205,6 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
         found.forEach((_, i) => sel[i] = true);
         setSelectedExtracted(sel);
         setExtractedItems(found);
-        console.log(`✅ Broad-capture extracted ${found.length} items (${found.filter(f=>f.category==="recurring").length} recurring, ${found.filter(f=>f.category==="unscheduled_obligation").length} TBD)`);
       } else {
         setExtractedItems([{ title: "No assignments detected — try the AI extraction or add manually", dueDate: courseEnd, points: 0, type: "Homework", category: "one_off" }]);
         console.warn("Broad-capture: no items found. Edge Function may be needed for this syllabus format.");
@@ -5273,7 +5259,6 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
   const handleSaveSyllabus = async () => {
     if (!syllabusFile.trim()) return;
     setSyllabusUploading(true);
-    console.log("Saving syllabus — effectiveStudentId:", effectiveStudentId);
     const doc = await insertDocument({ fileName: syllabusFile, courseCode: syllabusCode, courseName: syllabusCourseName, type: "Syllabus", semester: "Spring 2026", uploadedByRole: isStudent ? "student" : "staff", fileUrl: "", extractedAssignments: extractedItems }, effectiveStudentId, sessionUser?.id);
     if (doc) {
       setDocs(prev => [doc, ...prev]);
@@ -6722,7 +6707,6 @@ function App() {
             if (Notification.permission === "granted") {
               subscribeToPush(studentRow.students);
             }
-        console.log("✅ Student UUID cached:", studentRow.students);
         const { data, error } = await supabase
           .from("assignments")
           .select("*")
@@ -6783,13 +6767,11 @@ function App() {
       setAssignments([]);
       setAssignmentsMode("demo");
     } else if (liveAssignments.length === 0) {
-      console.log("No assignments found for this user.");
       setAssignments([]);
       setAssignmentsMode("live");
     } else {
       setAssignments(liveAssignments);
       setAssignmentsMode("live");
-      console.log(`✅ ${liveAssignments.length} assignments loaded from Supabase.`);
     }
 
     // --- DYNAMIC RISK SCORING ---
@@ -6855,7 +6837,6 @@ function App() {
 
           if (currentRow && currentRow.risk_level !== newRisk) {
             await supabase.from("students").update({ risk_level: newRisk }).eq("students", student.id);
-            console.log(`📊 Risk updated: ${student.name} → ${newRisk} (${pastDue} past due, avg understanding: ${avgUnderstanding?.toFixed(1) || "n/a"})`);
           }
         } catch (e) {
           console.warn("Risk calc failed for", student.name, e.message);
@@ -6940,7 +6921,6 @@ function App() {
         studentUUID = fromStudents || fromAssignment || fromCache || null;
         // Cache it for future use
         if (studentUUID) localStorage.setItem("cats_student_uuid", studentUUID);
-        console.log("WorkMode studentUUID resolved:", studentUUID, "via", fromStudents ? "STUDENTS array" : fromAssignment ? "assignment" : fromCache ? "localStorage" : "NONE");
       } else {
         studentUUID = data?.studentId || null;
       }
@@ -6959,7 +6939,6 @@ function App() {
     if (notifType === "session_complete") {
       const last = localStorage.getItem(SESSION_COMPLETE_BATCH_KEY);
       if (last && Date.now() - parseInt(last) < 60 * 60 * 1000) {
-        console.log("Session complete notification batched — sent within last hour");
         return;
       }
       localStorage.setItem(SESSION_COMPLETE_BATCH_KEY, String(Date.now()));
@@ -7023,7 +7002,6 @@ function App() {
 
   const deleteAssignment = async (id) => {
     setAssignments(prev => prev.filter(a => a.id !== id));
-    console.log("App deleteAssignment called, id:", id);
     await deleteAssignmentFromDB(id);
   };
 
@@ -7043,12 +7021,11 @@ function App() {
       if (saved) {
         // Replace temp entry with real Supabase record
         setAssignments(prev => prev.map(x => x.id === tempId ? { ...a, id: saved.id } : x));
-        console.log("✅ Assignment saved to Supabase:", saved.id);
       } else {
         console.warn("Assignment saved locally only — Supabase insert failed.");
       }
     } else {
-      console.log("Assignment saved locally only — no valid student UUID available.");
+     
     }
   };
 
@@ -7190,8 +7167,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/Cats-tracker/sw.js')
-      .then(() => console.log('PWA ready'))
-      .catch(err => console.log('SW failed:', err));
   });
 }
 </script>
