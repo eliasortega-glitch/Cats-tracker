@@ -3728,7 +3728,6 @@ function SettingsPage({ role, currentUser = {} }) {
     if (currentUser?.id && fullName.trim()) {
       const { error } = await supabase.from("profiles").update({ full_name: fullName.trim() }).eq("id", currentUser.id);
       if (error) { console.error("Settings save failed:", error.message); alert("Settings didn't save. Try again."); }
-      else
     }
     setSaving(false);
     setSaved(true);
