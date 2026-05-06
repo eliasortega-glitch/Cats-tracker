@@ -31,7 +31,7 @@ body { font-family: "DM Sans", system-ui, sans-serif; background: #F8F9FB; }
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useMemo } = React;
 const { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
 
 const SUPABASE_URL = "https://uzpwmnyqeoehctgnsjie.supabase.co";
@@ -6102,45 +6102,214 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
   const [aiSummary, setAiSummary] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState("");
+  const [summaryGeneratedAt, setSummaryGeneratedAt] = useState(null);
 
-  const generateSummary = async () => {
-    if (logs.length === 0) return;
+  // Filter state
+  const [courseFilter, setCourseFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("30"); // days, "all" for everything
+  const [flagFilter, setFlagFilter] = useState("all");
+
+  // Per-assignment expansion state
+  const [expanded, setExpanded] = useState({});
+  const toggleExpand = (key) => setExpanded(e => ({ ...e, [key]: !e[key] }));
+
+  // ---- Load session logs ---------------------------------------------------
+  useEffect(() => {
+    const isRealUUID = studentId && typeof studentId === "string" && studentId.includes("-");
+    if (!isRealUUID) { setLoading(false); return; }
+    supabase.from("session_logs")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setLogs(data.map(l => ({
+            id: l.id,
+            createdAt: l.created_at,
+            date: new Date(l.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+            assignmentId: l.assignment_id,
+            assignment: l.assignment_title || "—",
+            courseCode: l.course_code || "",
+            timeSpent: l.duration_minutes || 0,
+            effort: l.effort || 0,
+            understanding: l.understanding || 0,
+            completionType: l.completion_type || "in_progress",
+            notes: l.notes || "",
+            timeSeconds: l.time_seconds || 0,
+            promptsExpanded: l.prompts_expanded || [],
+            aiBreakdownsUsed: l.ai_breakdowns_used || 0,
+            promptResponsesFilled: l.prompt_responses_filled || 0,
+            daysBeforeDue: l.days_before_due,
+          })));
+        }
+        setLoading(false);
+      });
+  }, [studentId]);
+
+  // ---- Filter logs (date + course) before grouping -------------------------
+  const filteredLogs = useMemo(() => {
+    const cutoff = dateFilter === "all" ? null : (() => {
+      const d = new Date();
+      d.setDate(d.getDate() - parseInt(dateFilter));
+      return d;
+    })();
+    return logs.filter(l => {
+      if (cutoff && new Date(l.createdAt) < cutoff) return false;
+      if (courseFilter !== "all" && l.courseCode !== courseFilter) return false;
+      return true;
+    });
+  }, [logs, dateFilter, courseFilter]);
+
+  // ---- Group by assignment + compute pattern flags -------------------------
+  const groupedAssignments = useMemo(() => {
+    const map = new Map();
+    filteredLogs.forEach(log => {
+      // Group key: assignment_id if real, otherwise fall back to title (handles legacy logs)
+      const key = log.assignmentId || `title:${log.assignment}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          assignmentId: log.assignmentId,
+          title: log.assignment,
+          courseCode: log.courseCode,
+          sessions: [],
+        });
+      }
+      map.get(key).sessions.push(log);
+    });
+
+    // Sessions are already sorted desc; sort each group's sessions ascending so "first" = oldest
+    return Array.from(map.values()).map(group => {
+      const sessionsAsc = [...group.sessions].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      const sessionsDesc = [...group.sessions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const firstSession = sessionsAsc[0];
+      const lastSession = sessionsDesc[0];
+
+      const totalMinutes = group.sessions.reduce((s, l) => s + (l.timeSpent || 0), 0);
+      const totalSeconds = group.sessions.reduce((s, l) => s + (l.timeSeconds || 0), 0);
+      const totalBreakdowns = group.sessions.reduce((s, l) => s + (l.aiBreakdownsUsed || 0), 0);
+      const totalPromptsOpened = group.sessions.reduce((s, l) => s + (l.promptsExpanded?.length || 0), 0);
+      const totalResponses = group.sessions.reduce((s, l) => s + (l.promptResponsesFilled || 0), 0);
+      const effortValues = group.sessions.filter(l => l.effort > 0).map(l => l.effort);
+      const understandingValues = group.sessions.filter(l => l.understanding > 0).map(l => l.understanding);
+      const avgEffort = effortValues.length ? (effortValues.reduce((a, b) => a + b, 0) / effortValues.length) : null;
+      const finalEffort = lastSession.effort || 0;
+      const finalUnderstanding = lastSession.understanding || 0;
+      const finalCompletion = lastSession.completionType;
+      const firstStartDays = firstSession.daysBeforeDue;
+      const hasNotes = group.sessions.some(l => l.notes && l.notes.trim());
+
+      // ---- Pattern flag engine ---------------------------------------------
+      const flags = [];
+
+      // low_engagement: 3+ sessions, total time < 10 min
+      if (group.sessions.length >= 3 && totalSeconds > 0 && totalSeconds < 600) {
+        flags.push({ id: "low_engagement", label: `Low engagement (${group.sessions.length} opens, ${Math.round(totalSeconds / 60)}m)`, severity: "high" });
+      }
+
+      // procrastination: first session day-of or after due
+      if (firstStartDays !== null && firstStartDays !== undefined && firstStartDays <= 0) {
+        flags.push({ id: "procrastination", label: firstStartDays <= 0 && firstStartDays > -1 ? "Started day-of" : "Started after due", severity: "high" });
+      }
+
+      // low_effort_pattern: avg effort ≤ 3 across all rated sessions
+      if (avgEffort !== null && avgEffort <= 3 && effortValues.length >= 1) {
+        flags.push({ id: "low_effort", label: `Effort avg ${avgEffort.toFixed(1)}/5`, severity: "med" });
+      }
+
+      // low_understanding: most recent understanding ≤ 3
+      if (finalUnderstanding > 0 && finalUnderstanding <= 3) {
+        flags.push({ id: "low_understanding", label: `Understanding ${finalUnderstanding}/5`, severity: "med" });
+      }
+
+      // no_guided_prompts: no prompts opened across all sessions
+      if (totalPromptsOpened === 0 && group.sessions.length >= 1) {
+        flags.push({ id: "no_prompts", label: "No guided prompts used", severity: "low" });
+      }
+
+      // has_notes: clinically relevant
+      if (hasNotes) {
+        flags.push({ id: "has_notes", label: "Has student notes", severity: "info" });
+      }
+
+      // incomplete: final completion type not finished
+      if (finalCompletion === "stopped" || finalCompletion === "partial") {
+        flags.push({ id: "incomplete", label: "Last session incomplete", severity: "med" });
+      }
+
+      return {
+        ...group,
+        sessions: sessionsDesc,
+        firstSession,
+        lastSession,
+        totalMinutes,
+        totalSeconds,
+        totalBreakdowns,
+        totalPromptsOpened,
+        totalResponses,
+        avgEffort,
+        finalEffort,
+        finalUnderstanding,
+        finalCompletion,
+        firstStartDays,
+        hasNotes,
+        flags,
+      };
+    }).sort((a, b) => new Date(b.lastSession.createdAt) - new Date(a.lastSession.createdAt));
+  }, [filteredLogs]);
+
+  // ---- Apply flag filter ---------------------------------------------------
+  const visibleAssignments = useMemo(() => {
+    if (flagFilter === "all") return groupedAssignments;
+    return groupedAssignments.filter(g => g.flags.some(f => f.id === flagFilter));
+  }, [groupedAssignments, flagFilter]);
+
+  // ---- Course options for filter dropdown ----------------------------------
+  const courseOptions = useMemo(() => {
+    const codes = [...new Set(logs.map(l => l.courseCode).filter(Boolean))];
+    return codes.sort();
+  }, [logs]);
+
+  // ---- Build clinical AI prompt from grouped data --------------------------
+  const buildPrompt = (groups) => {
+    if (groups.length === 0) return null;
+    const totalSessions = groups.reduce((s, g) => s + g.sessions.length, 0);
+    const totalMinutes = groups.reduce((s, g) => s + g.totalMinutes, 0);
+    const allFlags = groups.flatMap(g => g.flags.map(f => `${g.title}: ${f.label}`));
+    const flaggedAssignments = groups.filter(g => g.flags.some(f => f.severity === "high" || f.severity === "med"));
+    const notesExcerpts = groups.filter(g => g.hasNotes).flatMap(g =>
+      g.sessions.filter(s => s.notes).slice(0, 1).map(s => `[${g.title}]: "${s.notes}"`)
+    ).slice(0, 4);
+
+    const assignmentBreakdown = groups.slice(0, 8).map(g => {
+      const flagText = g.flags.length ? ` [flags: ${g.flags.map(f => f.label).join("; ")}]` : "";
+      const startedText = g.firstStartDays !== null && g.firstStartDays !== undefined
+        ? (g.firstStartDays <= 0 ? "started day-of/late" : `started ${Math.round(g.firstStartDays)}d before due`)
+        : "no due-date data";
+      return `- ${g.title} (${g.courseCode || "no course"}): ${g.sessions.length} session(s), ${g.totalMinutes}m total, final effort ${g.finalEffort}/5, final understanding ${g.finalUnderstanding}/5, ${startedText}${flagText}`;
+    }).join("\n");
+
+    return "You are a learning specialist preparing for a 1-on-1 with a student-athlete. Write a tight clinical read (3-5 sentences) of this student's recent academic engagement, then 2-3 specific things to bring up in the meeting. Be direct. Reference specific assignments and patterns by name. Do not say things like 'this student is working hard' or other filler. Surface discrepancies between behavioral data and self-report when present."
+      + "\n\nStudent: " + studentName
+      + "\nWindow: " + (dateFilter === "all" ? "all sessions" : `last ${dateFilter} days`)
+      + "\nAssignments worked: " + groups.length
+      + " | Total sessions: " + totalSessions
+      + " | Total time in Work Mode: " + totalMinutes + " min"
+      + " | Assignments with concerning flags: " + flaggedAssignments.length
+      + "\n\nPer-assignment breakdown:\n" + assignmentBreakdown
+      + (allFlags.length ? "\n\nAll active flags: " + allFlags.join(" | ") : "")
+      + (notesExcerpts.length ? "\n\nStudent notes from recent sessions:\n" + notesExcerpts.join("\n") : "")
+      + "\n\nImportant: weight behavioral data (time, prompts opened, responses written, days-before-due) over self-reported effort/understanding when they conflict.";
+  };
+
+  const generateSummary = async (groupsForPrompt) => {
+    const groups = groupsForPrompt || groupedAssignments;
+    if (groups.length === 0) return;
     setSummaryLoading(true);
     setSummaryError("");
     setAiSummary("");
-
-    // Build a compact data payload for Claude
-    const avgEffort = logs.filter(l=>l.effort>0).length > 0
-      ? (logs.filter(l=>l.effort>0).reduce((s,l)=>s+l.effort,0) / logs.filter(l=>l.effort>0).length).toFixed(1)
-      : "not reported";
-    const avgUnderstanding = logs.filter(l=>l.understanding>0).length > 0
-      ? (logs.filter(l=>l.understanding>0).reduce((s,l)=>s+l.understanding,0) / logs.filter(l=>l.understanding>0).length).toFixed(1)
-      : "not reported";
-    const totalTime = logs.reduce((s,l)=>s+l.timeSeconds,0);
-    const totalBreakdowns = logs.reduce((s,l)=>s+l.aiBreakdownsUsed,0);
-    const avgPromptsOpened = logs.length > 0
-      ? (logs.reduce((s,l)=>s+(l.promptsExpanded?.length||0),0) / logs.length).toFixed(1)
-      : 0;
-    const avgResponsesFilled = logs.length > 0
-      ? (logs.reduce((s,l)=>s+l.promptResponsesFilled,0) / logs.length).toFixed(1)
-      : 0;
-    const lateWorkSessions = logs.filter(l=>l.daysBeforeDue !== null && l.daysBeforeDue <= 0).length;
-    const recentNotes = logs.filter(l=>l.notes).slice(0,3).map(l=>`"${l.notes}"`).join(", ");
-    const assignments = [...new Set(logs.map(l=>l.assignment))].join(", ");
-
-    const prompt = "You are a learning specialist reviewing a student-athlete's academic engagement data. Write a concise clinical summary (4-6 sentences) followed by 2-3 specific, actionable recommendations for the upcoming session. Be direct and professional — this is for a staff member, not the student. Do not be generic. Use the specific numbers provided." +
-      " Student: " + studentName +
-      " | Sessions logged: " + logs.length +
-      " | Assignments worked on: " + assignments +
-      " | Total time in app: " + Math.round(totalTime/60) + " minutes" +
-      " | Avg effort (self-reported 1-5): " + avgEffort +
-      " | Avg understanding (self-reported 1-5): " + avgUnderstanding +
-      " | Avg prompts opened per session: " + avgPromptsOpened + " of 4" +
-      " | Avg written responses per session: " + avgResponsesFilled + " of 4" +
-      " | AI breakdowns requested: " + totalBreakdowns +
-      " | Sessions started day-of or late: " + lateWorkSessions + " of " + logs.length +
-      (recentNotes ? " | Student notes from recent sessions: " + recentNotes : "") +
-      " | Important context: Self-reported effort and understanding may not reflect actual engagement. Weight behavioral data (time, prompts opened, responses written) more heavily when they conflict with self-report. Flag any discrepancies explicitly.";
+    const prompt = buildPrompt(groups);
+    if (!prompt) { setSummaryLoading(false); return; }
 
     try {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
@@ -6161,40 +6330,23 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
       const text = data.text || data.content?.[0]?.text || "";
       if (!text) throw new Error("Empty response");
       setAiSummary(text);
+      setSummaryGeneratedAt(new Date());
     } catch (e) {
       setSummaryError("Could not generate summary. Try again.");
     }
     setSummaryLoading(false);
   };
 
+  // ---- Auto-generate summary on initial load (once per profile open) -------
+  const autoGeneratedRef = useRef(false);
   useEffect(() => {
-    const isRealUUID = studentId && typeof studentId === "string" && studentId.includes("-");
-    if (!isRealUUID) { setLoading(false); return; }
-    supabase.from("session_logs")
-      .select("*")
-      .eq("student_id", studentId)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) {
-          setLogs(data.map(l => ({
-            id: l.id,
-            date: new Date(l.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-            assignment: l.assignment_title || "—",
-            timeSpent: l.duration_minutes || 0,
-            effort: l.effort || 0,
-            understanding: l.understanding || 0,
-            completionType: l.completion_type || "in_progress",
-            notes: l.notes || "",
-            timeSeconds: l.time_seconds || 0,
-            promptsExpanded: l.prompts_expanded || [],
-            aiBreakdownsUsed: l.ai_breakdowns_used || 0,
-            promptResponsesFilled: l.prompt_responses_filled || 0,
-            daysBeforeDue: l.days_before_due,
-          })));
-        }
-        setLoading(false);
-      });
-  }, [studentId]);
+    if (autoGeneratedRef.current) return;
+    if (loading) return;
+    if (groupedAssignments.length === 0) return;
+    autoGeneratedRef.current = true;
+    generateSummary(groupedAssignments);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, groupedAssignments.length]);
 
   if (loading) return <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 13 }}>Loading session logs...</div>;
   const effortColor = (v) => v >= 4 ? UA.green : v >= 3 ? UA.yellow : UA.red;
@@ -6206,82 +6358,180 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
     </div>
   );
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+  // ---- Flag chip styling ---------------------------------------------------
+  const flagStyle = (severity) => {
+    if (severity === "high") return { bg: UA.redLight || "#fde8e8", border: UA.red, fg: UA.red };
+    if (severity === "med") return { bg: "#fef3c7", border: UA.yellow, fg: "#92400e" };
+    if (severity === "info") return { bg: UA.navyLight, border: UA.navyBorder, fg: UA.navy };
+    return { bg: UA.bg, border: UA.border, fg: UA.textMuted };
+  };
 
-      {/* AI Session Summary */}
+  const FlagChip = ({ flag }) => {
+    const s = flagStyle(flag.severity);
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 8px", borderRadius: 999, background: s.bg, border: `1px solid ${s.border}`, color: s.fg, fontSize: 11, fontWeight: 700, lineHeight: 1.2 }}>
+        {flag.label}
+      </span>
+    );
+  };
+
+  // ---- Filter row select styling -------------------------------------------
+  const sel = { fontSize: 12, padding: "6px 10px", borderRadius: UA.radiusSm, border: `1px solid ${UA.border}`, background: "white", color: UA.text, fontWeight: 600, cursor: "pointer", outline: "none" };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+      {/* AI Clinical Summary — auto-generated */}
       <Card style={{ padding: "20px 24px", border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: aiSummary ? 14 : 0 }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 14, color: UA.navy }}>🧠 AI Session Summary</div>
-            <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>Interprets behavioral + self-report data and surfaces clinical insights</div>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: aiSummary || summaryLoading ? 14 : 0 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: UA.navy }}>🧠 Pre-Meeting Clinical Read</div>
+            <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>
+              {summaryGeneratedAt
+                ? `Generated ${summaryGeneratedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} from ${groupedAssignments.length} assignment(s)`
+                : "Auto-generated from grouped session data"}
+            </div>
           </div>
-          <Btn size="sm" variant="secondary" disabled={summaryLoading || logs.length === 0} onClick={generateSummary}>
-            {summaryLoading ? "Generating..." : aiSummary ? "Regenerate" : "Generate Summary"}
+          <Btn size="sm" variant="secondary" disabled={summaryLoading || groupedAssignments.length === 0} onClick={() => generateSummary()}>
+            {summaryLoading ? "Generating..." : aiSummary ? "Regenerate" : "Generate"}
           </Btn>
         </div>
         {summaryLoading && (
-          <div style={{ padding: "16px 0", color: UA.textMuted, fontSize: 13 }}>Analyzing {logs.length} sessions...</div>
+          <div style={{ padding: "12px 0", color: UA.textMuted, fontSize: 13 }}>Analyzing {groupedAssignments.length} assignment(s) across {filteredLogs.length} session(s)...</div>
         )}
         {summaryError && (
           <div style={{ color: UA.red, fontSize: 13, marginTop: 10 }}>{summaryError}</div>
         )}
         {aiSummary && !summaryLoading && (
-          <div style={{ fontSize: 13, lineHeight: 1.8, color: UA.text, whiteSpace: "pre-wrap", marginTop: 4 }}>{aiSummary}</div>
-        )}
-        {!aiSummary && !summaryLoading && !summaryError && (
-          <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 10 }}>
-            Click Generate Summary to get an AI-interpreted clinical overview of this student's engagement patterns.
-          </div>
+          <div style={{ fontSize: 13, lineHeight: 1.75, color: UA.text, whiteSpace: "pre-wrap", marginTop: 4 }}>{aiSummary}</div>
         )}
       </Card>
 
-      {/* Session log entries */}
-      {logs.map(log => (
-        <div key={log.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "18px 20px", boxShadow: UA.shadow }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: UA.text }}>{log.assignment}</div>
-              <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 3 }}>{log.date} · {log.timeSpent} min · {log.completionType.replace("_", " ")}</div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <div style={{ textAlign: "center", padding: "6px 12px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
-                <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Effort</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: effortColor(log.effort) }}>{log.effort}/5</div>
-              </div>
-              <div style={{ textAlign: "center", padding: "6px 12px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
-                <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Understanding</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: effortColor(log.understanding) }}>{log.understanding}/5</div>
-              </div>
-            </div>
-          </div>
-          {/* Silent engagement row */}
-          {(log.timeSeconds > 0 || log.aiBreakdownsUsed > 0 || log.promptsExpanded?.length > 0) && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0", padding: "10px 14px", background: UA.navyLight, borderRadius: UA.radiusSm, border: `1px solid ${UA.navyBorder}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: UA.navy, width: "100%", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>🔍 Behavioral Engagement</div>
-              {[
-                { label: "Time in app", value: log.timeSeconds > 0 ? `${Math.round(log.timeSeconds / 60)}m ${log.timeSeconds % 60}s` : "—" },
-                { label: "Prompts opened", value: `${log.promptsExpanded?.length || 0} / 4` },
-                { label: "AI breakdowns", value: log.aiBreakdownsUsed || 0 },
-                { label: "Responses written", value: `${log.promptResponsesFilled || 0} / 4` },
-                { label: "Days before due", value: log.daysBeforeDue !== null && log.daysBeforeDue !== undefined ? (log.daysBeforeDue <= 0 ? "Day of / overdue" : `${Math.round(log.daysBeforeDue)} days`) : "—" },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ padding: "6px 12px", borderRadius: UA.radiusSm, background: "white", border: `1px solid ${UA.navyBorder}`, textAlign: "center", minWidth: 90 }}>
-                  <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>{label}</div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: UA.navy }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          {/* Student notes */}
-          {log.notes && (
-            <div style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.7, padding: "10px 14px", background: UA.bg, borderRadius: UA.radiusSm, borderLeft: `3px solid ${UA.navy}` }}>
-              <strong style={{ color: UA.navy, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>Student notes: </strong>{log.notes}
-            </div>
-          )}
+      {/* Filter bar */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", padding: "10px 14px", background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, textTransform: "uppercase", letterSpacing: "0.04em" }}>Filter</span>
+        <select style={sel} value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="all">All time</option>
+        </select>
+        <select style={sel} value={courseFilter} onChange={e => setCourseFilter(e.target.value)}>
+          <option value="all">All courses</option>
+          {courseOptions.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select style={sel} value={flagFilter} onChange={e => setFlagFilter(e.target.value)}>
+          <option value="all">All flags</option>
+          <option value="low_engagement">Low engagement</option>
+          <option value="procrastination">Procrastination</option>
+          <option value="low_effort">Low effort</option>
+          <option value="low_understanding">Low understanding</option>
+          <option value="no_prompts">No prompts used</option>
+          <option value="incomplete">Incomplete</option>
+          <option value="has_notes">Has notes</option>
+        </select>
+        <div style={{ marginLeft: "auto", fontSize: 12, color: UA.textMuted }}>
+          {visibleAssignments.length} assignment{visibleAssignments.length !== 1 ? "s" : ""} · {filteredLogs.length} session{filteredLogs.length !== 1 ? "s" : ""}
         </div>
-      ))}
+      </div>
+
+      {/* Empty state for filters */}
+      {visibleAssignments.length === 0 && (
+        <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 13, background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius }}>
+          No assignments match these filters.
+        </div>
+      )}
+
+      {/* Grouped assignment rows */}
+      {visibleAssignments.map(group => {
+        const isOpen = !!expanded[group.key];
+        const startedText = group.firstStartDays !== null && group.firstStartDays !== undefined
+          ? (group.firstStartDays <= 0 ? "Started day-of / late" : `Started ${Math.round(group.firstStartDays)}d before due`)
+          : "No due-date data";
+        return (
+          <div key={group.key} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, boxShadow: UA.shadow, overflow: "hidden" }}>
+
+            {/* Row header */}
+            <div onClick={() => toggleExpand(group.key)} style={{ padding: "16px 20px", cursor: "pointer", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, color: UA.textMuted, transition: "transform 0.15s", display: "inline-block", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                  {group.courseCode && (
+                    <span style={{ fontSize: 11, fontWeight: 800, color: UA.navy, background: UA.navyLight, padding: "2px 8px", borderRadius: 4, letterSpacing: "0.03em" }}>{group.courseCode}</span>
+                  )}
+                  <span style={{ fontWeight: 800, fontSize: 14, color: UA.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{group.title}</span>
+                </div>
+                <div style={{ fontSize: 12, color: UA.textMuted, marginLeft: 22 }}>
+                  {group.sessions.length} session{group.sessions.length !== 1 ? "s" : ""} · {group.totalMinutes}m total · {startedText}
+                  {group.hasNotes && <span style={{ marginLeft: 8 }}>📝</span>}
+                </div>
+                {group.flags.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8, marginLeft: 22 }}>
+                    {group.flags.map(f => <FlagChip key={f.id} flag={f} />)}
+                  </div>
+                )}
+              </div>
+
+              {/* Right-side metrics */}
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <div style={{ textAlign: "center", padding: "6px 10px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}`, minWidth: 60 }}>
+                  <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Effort</div>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: effortColor(group.finalEffort) }}>{group.finalEffort || "—"}{group.finalEffort ? "/5" : ""}</div>
+                </div>
+                <div style={{ textAlign: "center", padding: "6px 10px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}`, minWidth: 60 }}>
+                  <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Underst.</div>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: effortColor(group.finalUnderstanding) }}>{group.finalUnderstanding || "—"}{group.finalUnderstanding ? "/5" : ""}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Expanded session detail */}
+            {isOpen && (
+              <div style={{ borderTop: `1px solid ${UA.border}`, background: UA.bg, padding: "12px 20px 16px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>
+                  Individual sessions ({group.sessions.length})
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {group.sessions.map(log => (
+                    <div key={log.id} style={{ background: "white", border: `1px solid ${UA.border}`, borderRadius: UA.radiusSm, padding: "12px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+                        <div style={{ fontSize: 12, color: UA.textMuted, fontWeight: 600 }}>
+                          {log.date} · {log.timeSpent}m · {log.completionType.replace("_", " ")}
+                        </div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {log.effort > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: effortColor(log.effort), padding: "2px 7px", borderRadius: 4, background: UA.bg }}>E {log.effort}/5</span>}
+                          {log.understanding > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: effortColor(log.understanding), padding: "2px 7px", borderRadius: 4, background: UA.bg }}>U {log.understanding}/5</span>}
+                        </div>
+                      </div>
+
+                      {(log.timeSeconds > 0 || log.aiBreakdownsUsed > 0 || (log.promptsExpanded && log.promptsExpanded.length > 0)) && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: UA.navy }}>
+                          <span>⏱ {log.timeSeconds > 0 ? `${Math.round(log.timeSeconds / 60)}m ${log.timeSeconds % 60}s` : "—"}</span>
+                          <span>·</span>
+                          <span>Prompts {log.promptsExpanded?.length || 0}/4</span>
+                          <span>·</span>
+                          <span>AI {log.aiBreakdownsUsed || 0}</span>
+                          <span>·</span>
+                          <span>Wrote {log.promptResponsesFilled || 0}/4</span>
+                          <span>·</span>
+                          <span>{log.daysBeforeDue !== null && log.daysBeforeDue !== undefined ? (log.daysBeforeDue <= 0 ? "day-of/late" : `${Math.round(log.daysBeforeDue)}d early`) : "—"}</span>
+                        </div>
+                      )}
+
+                      {log.notes && (
+                        <div style={{ marginTop: 8, fontSize: 12, color: UA.textSecondary, lineHeight: 1.6, padding: "8px 10px", background: UA.bg, borderRadius: UA.radiusSm, borderLeft: `3px solid ${UA.navy}` }}>
+                          <strong style={{ color: UA.navy, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>Notes: </strong>{log.notes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
