@@ -31,7 +31,7 @@ body { font-family: "DM Sans", system-ui, sans-serif; background: #F8F9FB; }
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef, useMemo } = React;
+const { useState, useEffect, useRef } = React;
 const { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
 
 const SUPABASE_URL = "https://uzpwmnyqeoehctgnsjie.supabase.co";
@@ -142,6 +142,82 @@ async function signOutUser() {
   return { error };
 }
 
+// --- SHARED UTILITY FUNCTIONS -------------------------------------------------
+
+// Parse date strings safely — treat YYYY-MM-DD as local noon to avoid UTC timezone shift
+function parseDateSafe(str) {
+  if (!str) return new Date(9999, 0, 1); // null due_date → far future, never archives
+  if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split("-");
+    return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
+  }
+  return new Date(str);
+}
+
+// Validate a real Supabase UUID — filters out all synthetic/temp IDs
+function isValidUUID(id) {
+  return typeof id === "string" && id.includes("-") && id.length > 20
+    && !id.startsWith("temp-") && !id.startsWith("quick-") && !id.startsWith("ext-")
+    && !id.startsWith("doc-") && !id.startsWith("extracted-");
+}
+
+// Compute overdue + archive status for any assignment row (Supabase or mapped)
+// Single source of truth — used by all fetch paths and runtime filters
+function computeAssignmentMeta(a) {
+  const dueDate = a.dueDate instanceof Date ? a.dueDate : parseDateSafe(a.due_date);
+  const status = a.status || "not_started";
+  const updatedAt = a.updated_at ? new Date(a.updated_at)
+    : a.updatedAt instanceof Date ? a.updatedAt
+    : a.updatedAt ? new Date(a.updatedAt) : null;
+
+  const midnight = new Date(); midnight.setHours(0,0,0,0);
+  const isOverdue = dueDate < midnight && status !== "completed";
+
+  const dueDateStr = dueDate.toLocaleDateString("en-CA");
+  const todayStr = new Date().toLocaleDateString("en-CA");
+  const s7Str = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
+  const t3Str = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
+  const updatedStr = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
+
+  const isArchived = a.archived_override === true ? false :
+    dueDateStr >= todayStr ? false :
+    (status === "completed" && updatedStr && updatedStr < t3Str) ||
+    (isOverdue && dueDateStr < s7Str);
+
+  return { dueDate, status, updatedAt, isOverdue, isArchived };
+}
+
+// Centralized AI Edge Function call — replaces 7+ duplicated fetch blocks
+async function callAI(body, timeoutMs = 12000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!response.ok) throw new Error(`AI error: ${response.status}`);
+    return await response.json();
+  } catch(e) {
+    clearTimeout(timer);
+    throw e;
+  }
+}
+
+// Dynamic semester string
+function currentSemester() {
+  const m = new Date().getMonth();
+  const y = new Date().getFullYear();
+  return (m >= 0 && m <= 4) ? `Spring ${y}` : (m >= 5 && m <= 7) ? `Summer ${y}` : `Fall ${y}`;
+}
+
 // --- ASSIGNMENT FUNCTIONS -----------------------------------------------------
 
 // Fetch all assignments across all students (for staff view)
@@ -153,61 +229,25 @@ async function fetchAllAssignments() {
 
   if (error) {
     console.warn("Could not fetch assignments from Supabase:", error.message);
-    return null; // null = fall back to mock data
+    return null;
   }
 
-  if (!data || data.length === 0) return []; // empty but connected
+  if (!data || data.length === 0) return [];
 
-  const now = new Date();
-  const midnight = new Date(now); midnight.setHours(0,0,0,0);
-  const threeDaysAgo = new Date(now); threeDaysAgo.setDate(now.getDate() - 3);
-  const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(now.getDate() - 7);
-
-  // Parse date strings safely — treat YYYY-MM-DD as local noon to avoid UTC timezone shift
-  const parseDate = (str) => {
-    if (!str) return new Date(9999, 0, 1); // null due_date → far future, never archives
-    if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
-      // Append noon local time so date never shifts to previous day due to UTC offset
-      const [y, m, d] = str.split("-");
-      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
-    }
-    return new Date(str);
-  };
-
-  const mapped = data.map(a => {
-    const dueDate = parseDate(a.due_date);
-    const currentStatus = a.status || "not_started";
-    const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
-    const isOverdue = dueDate < midnight && currentStatus !== "completed";
-
-    // Auto-archive logic:
-    // Completed assignments older than 3 days → archived
-    // Past due assignments older than 7 days → archived
-    // NEVER archive future assignments regardless of other conditions
-    const isFuture = dueDate >= midnight;
-    const dueDateStr = dueDate.toLocaleDateString("en-CA");
-    const todayStrA = new Date().toLocaleDateString("en-CA");
-    const s7StrA = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
-    const t3StrA = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
-    const updatedStr = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
-    const isArchived = a.archived_override === true ? false :
-      dueDateStr >= todayStrA ? false :
-      (currentStatus === "completed" && updatedStr && updatedStr < t3StrA) ||
-      (isOverdue && dueDateStr < s7StrA);
-
+  return data.map(a => {
+    const meta = computeAssignmentMeta(a);
     return {
       id: a.id, title: a.title || "", course: a.course || "",
-      courseCode: a.course_code || "", dueDate,
-      points: a.points || 0, status: currentStatus,
-      isOverdue, isArchived,
+      courseCode: a.course_code || "", dueDate: meta.dueDate,
+      points: a.points || 0, status: meta.status,
+      isOverdue: meta.isOverdue, isArchived: meta.isArchived,
       archivedOverride: a.archived_override === true,
       urgency: a.urgency || "green", description: a.description || "",
       instructions: a.instructions || "", rubric: a.rubric || "",
       d2lLink: a.d2l_link || "https://d2l.arizona.edu", studentId: a.student_id,
-      updatedAt,
+      updatedAt: meta.updatedAt,
     };
   });
-  return mapped;
 }
 
 // Insert a new assignment into Supabase
@@ -218,7 +258,7 @@ async function updateAssignmentStatus(assignmentId, status) {
   if (!idStr.includes("-")) { console.warn("Not a UUID:", idStr); return null; }
   const { data, error } = await supabase
     .from("assignments")
-    .update({ status })
+    .update({ status, updated_at: new Date().toISOString() })
     .eq("id", idStr)
     .select()
     .single();
@@ -234,7 +274,7 @@ async function insertSessionLog(log) {
     console.error("Log data:", JSON.stringify({ assignmentTitle: log.assignmentTitle, loggedBy: log.loggedBy }));
     // Try to recover from localStorage cache — validate it's a real UUID before using
     const cached = localStorage.getItem("cats_student_uuid");
-    if (cached && typeof cached === "string" && cached.includes("-") && cached.length > 20) {
+    if (cached && isValidUUID(cached)) {
       log = { ...log, studentId: cached };
     } else {
       console.warn("🚫 Cached UUID invalid or missing — aborting save:", cached);
@@ -275,7 +315,7 @@ async function insertDocument(doc, studentId, userId) {
     course_code: doc.courseCode || "",
     course_name: doc.courseName || "",
     document_type: doc.type || "Syllabus",
-    semester: doc.semester || "Spring 2026",
+    semester: doc.semester || currentSemester(),
     uploaded_by: userId || null,
     uploaded_by_role: doc.uploadedByRole || "student",
     file_url: doc.fileUrl || "",
@@ -310,7 +350,7 @@ async function insertStaffNote(note, studentId, userId) {
 }
 
 async function fetchStaffNotes(studentId) {
-  const isRealUUID = studentId && typeof studentId === "string" && studentId.includes("-");
+  const isRealUUID = isValidUUID(studentId);
   if (!isRealUUID) return null;
   const { data, error } = await supabase
     .from("staff_notes").select("*")
@@ -832,15 +872,7 @@ function PlanMyWeek({ overdue, upcoming }) {
 
       const aiPrompt = "You are an academic learning specialist helping a student-athlete plan their week. Today is " + dayNames[today.getDay()] + " " + today.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + ". Pending assignments: " + assignSummary + ". Create a realistic day-by-day study plan for the next 5 days. For each day list 1-2 tasks with estimated time. Be brief and direct. Format each day as: DAY (Date): task -- est. time. Start with most urgent. End with one short encouraging line.";
 
-      const _ctrl838 = new AbortController(); setTimeout(() => _ctrl838.abort(), 12000);
-      const response = await fetch(SUPABASE_URL + "/functions/v1/ai-breakdown-", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + SUPABASE_ANON_KEY },
-        body: JSON.stringify({ assignment: { title: "Weekly Plan", course: "", description: "" }, prompt: { question: "Plan my week", aiPrompt: aiPrompt } }),
-        signal: _ctrl838.signal,
-      });
-      if (!response.ok) throw new Error(`AI error: ${response.status}`);
-      const data = await response.json();
+      const data = await callAI({ assignment: { title: "Weekly Plan", course: "", description: "" }, prompt: { question: "Plan my week", aiPrompt: aiPrompt } });
       const text = data.text || "";
       if (text && text.length > 50) { setPlanText(text); setPlanLoading(false); return; }
     } catch(e) { console.warn("AI weekly plan failed, using fallback:", e.message); }
@@ -898,6 +930,7 @@ function PlanMyWeek({ overdue, upcoming }) {
 }
 
 function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewProfile }) {
+  const isMobile = useIsMobile();
   const now = new Date();
   const midnight = new Date(now); midnight.setHours(0,0,0,0);
   const weekEnd = new Date(midnight.getTime() + 7*86400000);
@@ -979,7 +1012,7 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
       )}
 
       {/* Stats — clickable tiles */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 12 }}>
         {[
           { label: "This Week", value: upcoming.length, sub: "assignments due", color: UA.navy, icon: "📋", filter: "upcoming" },
           { label: "Past Due", value: overdue.length, sub: "need attention", color: UA.red, icon: "🔴", filter: "overdue" },
@@ -1035,7 +1068,7 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
       </Card>
 
       {/* Quick actions */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12 }}>
         {[
           { icon: "📚", label: "All Assignments", page: "assignments" },
           { icon: "📊", label: "My Progress", page: "analytics" },
@@ -1061,30 +1094,13 @@ function AssignmentsPage({ onNavigate, assignments = ASSIGNMENTS, onAddAssignmen
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
 
-  // Auto-archive: compare date strings directly to avoid UTC timezone shift
-  // "2026-04-30" < "2026-04-30" is false, so today's assignments never archive
-  const todayStr = new Date().toISOString().split("T")[0];
-  const t3Str = new Date(Date.now() - 3 * 86400000).toISOString().split("T")[0];
-  const s7Str = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
-
+  // Archive check using shared utility — with override/pre-computed shortcuts
   const isArchivedRuntime = (a) => {
-    // If explicitly restored via archived_override, never treat as archived
     if (a.archivedOverride === false) return false;
-    // Use pre-computed flag when available — avoids date recalc edge cases
-    // and respects in-session restore (which sets isArchived: false)
     if (a.isArchived === true) return true;
     if (a.isArchived === false) return false;
     // Fallback recalc for assignments without the flag set
-    const dueDateStr = a.dueDate instanceof Date
-      ? a.dueDate.toLocaleDateString("en-CA")
-      : "";
-    if (!dueDateStr || dueDateStr >= todayStr) return false;
-    const isOver = dueDateStr < todayStr && a.status !== "completed";
-    const updatedStr = a.updatedAt
-      ? (a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt)).toLocaleDateString("en-CA")
-      : null;
-    return (a.status === "completed" && updatedStr && updatedStr < t3Str) ||
-           (isOver && dueDateStr < s7Str);
+    return computeAssignmentMeta(a).isArchived;
   };
 
   const activeAssignments = assignments.filter(a => !isArchivedRuntime(a));
@@ -1240,18 +1256,11 @@ function InstructionsPhotoBtn({ onExtracted, T }) {
         const base64 = ev.target.result.split(",")[1];
         const mediaType = file.type || "image/jpeg";
         const _ctrl1246 = new AbortController(); setTimeout(() => _ctrl1246.abort(), 20000); // longer for image
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` },
-          body: JSON.stringify({
+        const data = await callAI({
             imageBase64: base64, imageMediaType: mediaType,
             assignment: { title: "Extract Instructions", course: "", description: "Extract any assignment instructions, prompts, rubric criteria, or requirements from this image." },
             prompt: { question: "What are the assignment instructions?", aiPrompt: "Read this image carefully. Extract all assignment instructions, prompts, requirements, and rubric criteria you can see. Format them clearly as plain text. Be thorough — include every requirement listed." }
-          }),
-          signal: _ctrl1246.signal,
-        });
-        if (!response.ok) throw new Error(`AI error: ${response.status}`);
-        const data = await response.json();
+          }, 20000);
         const extracted = data.text || "";
         if (extracted && onExtracted) {
           onExtracted("📋 I read your assignment photo. Here's what I found:\n\n" + extracted + "\n\nWhat would you like help with?");
@@ -1277,6 +1286,18 @@ function InstructionsPhotoBtn({ onExtracted, T }) {
 }
 
 function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
+  // Guard: if no assignment was passed (routing bug), show safe fallback
+  if (!a) return (
+    <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: UA.bg, fontFamily: "'DM Sans', sans-serif" }}>
+      <Card style={{ textAlign: "center", padding: "40px 48px", maxWidth: 400 }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+        <div style={{ fontWeight: 800, fontSize: 18, color: UA.text, marginBottom: 8 }}>No assignment selected</div>
+        <div style={{ color: UA.textMuted, fontSize: 13, marginBottom: 20 }}>Go back and pick an assignment to work on.</div>
+        <Btn onClick={onBack} fullWidth>← Back</Btn>
+      </Card>
+    </div>
+  );
+
   const [zenMode, setZenMode] = useState(() => localStorage.getItem("cats_zen") === "1");
   const toggleZen = () => setZenMode(z => { const next = !z; localStorage.setItem("cats_zen", next ? "1" : "0"); return next; });
 
@@ -1334,7 +1355,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   // Priority: DB (most recent confirmed save) > localStorage draft (unconfirmed local work)
   useEffect(() => {
     if (!a?.id || !a?.studentId) return;
-    const isRealUUID = typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-");
+    const isRealUUID = isValidUUID(a.id);
     if (!isRealUUID) return;
     supabase.from("session_logs")
       .select("notes, created_at")
@@ -1417,14 +1438,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
 
     try {
       const _ctrl1435 = new AbortController(); setTimeout(() => _ctrl1435.abort(), 12000);
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
+      const data = await callAI({
           assignment: { title: "Chat Mode", course: "", description: assignmentContext },
           prompt: {
             question: msg,
@@ -1440,11 +1454,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               "- For anything else: respond helpfully in 2-4 sentences, be direct and specific to this assignment.\n" +
               "Never write paragraphs for them. Never give generic advice. Always reference the actual assignment.",
           },
-        }),
-        signal: _ctrl1435.signal,
-      });
-      if (!response.ok) throw new Error(`AI error: ${response.status}`);
-      const data = await response.json();
+        });
       const reply = data.text || "I couldn't generate a response. Try again.";
       setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
     } catch (e) {
@@ -1471,7 +1481,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
       : null;
     return {
       studentId: a.studentId || null,
-      assignmentId: typeof a.id === "string" && a.id.includes("-") && !a.id.startsWith("temp-") && !a.id.startsWith("quick-") && !a.id.startsWith("ext-") && !a.id.startsWith("doc-") && !a.id.startsWith("extracted-") ? a.id : null,
+      assignmentId: isValidUUID(a.id) ? a.id : null,
       assignmentTitle: a.title,
       courseCode: a.courseCode || "",
       effort: overrides.effort || null,
@@ -1552,15 +1562,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         "SECTION 4: Starter sentences\n- [sentence they can use directly in their work]\n- [another starter sentence]\n- [optional third]";
 
     try {
-      const _ctrl1560 = new AbortController(); setTimeout(() => _ctrl1560.abort(), 15000);
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
+      const data = await callAI({
           assignment: {
             title: a.title, course: a.course, courseCode: a.courseCode || "",
             dueDate: a.dueDate ? a.dueDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "",
@@ -1568,11 +1570,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             instructions: a.instructions || "", rubric: a.rubric || "",
           },
           prompt: { id: prompt.id, question: prompt.question, aiPrompt: coachingPrompt },
-        }),
-        signal: _ctrl1560.signal,
-      });
-      if (!response.ok) throw new Error(`AI error: ${response.status}`);
-      const data = await response.json();
+        }, 15000);
       if (data?.text) {
         setAiBreakdownText(p => ({ ...p, [promptId]: data.text }));
       } else if (data?.error) {
@@ -1640,7 +1638,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
     try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
     // Only show ✓ Saved after confirmed DB write — not on keystroke
     setWorkSaved(true);
-    if ((completionType === "independent" || completionType === "with_support") && typeof a.id === "string" && a.id.includes("-")) {
+    if ((completionType === "independent" || completionType === "with_support") && isValidUUID(a.id)) {
       await updateAssignmentStatus(a.id, "completed");
     }
     if (onSessionSaved) onSessionSaved({ title: a.title, effort, understanding, time, durationMinutes: minutesSpent, completionType });
@@ -1681,8 +1679,12 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         {/* Left */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
           <button onClick={async () => {
+            if (wordCount > 10 && !hasSavedRef.current) {
+              if (!window.confirm("You have unsaved work. Leave anyway?")) return;
+            }
             clearInterval(timerRef.current);
             if (!hasSavedRef.current) {
+              hasSavedRef.current = true;
               const currentTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
               if (currentTime > 10 && (a.studentId || localStorage.getItem("cats_student_uuid"))) {
                 await insertSessionLog(buildLogData(currentTime, { notes: workContent, effort, understanding, completionType, promptResponsesFilled: promptsFilled }));
@@ -1902,7 +1904,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
               clearTimeout(localSaveRef.current);
               localSaveRef.current = setTimeout(() => {
                 try { localStorage.setItem(DRAFT_KEY, val); } catch(e) {}
-              }, 30000);
+              }, 3000);
             }}
             placeholder={"Start writing here...\n\nJot down your ideas, outline your response, or draft your answer. The sidebar has everything you need — questions to guide your thinking, AI help when you need it."}
             style={{
@@ -1920,7 +1922,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
             onBlur={e => { e.target.style.borderColor = zenMode ? "#2a2d3a" : "#E0E4EF"; e.target.style.boxShadow = zenMode ? "none" : "0 2px 12px rgba(0,0,0,0.06)"; }}
           />
           <div style={{ fontSize: 11, color: T.textMuted, textAlign: "right" }}>
-            {workSaved ? "✓ Session saved to cloud" : "Draft saves locally every 30s — hit 💾 to save to cloud"}
+            {workSaved ? "✓ Session saved to cloud" : "Draft saves locally every 3s — hit 💾 to save to cloud"}
           </div>
           </>)} {/* end workStep >= 2 */}
         </div>
@@ -2136,6 +2138,14 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         )}
       </div>
 
+      {/* ── IDLE NUDGE ── */}
+      {isIdle && workStep >= 2 && !saved && (
+        <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", padding: "12px 24px", borderRadius: 12, background: UA.navy, color: "white", fontSize: 13, fontWeight: 700, boxShadow: UA.shadowMd, zIndex: 50, display: "flex", alignItems: "center", gap: 12, whiteSpace: "nowrap" }}>
+          <span>⏸ Still working on this?</span>
+          <button onClick={resetIdleTimer} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 6, padding: "5px 14px", color: "white", cursor: "pointer", fontWeight: 700, fontSize: 12, fontFamily: "inherit" }}>I'm here</button>
+        </div>
+      )}
+
       {/* ── FLOATING ACTION BUTTON (FAB) ── */}
       <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 100, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
         {/* Stage labels — show expanded options */}
@@ -2203,7 +2213,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
                   try {
                     await supabase.from("session_logs").insert({
                       student_id: a.studentId || null,
-                      assignment_id: typeof a.id === "string" && a.id.includes("-") ? a.id : null,
+                      assignment_id: isValidUUID(a.id) ? a.id : null,
                       notes: reflectNote,
                       completion_type: "reflection",
                       created_at: new Date().toISOString(),
@@ -2236,6 +2246,7 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
 // Weekly schedule view — shows today's appointments prominently,
 // full week below, and caseload health summary at a glance.
 function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
+  const isMobile = useIsMobile();
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const today = new Date();
   const todayIdx = today.getDay() === 0 ? 6 : today.getDay();
@@ -2330,7 +2341,7 @@ function StaffDashboard({ onSelectStudent, currentUserName = "there" }) {
       })()}
 
       {/* Caseload health summary — clickable tiles */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14 }}>
         {[
           { label: "Total Students", value: STUDENTS.length, color: UA.navy, icon: "👥", sub: "in your caseload", action: () => onSelectStudent("roster") },
           { label: "High Risk", value: STUDENTS.filter(s => s.dynamicRisk === "high").length, color: UA.red, icon: "🔴", sub: "need attention", action: () => onSelectStudent("roster_high") },
@@ -2493,17 +2504,9 @@ function TodayActivityFeed({ onSelectStudent }) {
         .order("due_date", { ascending: true });
 
       if (!error && data) {
-        const parseDateFeed = (str) => {
-          if (!str) return new Date(9999, 0, 1);
-          if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
-            const [y, m, d] = str.split("-");
-            return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
-          }
-          return new Date(str);
-        };
         const enriched = data.map(a => {
           const student = STUDENTS.find(s => s.id === a.student_id);
-          const due = parseDateFeed(a.due_date);
+          const due = parseDateSafe(a.due_date);
           return {
             ...a,
             dueDate: due,
@@ -2575,7 +2578,7 @@ function RosterPage({ onSelectStudent }) {
     e.stopPropagation();
     if (!window.confirm("Remove this student from your roster?")) return;
     // Remove from Supabase if real UUID
-    if (studentId && typeof studentId === "string" && studentId.includes("-")) {
+    if (studentId && isValidUUID(studentId)) {
       await supabase.from("students").delete().eq("students", studentId);
     }
     // Remove from local STUDENTS array and track deleted
@@ -2828,22 +2831,10 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
         "\nAvg effort (last sessions): " + (student.avgEffort || "no data") +
         "\n\nKeep the plan concise and actionable. Focus on what the student needs to do, not what they should feel. Plain text only, no markdown formatting.";
 
-      const _ctrl2819 = new AbortController(); setTimeout(() => _ctrl2819.abort(), 15000);
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
+      const data = await callAI({
           assignment: { title: "Session Summary Request", course: "", description: prompt },
           prompt: { question: "Generate weekly plan", aiPrompt: prompt },
-        }),
-        signal: _ctrl2819.signal,
-      });
-      if (!response.ok) throw new Error(`AI error: ${response.status}`);
-      const data = await response.json();
+        }, 15000);
       const text = data.text || data.content?.[0]?.text || "";
       if (text) setWeeklyPlan(text);
     } catch (e) {
@@ -2860,46 +2851,21 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   useEffect(() => {
     const loadAssignments = async () => {
       setAssignmentsLoading(true);
-      const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
-      if (isRealUUID) {
+      if (isValidUUID(student.id)) {
         const { data, error } = await supabase
           .from("assignments")
           .select("*")
           .eq("student_id", student.id)
           .order("due_date", { ascending: true });
         if (!error && data) {
-          const nowL = new Date(); const midnightL = new Date(nowL); midnightL.setHours(0,0,0,0);
-          const threeDaysAgoL = new Date(nowL); threeDaysAgoL.setDate(nowL.getDate()-3);
-          const sevenDaysAgoL = new Date(nowL); sevenDaysAgoL.setDate(nowL.getDate()-7);
-          const parseDateL = (str) => {
-            if (!str) return new Date(9999, 0, 1); // null due_date → far future, never archives
-            if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
-              const [y, m, d] = str.split("-");
-              return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
-            }
-            return new Date(str);
-          };
           setLocalAssignments(data.map(a => {
-            const dueDate = parseDateL(a.due_date);
-            const status = a.status || "not_started";
-            const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
-            const isOverdue = dueDate < midnightL && status !== "completed";
-            const isFutureL = dueDate >= midnightL;
-            const dueDateStrL = dueDate.toLocaleDateString("en-CA");
-            const todayStrL = new Date().toLocaleDateString("en-CA");
-            const s7StrL = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
-            const t3StrL = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
-            const updatedStrL = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
-            const isArchived = a.archived_override === true ? false :
-              dueDateStrL >= todayStrL ? false :
-              (status === "completed" && updatedStrL && updatedStrL < t3StrL) ||
-              (isOverdue && dueDateStrL < s7StrL);
+            const meta = computeAssignmentMeta(a);
             return {
               id: a.id, title: a.title || "", course: a.course || "",
               courseCode: a.course_code || "",
-              dueDate, updatedAt,
-              points: a.points || 0, status,
-              isOverdue, isArchived,
+              dueDate: meta.dueDate, updatedAt: meta.updatedAt,
+              points: a.points || 0, status: meta.status,
+              isOverdue: meta.isOverdue, isArchived: meta.isArchived,
               archivedOverride: a.archived_override === true,
               urgency: a.urgency || "green", description: a.description || "",
               instructions: a.instructions || "", rubric: a.rubric || "",
@@ -2925,13 +2891,12 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
   }, [student.id]);
 
   const handlePlanSave = async () => {
-    const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
+    const isRealUUID = isValidUUID(student.id);
     if (isRealUUID) {
       const { error } = await supabase.from("students").update({ weekly_plan: weeklyPlan }).eq("students", student.id);
       if (error) {
         console.error("Plan save failed:", error.message);
-        alert("Weekly plan didn't save. Check your connection and try again.");
-        alert("Save failed: " + error.message);
+        alert("Weekly plan didn't save: " + error.message);
         return;
       }
     }
@@ -2962,7 +2927,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
     setNewNote("");
     setNoteSaved(true);
     setTimeout(() => setNoteSaved(false), 3000);
-    const isRealUUID = student.id && typeof student.id === "string" && student.id.includes("-");
+    const isRealUUID = isValidUUID(student.id);
     if (isRealUUID) {
       const saved = await insertStaffNote(note, student.id, sessionUser?.id);
       if (saved) setNotes(prev => prev.map(n => n.id === note.id ? { ...n, id: saved.id } : n));
@@ -3367,8 +3332,7 @@ function StudentProfile({ student, onBack, onExportReport, onAddAssignment, sess
             ) : notes.map(note => <NoteCard key={note.id} note={note}
               onDelete={async (noteId) => {
                 setNotes(prev => prev.filter(n => n.id !== noteId));
-                const isRealUUID = typeof noteId === "string" && noteId.includes("-") && noteId.length > 20;
-                if (isRealUUID) await deleteStaffNote(noteId);
+                if (isValidUUID(noteId)) await deleteStaffNote(noteId);
               }}
               onEdit={(noteId, newText) => {
                 setNotes(prev => prev.map(n => n.id === noteId ? { ...n, text: newText } : n));
@@ -4400,7 +4364,7 @@ function SavedDocsTab({ docs, setDocs, student, onAddAssignment, effectiveStuden
   const [expandedDoc, setExpandedDoc] = useState(null);
   const [docState, setDocState] = useState({}); // per doc: { items, selected, added, extracting, showPaste, pasteText }
 
-  const isRealUUID = (id) => id && typeof id === "string" && id.includes("-");
+  const isRealUUID = isValidUUID;
 
   const getDocState = (docId) => docState[docId] || { items: [], selected: {}, added: false, extracting: false, showPaste: false, pasteText: "" };
   const setDs = (docId, patch) => setDocState(prev => ({ ...prev, [docId]: { ...getDocState(docId), ...patch } }));
@@ -4755,7 +4719,7 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
   const [activeTab, setActiveTab] = useState("d2l");
 
   // Resolve real Supabase UUID — mock students have integer IDs, real ones have UUIDs
-  const isRealUUID = (id) => id && typeof id === "string" && id.includes("-");
+  const isRealUUID = isValidUUID;
 
   // Auto-select first real Supabase student (UUID) — fall back to first student
   const firstRealStudent = students.find(s => isRealUUID(s.id));
@@ -4964,21 +4928,10 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
     if (syllabusImageBase64) {
       try {
         const _ctrl4958 = new AbortController(); setTimeout(() => _ctrl4958.abort(), 20000);
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": SUPABASE_ANON_KEY,
-            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
+        const data = await callAI({
             imageBase64: syllabusImageBase64,
             imageMediaType: syllabusImageMediaType || "image/jpeg",
-          }),
-          signal: _ctrl4958.signal,
-        });
-        if (!response.ok) throw new Error(`AI error: ${response.status}`);
-        const data = await response.json();
+          }, 20000);
         const text = data.text || "";
         if (text) {
           try {
@@ -5336,22 +5289,11 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
 
       const prompt = "These are " + b64s.length + " screenshots from a D2L (Brightspace) learning management system or a course syllabus. Analyze ALL images as a single unified course view. Extract EVERY assignment, quiz, exam, discussion post, lab, and recurring obligation you can see across all images. For each item return: title (string), course (string, e.g. 'SRL 201'), dueDate (YYYY-MM-DD or null if TBD), points (number or 0), type (Essay/Exam/Quiz/Discussion/Lab/Homework/Project/Other). If you see a recurring pattern like 'due every Wednesday', generate one entry per occurrence through the end of the semester. Return ONLY a valid JSON array, no markdown, no explanation.";
 
-      const _ctrl5333 = new AbortController(); setTimeout(() => _ctrl5333.abort(), 25000); // longer — multiple images
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
+      const data = await callAI({
           multipleImages: b64s,
           prompt: { question: "Extract assignments", aiPrompt: prompt },
           assignment: { title: "Snap Extraction", course: "", description: prompt },
-        }),
-        signal: _ctrl5333.signal,
-      });
-      if (!response.ok) throw new Error(`AI error: ${response.status}`);
+        }, 25000);
 
       const data = await response.json();
       const raw = data.text || data.content?.[0]?.text || "";
@@ -5961,21 +5903,10 @@ function GlobalNotesFeed() {
       const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
       const prompt = "You are a learning specialist reviewing your student-athlete caseload before your sessions today. Your PRIMARY focus is surfacing: (1) any Concern Flags or Follow-Up Required notes from other staff, (2) students with action items that need to happen today (emails to send, assignments to submit, appointments missed), (3) students with past due work. Write 3-5 sentences maximum. Lead with the most urgent flags. Name the student and the specific issue. Be direct — this is a clinical handoff note, not a summary. Today: " + today + " | Caseload data: " + studentSummaries;
 
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
+      const data = await callAI({
           assignment: { title: "Session Summary Request", course: "", description: prompt },
           prompt: { question: "Generate caseload briefing", aiPrompt: prompt },
-        }),
-        signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; })(),
-      });
-      if (!response.ok) throw new Error(`AI error: ${response.status}`);
-      const data = await response.json();
+        }, 15000);
       setBriefing(data.text || "Could not generate briefing. Try again.");
     } catch (e) {
       setBriefing("Error generating briefing: " + e.message);
@@ -6102,20 +6033,62 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
   const [aiSummary, setAiSummary] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState("");
-  const [summaryGeneratedAt, setSummaryGeneratedAt] = useState(null);
 
-  // Filter state
-  const [courseFilter, setCourseFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("30"); // days, "all" for everything
-  const [flagFilter, setFlagFilter] = useState("all");
+  const generateSummary = async () => {
+    if (logs.length === 0) return;
+    setSummaryLoading(true);
+    setSummaryError("");
+    setAiSummary("");
 
-  // Per-assignment expansion state
-  const [expanded, setExpanded] = useState({});
-  const toggleExpand = (key) => setExpanded(e => ({ ...e, [key]: !e[key] }));
+    // Build a compact data payload for Claude
+    const avgEffort = logs.filter(l=>l.effort>0).length > 0
+      ? (logs.filter(l=>l.effort>0).reduce((s,l)=>s+l.effort,0) / logs.filter(l=>l.effort>0).length).toFixed(1)
+      : "not reported";
+    const avgUnderstanding = logs.filter(l=>l.understanding>0).length > 0
+      ? (logs.filter(l=>l.understanding>0).reduce((s,l)=>s+l.understanding,0) / logs.filter(l=>l.understanding>0).length).toFixed(1)
+      : "not reported";
+    const totalTime = logs.reduce((s,l)=>s+l.timeSeconds,0);
+    const totalBreakdowns = logs.reduce((s,l)=>s+l.aiBreakdownsUsed,0);
+    const avgPromptsOpened = logs.length > 0
+      ? (logs.reduce((s,l)=>s+(l.promptsExpanded?.length||0),0) / logs.length).toFixed(1)
+      : 0;
+    const avgResponsesFilled = logs.length > 0
+      ? (logs.reduce((s,l)=>s+l.promptResponsesFilled,0) / logs.length).toFixed(1)
+      : 0;
+    const lateWorkSessions = logs.filter(l=>l.daysBeforeDue !== null && l.daysBeforeDue <= 0).length;
+    const recentNotes = logs.filter(l=>l.notes).slice(0,3).map(l=>`"${l.notes}"`).join(", ");
+    const assignments = [...new Set(logs.map(l=>l.assignment))].join(", ");
 
-  // ---- Load session logs ---------------------------------------------------
+    const prompt = "You are a learning specialist reviewing a student-athlete's academic engagement data. Write a concise clinical summary (4-6 sentences) followed by 2-3 specific, actionable recommendations for the upcoming session. Be direct and professional — this is for a staff member, not the student. Do not be generic. Use the specific numbers provided." +
+      " Student: " + studentName +
+      " | Sessions logged: " + logs.length +
+      " | Assignments worked on: " + assignments +
+      " | Total time in app: " + Math.round(totalTime/60) + " minutes" +
+      " | Avg effort (self-reported 1-5): " + avgEffort +
+      " | Avg understanding (self-reported 1-5): " + avgUnderstanding +
+      " | Avg prompts opened per session: " + avgPromptsOpened + " of 4" +
+      " | Avg written responses per session: " + avgResponsesFilled + " of 4" +
+      " | AI breakdowns requested: " + totalBreakdowns +
+      " | Sessions started day-of or late: " + lateWorkSessions + " of " + logs.length +
+      (recentNotes ? " | Student notes from recent sessions: " + recentNotes : "") +
+      " | Important context: Self-reported effort and understanding may not reflect actual engagement. Weight behavioral data (time, prompts opened, responses written) more heavily when they conflict with self-report. Flag any discrepancies explicitly.";
+
+    try {
+      const data = await callAI({
+          assignment: { title: "Session Summary Request", course: "", description: prompt },
+          prompt: { question: "Generate clinical summary", aiPrompt: prompt },
+        }, 15000);
+      const text = data.text || data.content?.[0]?.text || "";
+      if (!text) throw new Error("Empty response");
+      setAiSummary(text);
+    } catch (e) {
+      setSummaryError("Could not generate summary. Try again.");
+    }
+    setSummaryLoading(false);
+  };
+
   useEffect(() => {
-    const isRealUUID = studentId && typeof studentId === "string" && studentId.includes("-");
+    const isRealUUID = isValidUUID(studentId);
     if (!isRealUUID) { setLoading(false); return; }
     supabase.from("session_logs")
       .select("*")
@@ -6125,11 +6098,8 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
         if (!error && data) {
           setLogs(data.map(l => ({
             id: l.id,
-            createdAt: l.created_at,
             date: new Date(l.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-            assignmentId: l.assignment_id,
             assignment: l.assignment_title || "—",
-            courseCode: l.course_code || "",
             timeSpent: l.duration_minutes || 0,
             effort: l.effort || 0,
             understanding: l.understanding || 0,
@@ -6146,203 +6116,6 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
       });
   }, [studentId]);
 
-  // ---- Filter logs (date + course) before grouping -------------------------
-  const filteredLogs = useMemo(() => {
-    const cutoff = dateFilter === "all" ? null : (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - parseInt(dateFilter));
-      return d;
-    })();
-    return logs.filter(l => {
-      if (cutoff && new Date(l.createdAt) < cutoff) return false;
-      if (courseFilter !== "all" && l.courseCode !== courseFilter) return false;
-      return true;
-    });
-  }, [logs, dateFilter, courseFilter]);
-
-  // ---- Group by assignment + compute pattern flags -------------------------
-  const groupedAssignments = useMemo(() => {
-    const map = new Map();
-    filteredLogs.forEach(log => {
-      // Group key: assignment_id if real, otherwise fall back to title (handles legacy logs)
-      const key = log.assignmentId || `title:${log.assignment}`;
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          assignmentId: log.assignmentId,
-          title: log.assignment,
-          courseCode: log.courseCode,
-          sessions: [],
-        });
-      }
-      map.get(key).sessions.push(log);
-    });
-
-    // Sessions are already sorted desc; sort each group's sessions ascending so "first" = oldest
-    return Array.from(map.values()).map(group => {
-      const sessionsAsc = [...group.sessions].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-      const sessionsDesc = [...group.sessions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      const firstSession = sessionsAsc[0];
-      const lastSession = sessionsDesc[0];
-
-      const totalMinutes = group.sessions.reduce((s, l) => s + (l.timeSpent || 0), 0);
-      const totalSeconds = group.sessions.reduce((s, l) => s + (l.timeSeconds || 0), 0);
-      const totalBreakdowns = group.sessions.reduce((s, l) => s + (l.aiBreakdownsUsed || 0), 0);
-      const totalPromptsOpened = group.sessions.reduce((s, l) => s + (l.promptsExpanded?.length || 0), 0);
-      const totalResponses = group.sessions.reduce((s, l) => s + (l.promptResponsesFilled || 0), 0);
-      const effortValues = group.sessions.filter(l => l.effort > 0).map(l => l.effort);
-      const understandingValues = group.sessions.filter(l => l.understanding > 0).map(l => l.understanding);
-      const avgEffort = effortValues.length ? (effortValues.reduce((a, b) => a + b, 0) / effortValues.length) : null;
-      const finalEffort = lastSession.effort || 0;
-      const finalUnderstanding = lastSession.understanding || 0;
-      const finalCompletion = lastSession.completionType;
-      const firstStartDays = firstSession.daysBeforeDue;
-      const hasNotes = group.sessions.some(l => l.notes && l.notes.trim());
-
-      // ---- Pattern flag engine ---------------------------------------------
-      const flags = [];
-
-      // low_engagement: 3+ sessions, total time < 10 min
-      if (group.sessions.length >= 3 && totalSeconds > 0 && totalSeconds < 600) {
-        flags.push({ id: "low_engagement", label: `Low engagement (${group.sessions.length} opens, ${Math.round(totalSeconds / 60)}m)`, severity: "high" });
-      }
-
-      // procrastination: first session day-of or after due
-      if (firstStartDays !== null && firstStartDays !== undefined && firstStartDays <= 0) {
-        flags.push({ id: "procrastination", label: firstStartDays <= 0 && firstStartDays > -1 ? "Started day-of" : "Started after due", severity: "high" });
-      }
-
-      // low_effort_pattern: avg effort ≤ 3 across all rated sessions
-      if (avgEffort !== null && avgEffort <= 3 && effortValues.length >= 1) {
-        flags.push({ id: "low_effort", label: `Effort avg ${avgEffort.toFixed(1)}/5`, severity: "med" });
-      }
-
-      // low_understanding: most recent understanding ≤ 3
-      if (finalUnderstanding > 0 && finalUnderstanding <= 3) {
-        flags.push({ id: "low_understanding", label: `Understanding ${finalUnderstanding}/5`, severity: "med" });
-      }
-
-      // no_guided_prompts: no prompts opened across all sessions
-      if (totalPromptsOpened === 0 && group.sessions.length >= 1) {
-        flags.push({ id: "no_prompts", label: "No guided prompts used", severity: "low" });
-      }
-
-      // has_notes: clinically relevant
-      if (hasNotes) {
-        flags.push({ id: "has_notes", label: "Has student notes", severity: "info" });
-      }
-
-      // incomplete: final completion type not finished
-      if (finalCompletion === "stopped" || finalCompletion === "partial") {
-        flags.push({ id: "incomplete", label: "Last session incomplete", severity: "med" });
-      }
-
-      return {
-        ...group,
-        sessions: sessionsDesc,
-        firstSession,
-        lastSession,
-        totalMinutes,
-        totalSeconds,
-        totalBreakdowns,
-        totalPromptsOpened,
-        totalResponses,
-        avgEffort,
-        finalEffort,
-        finalUnderstanding,
-        finalCompletion,
-        firstStartDays,
-        hasNotes,
-        flags,
-      };
-    }).sort((a, b) => new Date(b.lastSession.createdAt) - new Date(a.lastSession.createdAt));
-  }, [filteredLogs]);
-
-  // ---- Apply flag filter ---------------------------------------------------
-  const visibleAssignments = useMemo(() => {
-    if (flagFilter === "all") return groupedAssignments;
-    return groupedAssignments.filter(g => g.flags.some(f => f.id === flagFilter));
-  }, [groupedAssignments, flagFilter]);
-
-  // ---- Course options for filter dropdown ----------------------------------
-  const courseOptions = useMemo(() => {
-    const codes = [...new Set(logs.map(l => l.courseCode).filter(Boolean))];
-    return codes.sort();
-  }, [logs]);
-
-  // ---- Build clinical AI prompt from grouped data --------------------------
-  const buildPrompt = (groups) => {
-    if (groups.length === 0) return null;
-    const totalSessions = groups.reduce((s, g) => s + g.sessions.length, 0);
-    const totalMinutes = groups.reduce((s, g) => s + g.totalMinutes, 0);
-    const allFlags = groups.flatMap(g => g.flags.map(f => `${g.title}: ${f.label}`));
-    const flaggedAssignments = groups.filter(g => g.flags.some(f => f.severity === "high" || f.severity === "med"));
-    const notesExcerpts = groups.filter(g => g.hasNotes).flatMap(g =>
-      g.sessions.filter(s => s.notes).slice(0, 1).map(s => `[${g.title}]: "${s.notes}"`)
-    ).slice(0, 4);
-
-    const assignmentBreakdown = groups.slice(0, 8).map(g => {
-      const flagText = g.flags.length ? ` [flags: ${g.flags.map(f => f.label).join("; ")}]` : "";
-      const startedText = g.firstStartDays !== null && g.firstStartDays !== undefined
-        ? (g.firstStartDays <= 0 ? "started day-of/late" : `started ${Math.round(g.firstStartDays)}d before due`)
-        : "no due-date data";
-      return `- ${g.title} (${g.courseCode || "no course"}): ${g.sessions.length} session(s), ${g.totalMinutes}m total, final effort ${g.finalEffort}/5, final understanding ${g.finalUnderstanding}/5, ${startedText}${flagText}`;
-    }).join("\n");
-
-    return "You are a learning specialist documenting a student-athlete's recent academic engagement. Produce two sections, separated by a blank line:\n\n"
-      + "ASSESSMENT (3-4 sentences): What the data actually shows. Reference specific assignments and patterns by name. Surface discrepancies between behavioral data and self-report when present. No filler phrases like 'this student is working hard' or 'shows commitment'.\n\n"
-      + "NEXT STEPS (2-3 concrete actions): Specific things a learning specialist could do this week. Not generic advice.\n\n"
-      + "GOOD next steps look like: 'Sit with him during the next BIO 181 work session — he's opening assignments but not engaging once they're open.' 'Flag the missing-notes pattern to his counselor before Friday.' 'Require a 15-min planning conversation before he starts the PSY 230 paper.'\n\n"
-      + "BAD next steps look like: 'Continue to monitor.' 'Encourage him to use prompts.' 'Check in regularly.' 'Provide additional support.'\n\n"
-      + "Format: Use the literal headers 'ASSESSMENT:' and 'NEXT STEPS:' followed by the content. Use a numbered list (1., 2., 3.) for next steps."
-      + "\n\n--- DATA ---"
-      + "\nStudent: " + studentName
-      + "\nWindow: " + (dateFilter === "all" ? "all sessions" : `last ${dateFilter} days`)
-      + "\nAssignments worked: " + groups.length
-      + " | Total sessions: " + totalSessions
-      + " | Total time in Work Mode: " + totalMinutes + " min"
-      + " | Assignments with concerning flags: " + flaggedAssignments.length
-      + "\n\nPer-assignment breakdown:\n" + assignmentBreakdown
-      + (allFlags.length ? "\n\nAll active flags: " + allFlags.join(" | ") : "")
-      + (notesExcerpts.length ? "\n\nStudent notes from recent sessions:\n" + notesExcerpts.join("\n") : "")
-      + "\n\nImportant: weight behavioral data (time, prompts opened, responses written, days-before-due) over self-reported effort/understanding when they conflict.";
-  };
-
-  const generateSummary = async (groupsForPrompt) => {
-    const groups = groupsForPrompt || groupedAssignments;
-    if (groups.length === 0) return;
-    setSummaryLoading(true);
-    setSummaryError("");
-    setAiSummary("");
-    const prompt = buildPrompt(groups);
-    if (!prompt) { setSummaryLoading(false); return; }
-
-    try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-breakdown-`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_ANON_KEY,
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          assignment: { title: "Session Summary Request", course: "", description: prompt },
-          prompt: { question: "Generate clinical summary", aiPrompt: prompt },
-        }),
-        signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; })(),
-      });
-      if (!response.ok) throw new Error(`AI error: ${response.status}`);
-      const data = await response.json();
-      const text = data.text || data.content?.[0]?.text || "";
-      if (!text) throw new Error("Empty response");
-      setAiSummary(text);
-      setSummaryGeneratedAt(new Date());
-    } catch (e) {
-      setSummaryError("Could not generate summary. Try again.");
-    }
-    setSummaryLoading(false);
-  };
-
   if (loading) return <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 13 }}>Loading session logs...</div>;
   const effortColor = (v) => v >= 4 ? UA.green : v >= 3 ? UA.yellow : UA.red;
 
@@ -6353,185 +6126,82 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
     </div>
   );
 
-  // ---- Flag chip styling ---------------------------------------------------
-  const flagStyle = (severity) => {
-    if (severity === "high") return { bg: UA.redLight || "#fde8e8", border: UA.red, fg: UA.red };
-    if (severity === "med") return { bg: "#fef3c7", border: UA.yellow, fg: "#92400e" };
-    if (severity === "info") return { bg: UA.navyLight, border: UA.navyBorder, fg: UA.navy };
-    return { bg: UA.bg, border: UA.border, fg: UA.textMuted };
-  };
-
-  const FlagChip = ({ flag }) => {
-    const s = flagStyle(flag.severity);
-    return (
-      <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 8px", borderRadius: 999, background: s.bg, border: `1px solid ${s.border}`, color: s.fg, fontSize: 11, fontWeight: 700, lineHeight: 1.2 }}>
-        {flag.label}
-      </span>
-    );
-  };
-
-  // ---- Filter row select styling -------------------------------------------
-  const sel = { fontSize: 12, padding: "6px 10px", borderRadius: UA.radiusSm, border: `1px solid ${UA.border}`, background: "white", color: UA.text, fontWeight: 600, cursor: "pointer", outline: "none" };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* Assessment & Next Steps — manual generation */}
+      {/* AI Session Summary */}
       <Card style={{ padding: "20px 24px", border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: aiSummary || summaryLoading ? 14 : 0 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 14, color: UA.navy }}>🧠 Assessment & Next Steps</div>
-            <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>
-              {summaryGeneratedAt
-                ? `Generated ${summaryGeneratedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} from ${groupedAssignments.length} assignment(s)`
-                : "AI read of engagement patterns with recommended actions"}
-            </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: aiSummary ? 14 : 0 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: UA.navy }}>🧠 AI Session Summary</div>
+            <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>Interprets behavioral + self-report data and surfaces clinical insights</div>
           </div>
-          <Btn size="sm" variant="secondary" disabled={summaryLoading || groupedAssignments.length === 0} onClick={() => generateSummary()}>
-            {summaryLoading ? "Generating..." : aiSummary ? "Regenerate" : "Generate"}
+          <Btn size="sm" variant="secondary" disabled={summaryLoading || logs.length === 0} onClick={generateSummary}>
+            {summaryLoading ? "Generating..." : aiSummary ? "Regenerate" : "Generate Summary"}
           </Btn>
         </div>
         {summaryLoading && (
-          <div style={{ padding: "12px 0", color: UA.textMuted, fontSize: 13 }}>Analyzing {groupedAssignments.length} assignment(s) across {filteredLogs.length} session(s)...</div>
+          <div style={{ padding: "16px 0", color: UA.textMuted, fontSize: 13 }}>Analyzing {logs.length} sessions...</div>
         )}
         {summaryError && (
           <div style={{ color: UA.red, fontSize: 13, marginTop: 10 }}>{summaryError}</div>
         )}
         {aiSummary && !summaryLoading && (
-          <div style={{ fontSize: 13, lineHeight: 1.75, color: UA.text, whiteSpace: "pre-wrap", marginTop: 4 }}>{aiSummary}</div>
+          <div style={{ fontSize: 13, lineHeight: 1.8, color: UA.text, whiteSpace: "pre-wrap", marginTop: 4 }}>{aiSummary}</div>
         )}
         {!aiSummary && !summaryLoading && !summaryError && (
-          <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 10, fontStyle: "italic" }}>
-            Click Generate to produce a written assessment and 2–3 concrete next steps for this student.
+          <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 10 }}>
+            Click Generate Summary to get an AI-interpreted clinical overview of this student's engagement patterns.
           </div>
         )}
       </Card>
 
-      {/* Filter bar */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", padding: "10px 14px", background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, textTransform: "uppercase", letterSpacing: "0.04em" }}>Filter</span>
-        <select style={sel} value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
-          <option value="7">Last 7 days</option>
-          <option value="14">Last 14 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="90">Last 90 days</option>
-          <option value="all">All time</option>
-        </select>
-        <select style={sel} value={courseFilter} onChange={e => setCourseFilter(e.target.value)}>
-          <option value="all">All courses</option>
-          {courseOptions.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select style={sel} value={flagFilter} onChange={e => setFlagFilter(e.target.value)}>
-          <option value="all">All flags</option>
-          <option value="low_engagement">Low engagement</option>
-          <option value="procrastination">Procrastination</option>
-          <option value="low_effort">Low effort</option>
-          <option value="low_understanding">Low understanding</option>
-          <option value="no_prompts">No prompts used</option>
-          <option value="incomplete">Incomplete</option>
-          <option value="has_notes">Has notes</option>
-        </select>
-        <div style={{ marginLeft: "auto", fontSize: 12, color: UA.textMuted }}>
-          {visibleAssignments.length} assignment{visibleAssignments.length !== 1 ? "s" : ""} · {filteredLogs.length} session{filteredLogs.length !== 1 ? "s" : ""}
-        </div>
-      </div>
-
-      {/* Empty state for filters */}
-      {visibleAssignments.length === 0 && (
-        <div style={{ textAlign: "center", padding: "32px 0", color: UA.textMuted, fontSize: 13, background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius }}>
-          No assignments match these filters.
-        </div>
-      )}
-
-      {/* Grouped assignment rows */}
-      {visibleAssignments.map(group => {
-        const isOpen = !!expanded[group.key];
-        const startedText = group.firstStartDays !== null && group.firstStartDays !== undefined
-          ? (group.firstStartDays <= 0 ? "Started day-of / late" : `Started ${Math.round(group.firstStartDays)}d before due`)
-          : "No due-date data";
-        return (
-          <div key={group.key} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, boxShadow: UA.shadow, overflow: "hidden" }}>
-
-            {/* Row header */}
-            <div onClick={() => toggleExpand(group.key)} style={{ padding: "16px 20px", cursor: "pointer", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: UA.textMuted, transition: "transform 0.15s", display: "inline-block", transform: isOpen ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-                  {group.courseCode && (
-                    <span style={{ fontSize: 11, fontWeight: 800, color: UA.navy, background: UA.navyLight, padding: "2px 8px", borderRadius: 4, letterSpacing: "0.03em" }}>{group.courseCode}</span>
-                  )}
-                  <span style={{ fontWeight: 800, fontSize: 14, color: UA.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{group.title}</span>
-                </div>
-                <div style={{ fontSize: 12, color: UA.textMuted, marginLeft: 22 }}>
-                  {group.sessions.length} session{group.sessions.length !== 1 ? "s" : ""} · {group.totalMinutes}m total · {startedText}
-                  {group.hasNotes && <span style={{ marginLeft: 8 }}>📝</span>}
-                </div>
-                {group.flags.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8, marginLeft: 22 }}>
-                    {group.flags.map(f => <FlagChip key={f.id} flag={f} />)}
-                  </div>
-                )}
+      {/* Session log entries */}
+      {logs.map(log => (
+        <div key={log.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "18px 20px", boxShadow: UA.shadow }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: UA.text }}>{log.assignment}</div>
+              <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 3 }}>{log.date} · {log.timeSpent} min · {log.completionType.replace("_", " ")}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <div style={{ textAlign: "center", padding: "6px 12px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
+                <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Effort</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: effortColor(log.effort) }}>{log.effort}/5</div>
               </div>
-
-              {/* Right-side metrics */}
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <div style={{ textAlign: "center", padding: "6px 10px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}`, minWidth: 60 }}>
-                  <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Effort</div>
-                  <div style={{ fontSize: 17, fontWeight: 900, color: effortColor(group.finalEffort) }}>{group.finalEffort || "—"}{group.finalEffort ? "/5" : ""}</div>
-                </div>
-                <div style={{ textAlign: "center", padding: "6px 10px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}`, minWidth: 60 }}>
-                  <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Underst.</div>
-                  <div style={{ fontSize: 17, fontWeight: 900, color: effortColor(group.finalUnderstanding) }}>{group.finalUnderstanding || "—"}{group.finalUnderstanding ? "/5" : ""}</div>
-                </div>
+              <div style={{ textAlign: "center", padding: "6px 12px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
+                <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Understanding</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: effortColor(log.understanding) }}>{log.understanding}/5</div>
               </div>
             </div>
-
-            {/* Expanded session detail */}
-            {isOpen && (
-              <div style={{ borderTop: `1px solid ${UA.border}`, background: UA.bg, padding: "12px 20px 16px" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>
-                  Individual sessions ({group.sessions.length})
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {group.sessions.map(log => (
-                    <div key={log.id} style={{ background: "white", border: `1px solid ${UA.border}`, borderRadius: UA.radiusSm, padding: "12px 14px" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
-                        <div style={{ fontSize: 12, color: UA.textMuted, fontWeight: 600 }}>
-                          {log.date} · {log.timeSpent}m · {log.completionType.replace("_", " ")}
-                        </div>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          {log.effort > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: effortColor(log.effort), padding: "2px 7px", borderRadius: 4, background: UA.bg }}>E {log.effort}/5</span>}
-                          {log.understanding > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: effortColor(log.understanding), padding: "2px 7px", borderRadius: 4, background: UA.bg }}>U {log.understanding}/5</span>}
-                        </div>
-                      </div>
-
-                      {(log.timeSeconds > 0 || log.aiBreakdownsUsed > 0 || (log.promptsExpanded && log.promptsExpanded.length > 0)) && (
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: UA.navy }}>
-                          <span>⏱ {log.timeSeconds > 0 ? `${Math.round(log.timeSeconds / 60)}m ${log.timeSeconds % 60}s` : "—"}</span>
-                          <span>·</span>
-                          <span>Prompts {log.promptsExpanded?.length || 0}/4</span>
-                          <span>·</span>
-                          <span>AI {log.aiBreakdownsUsed || 0}</span>
-                          <span>·</span>
-                          <span>Wrote {log.promptResponsesFilled || 0}/4</span>
-                          <span>·</span>
-                          <span>{log.daysBeforeDue !== null && log.daysBeforeDue !== undefined ? (log.daysBeforeDue <= 0 ? "day-of/late" : `${Math.round(log.daysBeforeDue)}d early`) : "—"}</span>
-                        </div>
-                      )}
-
-                      {log.notes && (
-                        <div style={{ marginTop: 8, fontSize: 12, color: UA.textSecondary, lineHeight: 1.6, padding: "8px 10px", background: UA.bg, borderRadius: UA.radiusSm, borderLeft: `3px solid ${UA.navy}` }}>
-                          <strong style={{ color: UA.navy, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>Notes: </strong>{log.notes}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-        );
-      })}
+          {/* Silent engagement row */}
+          {(log.timeSeconds > 0 || log.aiBreakdownsUsed > 0 || log.promptsExpanded?.length > 0) && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0", padding: "10px 14px", background: UA.navyLight, borderRadius: UA.radiusSm, border: `1px solid ${UA.navyBorder}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: UA.navy, width: "100%", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>🔍 Behavioral Engagement</div>
+              {[
+                { label: "Time in app", value: log.timeSeconds > 0 ? `${Math.round(log.timeSeconds / 60)}m ${log.timeSeconds % 60}s` : "—" },
+                { label: "Prompts opened", value: `${log.promptsExpanded?.length || 0} / 4` },
+                { label: "AI breakdowns", value: log.aiBreakdownsUsed || 0 },
+                { label: "Responses written", value: `${log.promptResponsesFilled || 0} / 4` },
+                { label: "Days before due", value: log.daysBeforeDue !== null && log.daysBeforeDue !== undefined ? (log.daysBeforeDue <= 0 ? "Day of / overdue" : `${Math.round(log.daysBeforeDue)} days`) : "—" },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ padding: "6px 12px", borderRadius: UA.radiusSm, background: "white", border: `1px solid ${UA.navyBorder}`, textAlign: "center", minWidth: 90 }}>
+                  <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>{label}</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: UA.navy }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Student notes */}
+          {log.notes && (
+            <div style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.7, padding: "10px 14px", background: UA.bg, borderRadius: UA.radiusSm, borderLeft: `3px solid ${UA.navy}` }}>
+              <strong style={{ color: UA.navy, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>Student notes: </strong>{log.notes}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -6598,7 +6268,7 @@ function EditAssignmentModal({ assignment, onClose, onSave }) {
       points: parseInt(form.points) || 0,
       dueDate: form.dueDate ? new Date(form.dueDate) : assignment.dueDate,
     };
-    const isRealUUID = typeof assignment.id === "string" && assignment.id.includes("-") && !assignment.id.startsWith("temp-");
+    const isRealUUID = isValidUUID(assignment.id);
     if (isRealUUID) {
       await updateAssignmentInDB(assignment.id, updated);
     }
@@ -6866,11 +6536,7 @@ function App() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, icon: "⚠️", message: "Check in with your students — review caseload for recent activity", time: "Today", read: false },
-    { id: 2, icon: "📝", message: "Marcus Williams has not logged a session in 6 days", time: "Yesterday", read: false },
-    { id: 3, icon: "✅", message: "Jordan Kim completed all assignments this week", time: "2 days ago", read: true },
-  ]);
+  const [notifications, setNotifications] = useState([]);
   const [assignments, setAssignments] = useState(ASSIGNMENTS);
   const [assignmentsMode, setAssignmentsMode] = useState("demo"); // "demo" | "live"
   const [sessionUser, setSessionUser] = useState(null);
@@ -6879,6 +6545,7 @@ function App() {
   const [authError, setAuthError] = useState("");
   const [backendStatus, setBackendStatus] = useState({ profileMode: "loading", studentsMode: "demo", studentsMessage: "Using demo student roster until the students table is connected." });
   const [dataVersion, setDataVersion] = useState(0);
+  const [showBanner, setShowBanner] = useState(true);
   const isMobile = useIsMobile();
 
   const applyRoleRouting = (resolvedRole) => {
@@ -6975,45 +6642,20 @@ function App() {
           .eq("student_id", studentRow.students)
           .order("due_date", { ascending: true });
         if (!error && data) {
-          const now2 = new Date();
-          const midnight2 = new Date(now2); midnight2.setHours(0,0,0,0);
-          const threeDaysAgo2 = new Date(now2); threeDaysAgo2.setDate(now2.getDate() - 3);
-          const sevenDaysAgo2 = new Date(now2); sevenDaysAgo2.setDate(now2.getDate() - 7);
-          const parseDateSafe2 = (str) => {
-            if (!str) return new Date(9999, 0, 1); // null due_date → far future, never archives
-            if (typeof str === "string" && /^\d{4}-\d{2}-\d{2}$/.test(str)) {
-              const [y, m, d] = str.split("-");
-              return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 12, 0, 0);
-            }
-            return new Date(str);
-          };
           liveAssignments = data.map(a => {
-            const dueDate = parseDateSafe2(a.due_date);
-            const currentStatus = a.status || "not_started";
-            const updatedAt = a.updated_at ? new Date(a.updated_at) : null;
-            const isOverdue = dueDate < midnight2 && currentStatus !== "completed";
-            const isFuture2 = dueDate >= midnight2;
-            const dueDateStr2 = dueDate.toLocaleDateString("en-CA");
-            const todayStr2 = new Date().toLocaleDateString("en-CA");
-            const s7Str2 = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA");
-            const t3Str2 = new Date(Date.now() - 3 * 86400000).toLocaleDateString("en-CA");
-            const updatedStr2 = updatedAt ? updatedAt.toLocaleDateString("en-CA") : null;
-            const isArchived = a.archived_override === true ? false :
-              dueDateStr2 >= todayStr2 ? false :
-              (currentStatus === "completed" && updatedStr2 && updatedStr2 < t3Str2) ||
-              (isOverdue && dueDateStr2 < s7Str2);
+            const meta = computeAssignmentMeta(a);
             return {
               id: a.id, title: a.title || "", course: a.course || "",
               courseCode: a.course_code || "",
-              dueDate,
-              points: a.points || 0, status: currentStatus,
-              isOverdue, isArchived,
+              dueDate: meta.dueDate,
+              points: a.points || 0, status: meta.status,
+              isOverdue: meta.isOverdue, isArchived: meta.isArchived,
               archivedOverride: a.archived_override === true,
               urgency: a.urgency || "green", description: a.description || "",
               instructions: a.instructions || "", rubric: a.rubric || "",
               d2lLink: a.d2l_link || "https://d2l.arizona.edu",
               studentId: a.student_id,
-              updatedAt,
+              updatedAt: meta.updatedAt,
             };
           });
         }
@@ -7104,6 +6746,13 @@ function App() {
           console.warn("Risk calc failed for", student.name, e.message);
         }
       }
+      // Force re-render after risk updates mutated STUDENTS
+      setDataVersion(v => v + 1);
+    }
+
+    // Auto-hide banner after 5 seconds if backend is live
+    if (backendStatus.studentsMode === "live") {
+      setTimeout(() => setShowBanner(false), 5000);
     }
 
     setAuthLoading(false);
@@ -7278,7 +6927,7 @@ function App() {
     pushNotification(`Assignment added: "${a.title}"`, "📚");
 
     // Save to Supabase if we have a valid student UUID
-    if (studentId && typeof studentId === "string" && studentId.includes("-")) {
+    if (studentId && isValidUUID(studentId)) {
       const saved = await insertAssignment(a, studentId, userId);
       if (saved) {
         // Replace temp entry with real Supabase record
@@ -7291,14 +6940,17 @@ function App() {
     }
   };
 
-  const backendBanner = (
-    <div style={{ margin: isMobile ? "12px 12px 0" : "16px 20px 0", padding: "12px 14px", borderRadius: 12, border: `1px solid ${backendStatus.studentsMode === "live" ? UA.greenBorder : UA.yellowBorder}`, background: backendStatus.studentsMode === "live" ? UA.greenBg : UA.yellowBg, display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: backendStatus.studentsMode === "live" ? UA.green : UA.yellow }}>Backend status</div>
-      <div style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.5 }}>
-        Signed in as <strong>{sessionUser.email}</strong>. {backendStatus.studentsMessage}
+  const backendBanner = showBanner ? (
+    <div style={{ margin: isMobile ? "12px 12px 0" : "16px 20px 0", padding: "12px 14px", borderRadius: 12, border: `1px solid ${backendStatus.studentsMode === "live" ? UA.greenBorder : UA.yellowBorder}`, background: backendStatus.studentsMode === "live" ? UA.greenBg : UA.yellowBg, display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: backendStatus.studentsMode === "live" ? UA.green : UA.yellow }}>Backend status</div>
+        <div style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.5 }}>
+          Signed in as <strong>{sessionUser.email}</strong>. {backendStatus.studentsMessage}
+        </div>
       </div>
+      <button onClick={() => setShowBanner(false)} style={{ background: "none", border: "none", cursor: "pointer", color: UA.textMuted, fontSize: 16, padding: "2px 6px", flexShrink: 0 }}>✕</button>
     </div>
-  );
+  ) : null;
 
   const renderPage = () => {
     if (page === "admin") return <AdminPage key={`admin-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
@@ -7422,7 +7074,31 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+// --- ERROR BOUNDARY -----------------------------------------------------------
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error("CATS Error:", error, info); }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement("div", {
+        style: { padding: 40, textAlign: "center", fontFamily: "'DM Sans', sans-serif", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#F8F9FB" }
+      },
+        React.createElement("div", { style: { fontSize: 48, marginBottom: 16 } }, "⚠️"),
+        React.createElement("h2", { style: { fontSize: 22, fontWeight: 800, color: "#0F1623", marginBottom: 8 } }, "Something went wrong"),
+        React.createElement("p", { style: { color: "#666", marginTop: 8, fontSize: 14, maxWidth: 400, lineHeight: 1.6 } },
+          "Try refreshing the page. If this keeps happening, contact your learning specialist."),
+        React.createElement("button", {
+          onClick: () => { this.setState({ hasError: false }); window.location.reload(); },
+          style: { marginTop: 24, padding: "12px 28px", borderRadius: 8, border: "none", background: "#CC0033", color: "white", cursor: "pointer", fontWeight: 700, fontSize: 14, fontFamily: "'DM Sans', sans-serif" }
+        }, "Refresh Page")
+      );
+    }
+    return this.props.children;
+  }
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(ErrorBoundary, null, React.createElement(App)));
 
 </script>
 <script>
