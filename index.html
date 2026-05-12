@@ -6126,6 +6126,81 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
     </div>
   );
 
+  // Group logs by assignment title
+  const grouped = {};
+  logs.forEach(log => {
+    const key = log.assignment || "Untitled";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(log);
+  });
+  // Sort groups: most recent session first
+  const sortedGroups = Object.entries(grouped).sort((a, b) => {
+    const aLatest = new Date(a[1][0].date);
+    const bLatest = new Date(b[1][0].date);
+    return bLatest - aLatest;
+  });
+
+  const [viewMode, setViewMode] = useState("grouped"); // "grouped" | "chronological"
+  const [expandedGroup, setExpandedGroup] = useState(null); // assignment title or null = all collapsed
+
+  // Aggregate stats for a group of sessions
+  const groupStats = (sessions) => {
+    const totalTime = sessions.reduce((s, l) => s + l.timeSeconds, 0);
+    const avgEff = sessions.filter(l => l.effort > 0).length > 0
+      ? (sessions.filter(l => l.effort > 0).reduce((s, l) => s + l.effort, 0) / sessions.filter(l => l.effort > 0).length).toFixed(1)
+      : "—";
+    const avgUnd = sessions.filter(l => l.understanding > 0).length > 0
+      ? (sessions.filter(l => l.understanding > 0).reduce((s, l) => s + l.understanding, 0) / sessions.filter(l => l.understanding > 0).length).toFixed(1)
+      : "—";
+    const totalBreakdowns = sessions.reduce((s, l) => s + l.aiBreakdownsUsed, 0);
+    const lateSessions = sessions.filter(l => l.daysBeforeDue !== null && l.daysBeforeDue <= 0).length;
+    const latestStatus = sessions[0]?.completionType || "in_progress";
+    return { totalTime, avgEff, avgUnd, totalBreakdowns, lateSessions, sessionCount: sessions.length, latestStatus };
+  };
+
+  const renderSessionCard = (log) => (
+    <div key={log.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radiusSm, padding: "14px 16px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+        <div>
+          {viewMode === "chronological" && <div style={{ fontWeight: 700, fontSize: 13, color: UA.text, marginBottom: 2 }}>{log.assignment}</div>}
+          <div style={{ fontSize: 12, color: UA.textMuted }}>{log.date} · {log.timeSpent} min · {log.completionType.replace("_", " ")}</div>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <div style={{ textAlign: "center", padding: "4px 10px", borderRadius: 6, background: UA.bg, border: `1px solid ${UA.border}` }}>
+            <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Effort</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: effortColor(log.effort) }}>{log.effort}/5</div>
+          </div>
+          <div style={{ textAlign: "center", padding: "4px 10px", borderRadius: 6, background: UA.bg, border: `1px solid ${UA.border}` }}>
+            <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Understand</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: effortColor(log.understanding) }}>{log.understanding}/5</div>
+          </div>
+        </div>
+      </div>
+      {(log.timeSeconds > 0 || log.aiBreakdownsUsed > 0 || log.promptsExpanded?.length > 0) && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "8px 12px", background: UA.navyLight, borderRadius: 6, border: `1px solid ${UA.navyBorder}` }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: UA.navy, width: "100%", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.04em" }}>🔍 Behavioral</div>
+          {[
+            { label: "Time", value: log.timeSeconds > 0 ? `${Math.floor(log.timeSeconds / 60)}m ${log.timeSeconds % 60}s` : "—" },
+            { label: "Prompts", value: `${log.promptsExpanded?.length || 0}/4` },
+            { label: "AI used", value: log.aiBreakdownsUsed || 0 },
+            { label: "Written", value: `${log.promptResponsesFilled || 0}/4` },
+            { label: "Timing", value: log.daysBeforeDue !== null && log.daysBeforeDue !== undefined ? (log.daysBeforeDue <= 0 ? "Late/day-of" : `${Math.round(log.daysBeforeDue)}d early`) : "—" },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ padding: "4px 10px", borderRadius: 6, background: "white", border: `1px solid ${UA.navyBorder}`, textAlign: "center", minWidth: 70 }}>
+              <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase" }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: UA.navy }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {log.notes && (
+        <div style={{ fontSize: 12, color: UA.textSecondary, lineHeight: 1.6, padding: "8px 12px", background: UA.bg, borderRadius: 6, borderLeft: `3px solid ${UA.navy}`, marginTop: 8 }}>
+          <strong style={{ color: UA.navy, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>Notes: </strong>{log.notes}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
@@ -6156,52 +6231,59 @@ function SessionLogTab({ studentId, studentName = "this student" }) {
         )}
       </Card>
 
-      {/* Session log entries */}
-      {logs.map(log => (
-        <div key={log.id} style={{ background: UA.bgCard, border: `1px solid ${UA.border}`, borderRadius: UA.radius, padding: "18px 20px", boxShadow: UA.shadow }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: UA.text }}>{log.assignment}</div>
-              <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 3 }}>{log.date} · {log.timeSpent} min · {log.completionType.replace("_", " ")}</div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <div style={{ textAlign: "center", padding: "6px 12px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
-                <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Effort</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: effortColor(log.effort) }}>{log.effort}/5</div>
-              </div>
-              <div style={{ textAlign: "center", padding: "6px 12px", borderRadius: UA.radiusSm, background: UA.bg, border: `1px solid ${UA.border}` }}>
-                <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Understanding</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: effortColor(log.understanding) }}>{log.understanding}/5</div>
-              </div>
-            </div>
-          </div>
-          {/* Silent engagement row */}
-          {(log.timeSeconds > 0 || log.aiBreakdownsUsed > 0 || log.promptsExpanded?.length > 0) && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0", padding: "10px 14px", background: UA.navyLight, borderRadius: UA.radiusSm, border: `1px solid ${UA.navyBorder}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: UA.navy, width: "100%", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>🔍 Behavioral Engagement</div>
-              {[
-                { label: "Time in app", value: log.timeSeconds > 0 ? `${Math.round(log.timeSeconds / 60)}m ${log.timeSeconds % 60}s` : "—" },
-                { label: "Prompts opened", value: `${log.promptsExpanded?.length || 0} / 4` },
-                { label: "AI breakdowns", value: log.aiBreakdownsUsed || 0 },
-                { label: "Responses written", value: `${log.promptResponsesFilled || 0} / 4` },
-                { label: "Days before due", value: log.daysBeforeDue !== null && log.daysBeforeDue !== undefined ? (log.daysBeforeDue <= 0 ? "Day of / overdue" : `${Math.round(log.daysBeforeDue)} days`) : "—" },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ padding: "6px 12px", borderRadius: UA.radiusSm, background: "white", border: `1px solid ${UA.navyBorder}`, textAlign: "center", minWidth: 90 }}>
-                  <div style={{ fontSize: 10, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>{label}</div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: UA.navy }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          {/* Student notes */}
-          {log.notes && (
-            <div style={{ fontSize: 13, color: UA.textSecondary, lineHeight: 1.7, padding: "10px 14px", background: UA.bg, borderRadius: UA.radiusSm, borderLeft: `3px solid ${UA.navy}` }}>
-              <strong style={{ color: UA.navy, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em" }}>Student notes: </strong>{log.notes}
-            </div>
-          )}
+      {/* View toggle + summary stats */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 13, color: UA.textMuted }}>{logs.length} session{logs.length !== 1 ? "s" : ""} across {sortedGroups.length} assignment{sortedGroups.length !== 1 ? "s" : ""}</div>
+        <div style={{ display: "flex", gap: 4, padding: 3, borderRadius: 8, background: UA.bg, border: `1px solid ${UA.border}` }}>
+          {[{ id: "grouped", label: "By Assignment" }, { id: "chronological", label: "Timeline" }].map(v => (
+            <button key={v.id} onClick={() => setViewMode(v.id)}
+              style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: viewMode === v.id ? UA.navy : "transparent", color: viewMode === v.id ? "white" : UA.textMuted, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+              {v.label}
+            </button>
+          ))}
         </div>
-      ))}
+      </div>
+
+      {/* GROUPED VIEW — by assignment */}
+      {viewMode === "grouped" && sortedGroups.map(([assignmentTitle, sessions]) => {
+        const stats = groupStats(sessions);
+        const isOpen = expandedGroup === assignmentTitle;
+        const statusColor = stats.latestStatus === "independent" || stats.latestStatus === "with_support" ? UA.green : stats.latestStatus === "in_progress" ? UA.navy : UA.textMuted;
+        const statusLabel = stats.latestStatus === "independent" ? "Completed" : stats.latestStatus === "with_support" ? "With Support" : stats.latestStatus === "in_progress" ? "In Progress" : stats.latestStatus.replace("_", " ");
+        return (
+          <div key={assignmentTitle} style={{ background: UA.bgCard, border: `1px solid ${isOpen ? UA.navy : UA.border}`, borderRadius: UA.radius, overflow: "hidden", boxShadow: UA.shadow, transition: "border-color 0.15s" }}>
+            {/* Assignment header — clickable to expand */}
+            <div onClick={() => setExpandedGroup(isOpen ? null : assignmentTitle)}
+              style={{ padding: "16px 20px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "background 0.15s" }}
+              onMouseEnter={e => e.currentTarget.style.background = UA.bg}
+              onMouseLeave={e => e.currentTarget.style.background = "white"}>
+              <div style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: statusColor, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: 14, color: UA.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{assignmentTitle}</div>
+                <div style={{ display: "flex", gap: 12, marginTop: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 11, color: UA.textMuted }}>{stats.sessionCount} session{stats.sessionCount !== 1 ? "s" : ""}</span>
+                  <span style={{ fontSize: 11, color: UA.textMuted }}>⏱ {Math.round(stats.totalTime / 60)}m total</span>
+                  <span style={{ fontSize: 11, color: effortColor(parseFloat(stats.avgEff)) }}>Effort: {stats.avgEff}/5</span>
+                  <span style={{ fontSize: 11, color: effortColor(parseFloat(stats.avgUnd)) }}>Understanding: {stats.avgUnd}/5</span>
+                  {stats.lateSessions > 0 && <span style={{ fontSize: 11, color: UA.red, fontWeight: 700 }}>⚠ {stats.lateSessions} late</span>}
+                </div>
+              </div>
+              <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, fontWeight: 700, background: statusColor === UA.green ? UA.greenBg : statusColor === UA.navy ? UA.navyLight : UA.bg, color: statusColor, border: `1px solid ${statusColor === UA.green ? UA.greenBorder : statusColor === UA.navy ? UA.navyBorder : UA.border}`, flexShrink: 0 }}>{statusLabel}</span>
+              <span style={{ fontSize: 13, color: UA.textMuted, transform: isOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s", flexShrink: 0 }}>▾</span>
+            </div>
+
+            {/* Expanded: individual sessions */}
+            {isOpen && (
+              <div style={{ borderTop: `1px solid ${UA.border}`, padding: "12px 16px", background: "#FAFBFC", display: "flex", flexDirection: "column", gap: 10 }}>
+                {sessions.map(log => renderSessionCard(log))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* CHRONOLOGICAL VIEW — flat list */}
+      {viewMode === "chronological" && logs.map(log => renderSessionCard(log))}
     </div>
   );
 }
