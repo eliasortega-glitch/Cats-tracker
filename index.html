@@ -5310,7 +5310,6 @@ function EntryHubPage({ onAddAssignment, sessionUser, role = "staff", students =
           assignment: { title: "Snap Extraction", course: "", description: prompt },
         }, 25000);
 
-      const data = await response.json();
       const raw = data.text || data.content?.[0]?.text || "";
       let parsed = [];
       try {
