@@ -6,6 +6,8 @@
 <title>CATS Academic Companion - University of Arizona</title>
 <link rel="manifest" href="/Cats-tracker/manifest.json">
 <meta name="theme-color" content="#003366">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CATS">
@@ -694,17 +696,10 @@ async function callExtractSyllabus(text, courseCode, courseName, courseStart, co
 
 // Notification log — writes to Supabase notification_logs table
 async function logNotification(studentId, notificationType, status = "sent", staffId = null) {
-  try {
-    await supabase.from("notification_logs").insert({
-      student_id: studentId || null,
-      staff_id: staffId || null,
-      notification_type: notificationType,
-      status,
-      created_at: new Date().toISOString(),
-    });
-  } catch (e) {
-    console.warn("Notification log failed:", e.message);
-  }
+  // DISABLED: notification_logs table not yet created in Supabase.
+  // Re-enable after running: CREATE TABLE notification_logs (...)
+  // and adding appropriate RLS policies.
+  return;
 }
 
 
