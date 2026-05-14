@@ -769,6 +769,7 @@ function SupabaseAuthPage({ onSignedIn, initialEmail = "", errorMessage = "" }) 
 function Sidebar({ role, activePage, onNavigate, user, onLogout, collapsed, setCollapsed }) {
   const studentNav = [
     { id: "dashboard", label: "Dashboard", icon: "⊞" },
+    { id: "studyhall", label: "Study Hall", icon: "📖" },
     { id: "assignments", label: "Assignments", icon: "📚" },
     { id: "entryhub", label: "Import", icon: "📥" },
     { id: "settings", label: "Settings", icon: "⚙" },
@@ -782,6 +783,7 @@ function Sidebar({ role, activePage, onNavigate, user, onLogout, collapsed, setC
   const staffNav = [
     { id: "dashboard", label: "Dashboard", icon: "⊞" },
     { id: "roster", label: "Students", icon: "👥" },
+    { id: "studyhall_staff", label: "Study Hall", icon: "📖", staffOnly: true },
     { id: "entryhub", label: "Add Assignments", icon: "📥", staffOnly: true },
     { id: "notes", label: "Session Notes", icon: "📝", staffOnly: true },
     { id: "settings", label: "Settings", icon: "⚙" },
@@ -1008,6 +1010,19 @@ function StudentDashboard({ onNavigate, assignments = ASSIGNMENTS, user, onViewP
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Study Hall quick launch */}
+      {active.filter(a => a.status !== "completed").length > 0 && (
+        <div onClick={() => onNavigate("studyhall")}
+          style={{ padding: "18px 22px", borderRadius: UA.radius, background: `linear-gradient(135deg, ${UA.navy} 0%, #1a2d5a 100%)`, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 20px rgba(0,19,77,0.2)" }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>📖</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 900, fontSize: 16, color: "white" }}>Start Study Hall</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 3 }}>Guided focus blocks · AI-powered task planning · Session tracking</div>
+          </div>
+          <div style={{ fontSize: 22, color: "rgba(255,255,255,0.5)" }}>→</div>
         </div>
       )}
 
@@ -6589,6 +6604,620 @@ function OnboardingModal({ onDone }) {
   );
 }
 
+// --- STUDY HALL MODE ----------------------------------------------------------
+// Centralized academic workspace that activates during scheduled study sessions.
+// NOT a wellness app, NOT a mood tracker, NOT a chatbot.
+// IS: a monitored engagement environment with live staff visibility.
+// State machine: entry → working → (block breaks) → closing → saved
+// Entry must be under 5 seconds from open to first task.
+
+function StudyHallMode({ assignments, sessionUser, onBack, onSessionSaved, onUpdateStatus }) {
+  const isMobile = useIsMobile();
+  const [phase, setPhase] = useState("entry");
+  const [sessionStartTime] = useState(Date.now());
+
+  // ── STUDENT + ASSIGNMENT CONTEXT ──
+  const studentId = localStorage.getItem("cats_student_uuid");
+  const active = (assignments || []).filter(a => !a.isArchived && a.status !== "completed" && a.studentId === studentId);
+  const prioritized = [...active].sort((a, b) => {
+    if (a.isOverdue && !b.isOverdue) return -1;
+    if (!a.isOverdue && b.isOverdue) return 1;
+    const da = a.dueDate instanceof Date ? a.dueDate.getTime() : 0;
+    const db = b.dueDate instanceof Date ? b.dueDate.getTime() : 0;
+    if (da !== db) return da - db;
+    return (b.points || 0) - (a.points || 0);
+  });
+
+  // ── SESSION RECOVERY ──
+  const RECOVERY_KEY = "cats_studyhall_session";
+  const [recoveredSession, setRecoveredSession] = useState(() => {
+    try {
+      const raw = localStorage.getItem(RECOVERY_KEY);
+      if (!raw) return null;
+      const saved = JSON.parse(raw);
+      if (Date.now() - saved.timestamp > 4 * 60 * 60 * 1000) { localStorage.removeItem(RECOVERY_KEY); return null; }
+      return saved;
+    } catch(e) { return null; }
+  });
+
+  // ── WORK PLAN ──
+  const [workPlan, setWorkPlan] = useState([]);
+  const [planGenerating, setPlanGenerating] = useState(false);
+
+  // ── WORK BLOCK STATE ──
+  const [currentTaskIdx, setCurrentTaskIdx] = useState(0);
+  const [blockTime, setBlockTime] = useState(0);
+  const [blockDuration] = useState(25 * 60);
+  const [totalActiveSeconds, setTotalActiveSeconds] = useState(0);
+  const totalActiveRef = useRef(0);
+  const blockTimerRef = useRef(null);
+  const blockStartRef = useRef(null);
+  const [onBreak, setOnBreak] = useState(false);
+  const [breakTime, setBreakTime] = useState(0);
+  const breakTimerRef = useRef(null);
+  const [completedTasks, setCompletedTasks] = useState([]);
+  const [skippedTasks, setSkippedTasks] = useState([]);
+  const [taskSwitchCount, setTaskSwitchCount] = useState(0);
+
+  // ── PASSIVE ENGAGEMENT DETECTION ──
+  const [stuckLevel, setStuckLevel] = useState(0);
+  const [stuckMinutes, setStuckMinutes] = useState(0);
+  const lastActivityRef = useRef(Date.now());
+  const [showStuckAI, setShowStuckAI] = useState(false);
+  const [stuckAIResponse, setStuckAIResponse] = useState("");
+  const [stuckAILoading, setStuckAILoading] = useState(false);
+  const interactionCountRef = useRef(0);
+  const taskSwitchTimestampsRef = useRef([]);
+
+  // ── WORK CONTENT ──
+  const [taskNotes, setTaskNotes] = useState({});
+
+  // ── CLOSING STATE ──
+  const [summaryText, setSummaryText] = useState("");
+  const [summaryGenerating, setSummaryGenerating] = useState(false);
+  const [sessionSaved, setSessionSaved] = useState(false);
+
+  // ── PASSIVE ACTIVITY TRACKING ──
+  const recordActivity = () => { lastActivityRef.current = Date.now(); interactionCountRef.current += 1; };
+  useEffect(() => {
+    const events = ["keydown", "click", "mousemove", "scroll", "touchstart"];
+    events.forEach(e => window.addEventListener(e, recordActivity));
+    return () => events.forEach(e => window.removeEventListener(e, recordActivity));
+  }, []);
+
+  // ── PERSIST SESSION for recovery ──
+  useEffect(() => {
+    if (phase !== "working" || !workPlan[currentTaskIdx]) return;
+    const persist = () => {
+      try {
+        localStorage.setItem(RECOVERY_KEY, JSON.stringify({
+          timestamp: Date.now(),
+          taskTitle: workPlan[currentTaskIdx]?.assignment?.title || "",
+          taskIdx: currentTaskIdx,
+          notes: taskNotes,
+          completedCount: completedTasks.length,
+          totalActive: totalActiveRef.current,
+        }));
+      } catch(e) {}
+    };
+    const interval = setInterval(persist, 5000);
+    return () => clearInterval(interval);
+  }, [phase, currentTaskIdx, completedTasks.length]);
+
+  // ── WORKLOAD ESTIMATE ──
+  const estimatedMinutes = prioritized.slice(0, 5).reduce((s, a) => s + (a.points >= 100 ? 40 : a.points >= 50 ? 25 : 15), 0);
+  const estimatedStr = estimatedMinutes >= 60 ? `${Math.floor(estimatedMinutes / 60)}h ${estimatedMinutes % 60}m` : `${estimatedMinutes}m`;
+
+  // ── GENERATE WORK PLAN ──
+  const generateWorkPlan = async () => {
+    setPlanGenerating(true);
+    const top5 = prioritized.slice(0, 5);
+    if (!top5.length) {
+      setWorkPlan([{ assignment: { title: "No active assignments", course: "" }, estimatedMinutes: 25, firstStep: "Review upcoming syllabi or get ahead on readings.", status: "pending" }]);
+      setPlanGenerating(false); setPhase("working"); return;
+    }
+    const list = top5.map(a => {
+      const due = a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "TBD";
+      return a.title + " (" + a.course + ", due " + due + ", " + a.points + " pts" + (a.isOverdue ? ", OVERDUE" : "") + ")";
+    }).join("; ");
+    try {
+      const data = await callAI({
+        assignment: { title: "Session Summary Request", course: "", description: "" },
+        prompt: {
+          question: "Generate study hall work plan",
+          aiPrompt: "You are a learning specialist building a study hall task sequence. Student has 60-90 min. Assignments (priority order): " + list +
+            ". For EACH: (1) time estimate in min, (2) ONE specific first action doable in 3 min — concrete like 'Open the rubric and highlight the 3 highest-point criteria', NOT vague like 'start the essay'. " +
+            "Return ONLY valid JSON array: [{\"title\":\"...\",\"estimatedMinutes\":25,\"firstStep\":\"...\"}]. Max 4 items."
+        },
+      }, 12000);
+      try {
+        const parsed = JSON.parse((data.text || "").replace(/```json|```/g, "").trim());
+        if (Array.isArray(parsed) && parsed.length) {
+          setWorkPlan(parsed.map((p, i) => ({ assignment: top5[i] || top5[0], estimatedMinutes: p.estimatedMinutes || 25, firstStep: p.firstStep || "Open the assignment and read the instructions.", status: "pending" })));
+        } else throw 0;
+      } catch(e) {
+        setWorkPlan(top5.map(a => ({ assignment: a, estimatedMinutes: a.points >= 100 ? 35 : a.points >= 50 ? 25 : 15, firstStep: "Open the assignment and read the full instructions.", status: "pending" })));
+      }
+    } catch(e) {
+      setWorkPlan(top5.slice(0,4).map(a => ({ assignment: a, estimatedMinutes: 25, firstStep: "Open the assignment and read the instructions.", status: "pending" })));
+    }
+    setPlanGenerating(false); setPhase("working");
+  };
+
+  const resumeSession = () => { setRecoveredSession(null); localStorage.removeItem(RECOVERY_KEY); generateWorkPlan(); };
+
+  // ── BLOCK TIMER + PASSIVE MONITOR ──
+  useEffect(() => {
+    if (phase !== "working" || onBreak) return;
+    blockStartRef.current = Date.now();
+    blockTimerRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - blockStartRef.current) / 1000);
+      setBlockTime(elapsed);
+      const idleMs = Date.now() - lastActivityRef.current;
+      if (idleMs < 60000) { totalActiveRef.current += 1; setTotalActiveSeconds(totalActiveRef.current); }
+      const idleMin = Math.floor(idleMs / 60000);
+      setStuckMinutes(idleMin);
+      if (idleMin >= 5) setStuckLevel(2);
+      else if (idleMin >= 3) setStuckLevel(1);
+      else setStuckLevel(0);
+    }, 1000);
+    return () => clearInterval(blockTimerRef.current);
+  }, [phase, onBreak, currentTaskIdx]);
+
+  useEffect(() => {
+    if (!onBreak) return;
+    const start = Date.now();
+    breakTimerRef.current = setInterval(() => setBreakTime(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(breakTimerRef.current);
+  }, [onBreak]);
+
+  // ── STUCK AI: one micro-step only ──
+  const getStuckHelp = async () => {
+    if (!workPlan[currentTaskIdx]) return;
+    setStuckAILoading(true); setShowStuckAI(true);
+    const a = workPlan[currentTaskIdx].assignment;
+    try {
+      const data = await callAI({
+        assignment: { title: a.title || "", course: a.course || "", description: a.description || "", instructions: a.instructions || "" },
+        prompt: { question: "Student is stuck", aiPrompt: "A student-athlete is stalled on this assignment during study hall. Give ONE very small concrete action doable in under 2 minutes. Not an explanation. Not full instructions. Just the single smallest next step. Warm and direct. Max 2 sentences." },
+      }, 10000);
+      setStuckAIResponse(data.text || "Re-read the first paragraph of the instructions. Underline every action word.");
+    } catch(e) { setStuckAIResponse("Re-read the first sentence of the instructions. Write what you think it's asking in your own words."); }
+    setStuckAILoading(false); lastActivityRef.current = Date.now(); setStuckLevel(0);
+  };
+
+  // ── TASK ACTIONS ──
+  const completeCurrentTask = () => {
+    const task = workPlan[currentTaskIdx]; if (!task) return;
+    setCompletedTasks(prev => [...prev, { ...task, timeSpent: blockTime }]);
+    setWorkPlan(prev => prev.map((t, i) => i === currentTaskIdx ? { ...t, status: "completed" } : t));
+    if (task.assignment?.id && isValidUUID(task.assignment.id)) onUpdateStatus?.(task.assignment.id, "completed");
+    advanceToNextTask();
+  };
+  const markInProgress = () => {
+    const task = workPlan[currentTaskIdx]; if (!task) return;
+    setCompletedTasks(prev => [...prev, { ...task, timeSpent: blockTime, partial: true }]);
+    setWorkPlan(prev => prev.map((t, i) => i === currentTaskIdx ? { ...t, status: "partial" } : t));
+    if (task.assignment?.id && isValidUUID(task.assignment.id)) onUpdateStatus?.(task.assignment.id, "in_progress");
+    advanceToNextTask();
+  };
+  const skipTask = () => {
+    setSkippedTasks(prev => [...prev, workPlan[currentTaskIdx]]);
+    setWorkPlan(prev => prev.map((t, i) => i === currentTaskIdx ? { ...t, status: "skipped" } : t));
+    setTaskSwitchCount(c => c + 1);
+    taskSwitchTimestampsRef.current.push(Date.now());
+    advanceToNextTask();
+  };
+  const advanceToNextTask = () => {
+    clearInterval(blockTimerRef.current);
+    const nextIdx = workPlan.findIndex((t, i) => i > currentTaskIdx && t.status === "pending");
+    if (nextIdx === -1) { setPhase("closing"); generateSessionSummary(); }
+    else { setOnBreak(true); setBreakTime(0); setBlockTime(0); setShowStuckAI(false); setStuckAIResponse(""); setTimeout(() => setCurrentTaskIdx(nextIdx), 0); }
+  };
+  const endBreak = () => { setOnBreak(false); setBreakTime(0); setBlockTime(0); lastActivityRef.current = Date.now(); setStuckLevel(0); };
+  const endSession = () => {
+    clearInterval(blockTimerRef.current);
+    if (phase === "working" && workPlan[currentTaskIdx]?.status === "pending") markInProgress();
+    setPhase("closing"); generateSessionSummary();
+  };
+
+  // ── SESSION SUMMARY ──
+  const generateSessionSummary = async () => {
+    setSummaryGenerating(true);
+    const totalMin = Math.round((Date.now() - sessionStartTime) / 60000);
+    const cl = completedTasks.filter(t => !t.partial).map(t => t.assignment?.title || "Task").join(", ");
+    const pl = completedTasks.filter(t => t.partial).map(t => t.assignment?.title || "Task").join(", ");
+    const sl = skippedTasks.map(t => t.assignment?.title || "Task").join(", ");
+    const rapidSwitches = taskSwitchTimestampsRef.current.filter((ts, i, arr) => i > 0 && ts - arr[i-1] < 120000).length;
+    try {
+      const data = await callAI({
+        assignment: { title: "Session Summary Request", course: "", description: "" },
+        prompt: {
+          question: "Generate study hall session summary",
+          aiPrompt: "Learning specialist summary of a study hall session. Clinical (3-4 sentences) then 'Next Session Priority' (1-3 actions). Use assignment names. " +
+            "Data: " + totalMin + "m session, " + Math.round(totalActiveRef.current / 60) + "m active. " +
+            "Completed: " + (cl || "none") + ". Partial: " + (pl || "none") + ". Skipped: " + (sl || "none") + ". " +
+            "Task switches: " + taskSwitchCount + ". Rapid switches (<2m): " + rapidSwitches + ". Interactions: " + interactionCountRef.current + ". " +
+            "Flag patterns: rapid switching, low active time vs session length, many skips."
+        },
+      }, 15000);
+      setSummaryText(data.text || "Session completed.");
+    } catch(e) {
+      setSummaryText("Session: " + totalMin + "m. " + (cl ? "Completed: " + cl + ". " : "No completions. ") + (pl ? "Partial: " + pl + ". " : "") + (sl ? "Skipped: " + sl + "." : ""));
+    }
+    setSummaryGenerating(false);
+  };
+
+  // ── SAVE ──
+  const saveStudyHallSession = async () => {
+    const totalMin = Math.round((Date.now() - sessionStartTime) / 60000);
+    for (const task of completedTasks) {
+      const a = task.assignment; if (!a || !studentId) continue;
+      await insertSessionLog({
+        studentId, assignmentId: isValidUUID(a.id) ? a.id : null,
+        assignmentTitle: a.title || "Study Hall Task", courseCode: a.courseCode || "",
+        effort: 0, understanding: 0,
+        completionType: task.partial ? "in_progress" : "independent",
+        notes: taskNotes[completedTasks.indexOf(task)] || "",
+        durationMinutes: Math.round((task.timeSpent || 0) / 60), loggedBy: sessionUser?.id || null,
+        timeSeconds: task.timeSpent || 0,
+        activeSeconds: completedTasks.length > 0 ? Math.round(totalActiveRef.current / completedTasks.length) : 0,
+        promptsExpanded: [], aiBreakdownsUsed: 0, promptResponsesFilled: 0,
+        daysBeforeDue: a.dueDate instanceof Date ? Math.round((a.dueDate.getTime() - Date.now()) / 86400000) : null,
+      });
+    }
+    if (summaryText && studentId) {
+      await insertStaffNote({
+        author: "Study Hall", authorInitials: "SH",
+        date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        category: "Session Note",
+        text: "STUDY HALL (" + totalMin + "m, " + Math.round(totalActiveRef.current / 60) + "m active): " + summaryText,
+      }, studentId, sessionUser?.id);
+    }
+    localStorage.removeItem(RECOVERY_KEY); setSessionSaved(true);
+    onSessionSaved?.({ totalMinutes: totalMin, completed: completedTasks.filter(t => !t.partial).length, partial: completedTasks.filter(t => t.partial).length });
+  };
+
+  const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  const totalSessionMin = Math.round((Date.now() - sessionStartTime) / 60000);
+  const blockPct = Math.min(100, Math.round((blockTime / blockDuration) * 100));
+  const currentTask = workPlan[currentTaskIdx];
+  const dueLabel = (a) => {
+    if (!a?.dueDate || !(a.dueDate instanceof Date)) return "";
+    const diff = Math.round((a.dueDate.getTime() - Date.now()) / 86400000);
+    if (a.isOverdue) return "overdue";
+    if (diff === 0) return "due today";
+    if (diff === 1) return "due tomorrow";
+    return "due " + a.dueDate.toLocaleDateString("en-US", { weekday: "short" });
+  };
+
+  // ════════════════════════════════════════════════════════════════════════════
+  return (
+    <div style={{ minHeight: "100vh", background: UA.bg, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      {/* ── HEADER ── */}
+      <div style={{ height: 48, background: UA.navy, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => { if (phase === "working") { if (!window.confirm("End study hall session?")) return; endSession(); } else { onBack(); } }}
+            style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>← Back</button>
+          <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.12)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: phase === "working" ? "#4ade80" : "rgba(255,255,255,0.3)", boxShadow: phase === "working" ? "0 0 0 3px rgba(74,222,128,0.15)" : "none" }} />
+            <span style={{ color: "white", fontSize: 13, fontWeight: 800 }}>Study Hall</span>
+            {phase !== "entry" && <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>· {totalSessionMin}m</span>}
+          </div>
+        </div>
+        {phase === "working" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ padding: "4px 10px", borderRadius: 99, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "white", fontVariantNumeric: "tabular-nums" }}>{fmt(blockTime)}</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}> / {fmt(blockDuration)}</span>
+            </div>
+            <button onClick={endSession} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>End</button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: isMobile ? "16px 14px" : "24px 28px" }}>
+
+        {/* ══════ ENTRY ══════ */}
+        {phase === "entry" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ marginBottom: 4 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 900, color: UA.text, margin: 0 }}>Study Hall</h1>
+              <p style={{ color: UA.textMuted, marginTop: 4, fontSize: 13 }}>{prioritized.length} assignment{prioritized.length !== 1 ? "s" : ""} · est. {estimatedStr}</p>
+            </div>
+            {recoveredSession && (
+              <div style={{ padding: "14px 18px", borderRadius: 10, border: `1.5px solid ${UA.navyBorder}`, background: UA.navyLight, display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(0,19,77,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>↩️</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: UA.text }}>Resume last session</div>
+                  <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>{recoveredSession.taskTitle} · {recoveredSession.completedCount || 0} done</div>
+                </div>
+                <Btn size="sm" onClick={resumeSession}>Resume</Btn>
+              </div>
+            )}
+            <div style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Tonight's Priorities</div>
+            {prioritized.slice(0, 5).map((a, i) => (
+              <div key={a.id || i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 10, background: "white", border: `1px solid ${a.isOverdue ? UA.redBorder : UA.border}` }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: a.isOverdue ? UA.redLight : UA.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 900, color: a.isOverdue ? UA.red : UA.textMuted, flexShrink: 0 }}>{i + 1}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: UA.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
+                  <div style={{ fontSize: 11, color: UA.textMuted, marginTop: 2 }}>{a.course}{a.points ? ` · ${a.points} pts` : ""}</div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: a.isOverdue ? UA.red : UA.textMuted, flexShrink: 0 }}>{dueLabel(a)}</span>
+              </div>
+            ))}
+            {!prioritized.length && <div style={{ textAlign: "center", padding: "32px 16px", color: UA.textMuted, fontSize: 14 }}>No active assignments. You're caught up.</div>}
+            <Btn fullWidth size="lg" onClick={() => { setRecoveredSession(null); localStorage.removeItem(RECOVERY_KEY); generateWorkPlan(); }} disabled={planGenerating}>
+              {planGenerating ? "Building work plan..." : "Start Focus Session →"}
+            </Btn>
+          </div>
+        )}
+
+        {/* ══════ WORKING ══════ */}
+        {phase === "working" && !onBreak && currentTask && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ padding: "12px 16px", borderRadius: 10, background: "white", border: `1px solid ${UA.border}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: UA.textMuted }}>Task {currentTaskIdx + 1} of {workPlan.length}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: blockPct >= 100 ? UA.red : UA.navy, fontVariantNumeric: "tabular-nums" }}>{fmt(blockTime)}</span>
+              </div>
+              <div style={{ height: 4, borderRadius: 99, background: UA.border, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${blockPct}%`, borderRadius: 99, background: blockPct >= 100 ? UA.red : blockPct >= 80 ? UA.yellow : UA.navy, transition: "width 1s linear" }} />
+              </div>
+              {blockPct >= 100 && <div style={{ fontSize: 11, color: UA.red, fontWeight: 600, marginTop: 4 }}>Block time reached — wrap up or take a break</div>}
+            </div>
+            <div style={{ padding: "20px 22px", borderRadius: 12, background: "white", border: `1.5px solid ${UA.navy}` }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Now Working On</div>
+              <div style={{ fontWeight: 900, fontSize: 17, color: UA.text, marginBottom: 2 }}>{currentTask.assignment?.title || currentTask.title}</div>
+              <div style={{ fontSize: 12, color: UA.textMuted, marginBottom: 14 }}>{currentTask.assignment?.course || ""}</div>
+              <div style={{ padding: "10px 14px", background: "#F0F4FF", borderRadius: 8, marginBottom: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 3 }}>Next Step</div>
+                <div style={{ fontSize: 14, color: UA.text, lineHeight: 1.6, fontWeight: 600 }}>{currentTask.firstStep}</div>
+              </div>
+              <textarea value={taskNotes[currentTaskIdx] || ""} onChange={e => { setTaskNotes(p => ({ ...p, [currentTaskIdx]: e.target.value })); recordActivity(); }}
+                placeholder="Notes, work, progress..."
+                style={{ width: "100%", minHeight: 100, padding: "12px 14px", borderRadius: 8, border: `1.5px solid ${UA.border}`, fontSize: 14, fontFamily: "inherit", lineHeight: 1.6, resize: "vertical", outline: "none", boxSizing: "border-box" }}
+                onFocus={e => e.target.style.borderColor = UA.navy} onBlur={e => e.target.style.borderColor = UA.border} />
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Btn onClick={completeCurrentTask}>✓ Complete</Btn>
+              <Btn variant="secondary" onClick={markInProgress}>◐ Partial</Btn>
+              <Btn variant="ghost" onClick={skipTask}>Skip →</Btn>
+              <Btn variant="outline" onClick={getStuckHelp} disabled={stuckAILoading}>{stuckAILoading ? "Thinking..." : "I'm Stuck"}</Btn>
+            </div>
+            {stuckLevel >= 1 && !showStuckAI && (
+              <div style={{ padding: "12px 16px", borderRadius: 10, background: stuckLevel >= 2 ? "#FFF5F5" : "#FFFBEB", border: `1px solid ${stuckLevel >= 2 ? "#FCA5A5" : "#FCD34D"}`, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>{stuckLevel >= 2 ? "🛑" : "💡"}</span>
+                <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 13, color: stuckLevel >= 2 ? UA.red : "#92400E" }}>{stuckLevel >= 2 ? "No activity for " + stuckMinutes + " min" : "Need a nudge?"}</div></div>
+                <Btn size="sm" onClick={getStuckHelp}>Get Help</Btn>
+              </div>
+            )}
+            {showStuckAI && stuckAIResponse && (
+              <div style={{ padding: "14px 18px", borderRadius: 10, background: "#F0F4FF", border: `1px solid ${UA.navyBorder}` }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Try This</div>
+                <div style={{ fontSize: 14, color: UA.text, lineHeight: 1.7 }}>{stuckAIResponse}</div>
+                <button onClick={() => { setShowStuckAI(false); setStuckAIResponse(""); }} style={{ marginTop: 8, fontSize: 11, color: UA.textMuted, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Dismiss</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════ BREAK ══════ */}
+        {phase === "working" && onBreak && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 48, gap: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 40 }}>☕</div>
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: UA.text, margin: 0 }}>Quick break</h2>
+            <div style={{ fontSize: 32, fontWeight: 900, color: UA.navy, fontVariantNumeric: "tabular-nums" }}>{fmt(breakTime)}</div>
+            <p style={{ color: UA.textMuted, fontSize: 13, maxWidth: 320 }}>Stand up, stretch, grab water.</p>
+            <Btn size="lg" onClick={endBreak}>Next Task →</Btn>
+          </div>
+        )}
+
+        {/* ══════ CLOSING ══════ */}
+        {phase === "closing" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ textAlign: "center", paddingTop: 12 }}>
+              <div style={{ width: 52, height: 52, borderRadius: "50%", background: UA.greenBg, border: `2px solid ${UA.greenBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, margin: "0 auto 12px" }}>✅</div>
+              <h2 style={{ fontSize: 20, fontWeight: 900, color: UA.text, margin: 0 }}>Session Complete</h2>
+              <p style={{ color: UA.textMuted, fontSize: 13, marginTop: 4 }}>{totalSessionMin}m total · {Math.round(totalActiveRef.current / 60)}m active</p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {workPlan.map((task, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 8, background: "white", border: `1px solid ${UA.border}` }}>
+                  <span style={{ fontSize: 15 }}>{task.status === "completed" ? "✅" : task.status === "partial" ? "◐" : task.status === "skipped" ? "⏭" : "⬜"}</span>
+                  <div style={{ flex: 1, fontSize: 13, color: UA.text, fontWeight: 600 }}>{task.assignment?.title || task.title}</div>
+                  <span style={{ fontSize: 11, color: UA.textMuted }}>{task.status === "completed" ? "Done" : task.status === "partial" ? "Partial" : task.status === "skipped" ? "Skipped" : "—"}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 8 }}>
+              {[
+                { label: "Completed", value: completedTasks.filter(t => !t.partial).length, color: UA.green },
+                { label: "In Progress", value: completedTasks.filter(t => t.partial).length, color: UA.navy },
+                { label: "Skipped", value: skippedTasks.length, color: UA.yellow },
+                { label: "Active", value: Math.round(totalActiveRef.current / 60) + "m", color: UA.navy },
+              ].map((s, i) => (
+                <div key={i} style={{ padding: "10px 12px", borderRadius: 8, background: "white", border: `1px solid ${UA.border}`, textAlign: "center" }}>
+                  <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 3 }}>{s.label}</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: s.color }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: "16px 20px", borderRadius: 10, background: "#F0F4FF", border: `1px solid ${UA.navyBorder}` }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: UA.navy, marginBottom: 8 }}>Session Summary</div>
+              {summaryGenerating ? <div style={{ color: UA.textMuted, fontSize: 13 }}>Generating...</div>
+                : <div style={{ fontSize: 13, color: UA.text, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{summaryText}</div>}
+            </div>
+            <Btn fullWidth size="lg" disabled={sessionSaved || summaryGenerating} onClick={saveStudyHallSession}>{sessionSaved ? "✓ Saved" : "Save & Close"}</Btn>
+            {sessionSaved && <Btn fullWidth variant="outline" onClick={onBack}>← Back to Dashboard</Btn>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+// --- STAFF STUDY HALL VIEW ---------------------------------------------------
+// Live monitoring view — shows which students have active study hall sessions,
+// current task, progress status, and stuck indicators.
+// Data comes from session_logs + assignments (no new tables needed).
+function StaffStudyHallView({ onSelectStudent }) {
+  const [recentSessions, setRecentSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      // Get session logs from last 24h
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from("session_logs")
+        .select("*")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        // Group by student
+        const byStudent = {};
+        data.forEach(log => {
+          if (!byStudent[log.student_id]) byStudent[log.student_id] = [];
+          byStudent[log.student_id].push(log);
+        });
+        // Build student session summaries
+        const summaries = Object.entries(byStudent).map(([studentId, logs]) => {
+          const student = STUDENTS.find(s => s.id === studentId);
+          if (!student) return null;
+          const totalTime = logs.reduce((s, l) => s + (l.time_seconds || 0), 0);
+          const latestLog = logs[0];
+          const tasksWorkedOn = [...new Set(logs.map(l => l.assignment_title).filter(Boolean))];
+          const avgEffort = logs.filter(l => l.effort > 0).length > 0
+            ? (logs.filter(l => l.effort > 0).reduce((s, l) => s + l.effort, 0) / logs.filter(l => l.effort > 0).length).toFixed(1)
+            : null;
+          const avgUnderstanding = logs.filter(l => l.understanding > 0).length > 0
+            ? (logs.filter(l => l.understanding > 0).reduce((s, l) => s + l.understanding, 0) / logs.filter(l => l.understanding > 0).length).toFixed(1)
+            : null;
+          // Check if session is "recent" (last 2 hours = likely still in study hall)
+          const latestTime = new Date(latestLog.created_at).getTime();
+          const isRecent = Date.now() - latestTime < 2 * 60 * 60 * 1000;
+          // Check for study hall notes
+          const studyHallNotes = logs.filter(l => l.notes && l.notes.includes("Study Hall") || l.notes && l.notes.includes("Win:"));
+          return {
+            student,
+            logs,
+            totalTime,
+            latestLog,
+            tasksWorkedOn,
+            avgEffort,
+            avgUnderstanding,
+            isRecent,
+            sessionCount: logs.length,
+            studyHallNotes,
+          };
+        }).filter(Boolean).sort((a, b) => b.isRecent - a.isRecent || new Date(b.latestLog.created_at) - new Date(a.latestLog.created_at));
+        setRecentSessions(summaries);
+      }
+      setLoading(false);
+      setLastRefresh(Date.now());
+    };
+    load();
+    const interval = setInterval(load, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading && recentSessions.length === 0) return (
+    <div style={{ textAlign: "center", padding: "48px 0", color: UA.textMuted, fontSize: 14 }}>Loading study hall data...</div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 900, color: UA.text, margin: 0 }}>📖 Study Hall Monitor</h1>
+          <p style={{ color: UA.textMuted, marginTop: 4, fontSize: 13 }}>
+            Last 24 hours · {recentSessions.length} student{recentSessions.length !== 1 ? "s" : ""} with activity
+            <span style={{ marginLeft: 8, fontSize: 11, color: UA.textMuted }}>Auto-refreshes every 30s</span>
+          </p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: UA.green, boxShadow: `0 0 0 3px ${UA.greenBg}` }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: UA.green }}>
+            {recentSessions.filter(s => s.isRecent).length} active now
+          </span>
+        </div>
+      </div>
+
+      {recentSessions.length === 0 && (
+        <Card style={{ textAlign: "center", padding: "40px 24px" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>📖</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: UA.text, marginBottom: 4 }}>No study hall activity today</div>
+          <div style={{ fontSize: 13, color: UA.textMuted }}>Sessions will appear here as students use Study Hall Mode.</div>
+        </Card>
+      )}
+
+      {recentSessions.map(sess => {
+        const s = sess.student;
+        const riskColor = s.dynamicRisk === "high" ? UA.red : s.dynamicRisk === "medium" ? UA.yellow : UA.green;
+        const lowEff = sess.avgEffort !== null && parseFloat(sess.avgEffort) < 3;
+        const lowUnd = sess.avgUnderstanding !== null && parseFloat(sess.avgUnderstanding) < 3;
+        const needsAttention = lowEff || lowUnd || sess.totalTime < 300;
+        return (
+          <Card key={s.id} hover style={{ padding: "18px 22px", cursor: "pointer", borderLeft: `4px solid ${sess.isRecent ? UA.green : UA.border}` }}
+            onClick={() => onSelectStudent(s)}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <Avatar initials={s.initials} size={40} color={riskColor} />
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: UA.text }}>{s.name}</div>
+                  <div style={{ fontSize: 12, color: UA.textMuted, marginTop: 2 }}>
+                    {s.sport} · {s.year}
+                    {sess.isRecent && <span style={{ marginLeft: 8, color: UA.green, fontWeight: 700 }}>● Active</span>}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {needsAttention && <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 99, background: UA.yellowBg, color: UA.yellow, fontWeight: 700, border: `1px solid ${UA.yellowBorder}` }}>Needs Check-In</span>}
+                <RiskBadge level={s.dynamicRisk} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ padding: "6px 12px", borderRadius: 6, background: UA.bg, border: `1px solid ${UA.border}`, textAlign: "center", minWidth: 80 }}>
+                <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase" }}>Sessions</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: UA.navy }}>{sess.sessionCount}</div>
+              </div>
+              <div style={{ padding: "6px 12px", borderRadius: 6, background: UA.bg, border: `1px solid ${UA.border}`, textAlign: "center", minWidth: 80 }}>
+                <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase" }}>Total Time</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: UA.navy }}>{Math.round(sess.totalTime / 60)}m</div>
+              </div>
+              {sess.avgEffort && (
+                <div style={{ padding: "6px 12px", borderRadius: 6, background: UA.bg, border: `1px solid ${UA.border}`, textAlign: "center", minWidth: 80 }}>
+                  <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase" }}>Effort</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: lowEff ? UA.red : UA.navy }}>{sess.avgEffort}/5</div>
+                </div>
+              )}
+              {sess.avgUnderstanding && (
+                <div style={{ padding: "6px 12px", borderRadius: 6, background: UA.bg, border: `1px solid ${UA.border}`, textAlign: "center", minWidth: 80 }}>
+                  <div style={{ fontSize: 9, color: UA.textMuted, fontWeight: 600, textTransform: "uppercase" }}>Understand</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: lowUnd ? UA.red : UA.navy }}>{sess.avgUnderstanding}/5</div>
+                </div>
+              )}
+            </div>
+
+            {sess.tasksWorkedOn.length > 0 && (
+              <div style={{ marginTop: 10, fontSize: 12, color: UA.textMuted }}>
+                <span style={{ fontWeight: 700, color: UA.textSecondary }}>Worked on: </span>
+                {sess.tasksWorkedOn.join(", ")}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+
 // --- MAIN APP -----------------------------------------------------------------
 function App() {
   const [role, setRole] = useState(null);
@@ -6635,7 +7264,7 @@ function App() {
     localStorage.setItem("cats_role", resolvedRole);
     if (resolvedRole === "student") {
       const savedStudentPage = localStorage.getItem("cats_page");
-      const validStudentPages = ["dashboard", "assignments", "entryhub", "settings", "analytics", "myprofile"];
+      const validStudentPages = ["dashboard", "assignments", "entryhub", "settings", "analytics", "myprofile", "studyhall"];
       setPage(savedStudentPage && validStudentPages.includes(savedStudentPage) ? savedStudentPage : "dashboard");
       const hasOnboarded = localStorage.getItem("cats_onboarded");
       if (!hasOnboarded) { setShowOnboarding(true); }
@@ -6643,7 +7272,7 @@ function App() {
       setPage("admin");
     } else {
       const saved = localStorage.getItem("cats_page");
-      const validPages = ["dashboard", "roster", "entryhub", "notes", "settings", "admin", "risk", "analytics"];
+      const validPages = ["dashboard", "roster", "entryhub", "notes", "settings", "admin", "risk", "analytics", "studyhall_staff"];
       setPage(saved && validPages.includes(saved) ? saved : "roster");
     }
   };
@@ -6970,6 +7599,23 @@ function App() {
     return <SupabaseAuthPage onSignedIn={user => hydrateAuthenticatedState(user)} initialEmail={sessionUser?.email || ""} errorMessage={authError} />;
   }
 
+  if (page === "studyhall") return (
+    <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <StudyHallMode
+        assignments={assignments}
+        sessionUser={sessionUser}
+        onBack={() => setPage("dashboard")}
+        onSessionSaved={(data) => {
+          pushNotification(`Study Hall session completed — ${data.completed} task${data.completed !== 1 ? "s" : ""} done`, "📖", "session_complete", null);
+        }}
+        onUpdateStatus={async (id, status) => {
+          setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+          await updateAssignmentStatus(id, status);
+        }}
+      />
+    </div>
+  );
+
   if (page === "workmode") return (
     <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <WorkModePage
@@ -7035,6 +7681,7 @@ function App() {
   ) : null;
 
   const renderPage = () => {
+    if (page === "studyhall_staff") return <StaffStudyHallView key={`studyhall-staff-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "admin") return <AdminPage key={`admin-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "roster") return <RosterPage key={`roster-${dataVersion}`} onSelectStudent={s => { setSelectedStudent(s); setPage("studentProfile"); }} />;
     if (page === "studentProfile" && selectedStudent) return (
@@ -7083,7 +7730,7 @@ function App() {
   };
 
   const mobileNav = role === "student"
-    ? [{ id: "dashboard", icon: "⊞", label: "Home" }, { id: "assignments", icon: "📚", label: "Tasks" }, { id: "entryhub", icon: "📥", label: "Import" }, { id: "settings", icon: "⚙", label: "Settings" }]
+    ? [{ id: "dashboard", icon: "⊞", label: "Home" }, { id: "studyhall", icon: "📖", label: "Study Hall" }, { id: "assignments", icon: "📚", label: "Tasks" }, { id: "settings", icon: "⚙", label: "Settings" }]
     : role === "admin"
     ? [{ id: "dashboard", icon: "⊞", label: "Dashboard" }, { id: "roster", icon: "👥", label: "Students" }, { id: "entryhub", icon: "📥", label: "Add Assignments" }, { id: "settings", icon: "⚙", label: "Settings" }]
     : [{ id: "dashboard", icon: "⊞", label: "Dashboard" }, { id: "roster", icon: "👥", label: "Students" }, { id: "entryhub", icon: "📥", label: "Add Assignments" }, { id: "notes", icon: "📝", label: "Notes" }];
@@ -7097,7 +7744,7 @@ function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {!isMobile && <button onClick={() => setCollapsed(!collapsed)} style={{ width: 34, height: 34, borderRadius: 9, border: `1px solid ${UA.border}`, background: "white", cursor: "pointer", fontSize: 16 }}>☰</button>}
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: UA.text }}>{page === "studentProfile" ? "Student Profile" : page.charAt(0).toUpperCase() + page.slice(1)}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: UA.text }}>{page === "studentProfile" ? "Student Profile" : page === "studyhall_staff" ? "Study Hall Monitor" : page === "studyhall" ? "Study Hall" : page.charAt(0).toUpperCase() + page.slice(1)}</div>
               <div style={{ fontSize: 11, color: UA.textMuted }}>{role === "student" ? "Student Portal" : role === "admin" ? "Administration" : "Staff Workspace"}</div>
             </div>
           </div>
