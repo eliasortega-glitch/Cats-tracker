@@ -1418,6 +1418,94 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
   const [isTypingFocus, setIsTypingFocus] = useState(false);
   const typingTimeoutRef = useRef(null);
 
+  // ── DYNAMIC SCAFFOLD SYSTEM ──
+  // AI generates an assignment-specific fillable working document.
+  const SCAFFOLD_KEY = `cats_scaffold_${a?.id || "unknown"}`;
+  const [scaffoldSections, setScaffoldSections] = useState(() => {
+    try { const s = localStorage.getItem(SCAFFOLD_KEY); return s ? JSON.parse(s) : []; } catch(e) { return []; }
+  });
+  const [scaffoldResponses, setScaffoldResponses] = useState(() => {
+    try { const s = localStorage.getItem(SCAFFOLD_KEY + "_resp"); return s ? JSON.parse(s) : {}; } catch(e) { return {}; }
+  });
+  const [scaffoldGenerating, setScaffoldGenerating] = useState(false);
+  const [scaffoldOpen, setScaffoldOpen] = useState(true);
+  const [activeScaffoldIdx, setActiveScaffoldIdx] = useState(null);
+  const [scaffoldStuckIdx, setScaffoldStuckIdx] = useState(null);
+  const [scaffoldStuckText, setScaffoldStuckText] = useState("");
+  const [scaffoldStuckLoading, setScaffoldStuckLoading] = useState(false);
+
+  useEffect(() => {
+    if (!scaffoldSections.length) return;
+    try {
+      localStorage.setItem(SCAFFOLD_KEY, JSON.stringify(scaffoldSections));
+      localStorage.setItem(SCAFFOLD_KEY + "_resp", JSON.stringify(scaffoldResponses));
+    } catch(e) {}
+  }, [scaffoldResponses, scaffoldSections]);
+
+  const generateScaffold = async () => {
+    setScaffoldGenerating(true);
+    const txt = (a.title + " " + (a.description || "") + " " + (a.instructions || "")).toLowerCase();
+    const isEssay = /essay|paper|write|draft|paragraph|argument|thesis|analysis/i.test(txt);
+    const isDiscussion = /discussion|post|respond|reply|board|forum/i.test(txt);
+    const isQuiz = /quiz|exam|test|study|review/i.test(txt);
+    const isProject = /project|presentation|group|proposal|plan/i.test(txt);
+    const typeHint = isEssay ? "essay/paper" : isDiscussion ? "discussion post" : isQuiz ? "quiz/exam prep" : isProject ? "project/presentation" : "general assignment";
+    try {
+      const data = await callAI({
+        assignment: {
+          title: a.title, course: a.course, courseCode: a.courseCode || "",
+          dueDate: a.dueDate instanceof Date ? a.dueDate.toLocaleDateString("en-US", { month: "long", day: "numeric" }) : "",
+          points: a.points || "", description: a.description || "",
+          instructions: a.instructions || "", rubric: a.rubric || "",
+        },
+        prompt: {
+          question: "Generate working scaffold",
+          aiPrompt: "You are a learning specialist creating a fillable working scaffold for a student-athlete. This is a " + typeHint + ". Break this assignment into 4-6 concrete sections the student writes into. Each section: (1) clear title, (2) target word count, (3) 1-2 specific guiding prompts telling them EXACTLY what to write — like 'Insert your thesis statement here' or 'Reference [source] and explain how it supports your argument'. (4) a hint with a starter sentence. Be specific to THIS assignment. If the rubric mentions criteria, reference them. Do NOT write content for them — create structure they fill in. Return ONLY valid JSON: [{\"title\":\"Section name\",\"targetWords\":100,\"guide\":\"What goes here\",\"hint\":\"Starter sentence\"}]. No markdown."
+        },
+      }, 15000);
+      try {
+        const parsed = JSON.parse((data.text || "").replace(/```json|```/g, "").trim());
+        if (Array.isArray(parsed) && parsed.length > 0) { setScaffoldSections(parsed); setActiveScaffoldIdx(0); }
+        else throw 0;
+      } catch(e) {
+        setScaffoldSections([
+          { title: "Introduction", targetWords: 75, guide: "Open with a hook, state your thesis, preview your main points.", hint: "In this assignment, I will..." },
+          { title: "Main Point 1", targetWords: 125, guide: "First supporting argument with evidence.", hint: "The first key point is... According to [source]..." },
+          { title: "Main Point 2", targetWords: 125, guide: "Second argument. Connect to the first.", hint: "Building on this... Additionally..." },
+          { title: "Conclusion", targetWords: 75, guide: "Restate thesis, closing thought.", hint: "In summary... Ultimately, this shows..." },
+        ]);
+        setActiveScaffoldIdx(0);
+      }
+    } catch(e) {
+      setScaffoldSections([
+        { title: "Getting Started", targetWords: 100, guide: "What is this assignment asking? Write it in your own words.", hint: "This assignment is asking me to..." },
+        { title: "Main Content", targetWords: 200, guide: "Write the core of your response.", hint: "The main idea I want to communicate is..." },
+        { title: "Wrap Up", targetWords: 100, guide: "Summarize and close.", hint: "To conclude..." },
+      ]);
+      setActiveScaffoldIdx(0);
+    }
+    setScaffoldGenerating(false);
+  };
+
+  const getScaffoldHelp = async (idx) => {
+    const section = scaffoldSections[idx]; if (!section) return;
+    setScaffoldStuckIdx(idx); setScaffoldStuckLoading(true);
+    try {
+      const cur = scaffoldResponses[idx] || "";
+      const data = await callAI({
+        assignment: { title: a.title, course: a.course, description: a.description || "", instructions: a.instructions || "", rubric: a.rubric || "" },
+        prompt: { question: "Help with section", aiPrompt: "Student working on '" + section.title + "' of " + a.title + ". Guide: '" + section.guide + "'. " + (cur ? "Written so far: '" + cur.slice(0, 200) + "'. " : "Nothing written yet. ") + "Give ONE specific next sentence or action. Not a paragraph. Just the next small step for this section. Max 2 sentences." },
+      }, 10000);
+      setScaffoldStuckText(data.text || "Try writing one sentence that addresses: " + section.guide);
+    } catch(e) { setScaffoldStuckText("Write one sentence that directly addresses: " + section.guide); }
+    setScaffoldStuckLoading(false);
+  };
+
+  const scaffoldFilled = Object.keys(scaffoldResponses).filter(k => (scaffoldResponses[k] || "").trim().length > 0).length;
+  const scaffoldTotal = scaffoldSections.length;
+  const scaffoldWordCount = (idx) => { const t = scaffoldResponses[idx] || ""; return t.trim() ? t.trim().split(/\s+/).length : 0; };
+  const totalScaffoldWords = Object.values(scaffoldResponses).join(" ").trim().split(/\s+/).filter(Boolean).length;
+
   const handleEditorFocus = () => {
     setIsTypingFocus(true);
     clearTimeout(typingTimeoutRef.current);
@@ -1941,80 +2029,143 @@ function WorkModePage({ assignment: a, onBack, onSessionSaved, sessionUser }) {
         {!zenMode && (
           <div style={{ overflow: "auto", display: "flex", flexDirection: "column", background: "white", borderLeft: `1px solid #E8EAF0` }}>
 
-            {/* ─ Section: Guided Questions ─ */}
-            <div style={{ borderBottom: `1px solid #E8EAF0` }}>
-              <div style={{ padding: "14px 18px", borderBottom: `1px solid #E8EAF0`, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "background 0.15s" }}
-                onClick={() => setGuidedPathOpen(o => !o)}
+            {/* ─ Section: Working Scaffold ─ */}
+            <div style={{ borderBottom: "1px solid #E8EAF0" }}>
+              <div style={{ padding: "14px 18px", borderBottom: "1px solid #E8EAF0", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "background 0.15s" }}
+                onClick={() => setScaffoldOpen(o => !o)}
                 onMouseEnter={e => e.currentTarget.style.background = "#F8F9FB"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: UA.navy, letterSpacing: "0.05em", textTransform: "uppercase" }}>📝 Guided Questions</div>
-                  <div style={{ fontSize: 11, color: "#8890A8", marginTop: 2 }}>Answer first — then get AI feedback</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: UA.navy, letterSpacing: "0.05em", textTransform: "uppercase" }}>📝 Working Scaffold</div>
+                  <div style={{ fontSize: 11, color: "#8890A8", marginTop: 2 }}>
+                    {scaffoldSections.length > 0
+                      ? `${scaffoldFilled}/${scaffoldTotal} sections · ${totalScaffoldWords} words`
+                      : "AI-generated structure for this assignment"}
+                  </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ display: "flex", gap: 3 }}>
-                    {GUIDED_PROMPTS.map((p, i) => (
-                      <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: promptResponses[p.id]?.trim() ? UA.green : "#E8EAF0", transition: "background 0.3s" }} />
-                    ))}
-                  </div>
-                  <span style={{ fontSize: 13, color: "#8890A8", transform: guidedPathOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
+                  {scaffoldSections.length > 0 && (
+                    <div style={{ display: "flex", gap: 3 }}>
+                      {scaffoldSections.map((_, i) => (
+                        <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: (scaffoldResponses[i] || "").trim() ? UA.green : "#E8EAF0", transition: "background 0.3s" }} />
+                      ))}
+                    </div>
+                  )}
+                  <span style={{ fontSize: 13, color: "#8890A8", transform: scaffoldOpen ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
                 </div>
               </div>
-              {guidedPathOpen && (
+              {scaffoldOpen && (
                 <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                  {GUIDED_PROMPTS.map((prompt, idx) => {
-                    const isActive = activePrompt === prompt.id;
-                    const isComplete = !!promptResponses[prompt.id]?.trim();
-                    const hasBreakdown = expandedBreakdown[prompt.id];
-                    const isLoading = isLoadingBreakdown[prompt.id];
+                  {/* Generate button — shown when no scaffold exists */}
+                  {scaffoldSections.length === 0 && (
+                    <button onClick={generateScaffold} disabled={scaffoldGenerating}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 18px", borderRadius: 10, border: `2px dashed ${UA.navyBorder}`, background: UA.navyLight, color: UA.navy, fontSize: 13, fontWeight: 800, cursor: scaffoldGenerating ? "wait" : "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+                      {scaffoldGenerating ? "⏳ Building scaffold..." : "✨ Generate Working Scaffold"}
+                    </button>
+                  )}
+                  {scaffoldSections.length === 0 && !scaffoldGenerating && (
+                    <div style={{ fontSize: 11, color: "#8890A8", textAlign: "center", lineHeight: 1.6 }}>
+                      AI reads this assignment and builds a fillable outline — each section tells you exactly what to write.
+                    </div>
+                  )}
+
+                  {/* Scaffold sections */}
+                  {scaffoldSections.map((section, idx) => {
+                    const isActive = activeScaffoldIdx === idx;
+                    const wc = scaffoldWordCount(idx);
+                    const target = section.targetWords || 100;
+                    const pct = Math.min(100, Math.round((wc / target) * 100));
+                    const isDone = wc >= target * 0.8;
+                    const hasContent = (scaffoldResponses[idx] || "").trim().length > 0;
                     return (
-                      <div key={prompt.id} style={{ borderRadius: 10, border: `1.5px solid ${isActive ? UA.navy : isComplete ? UA.greenBorder : "#E8EAF0"}`, background: isActive ? UA.navyLight : isComplete ? UA.greenBg : "#FAFBFC", overflow: "hidden", transition: "all 0.2s", boxShadow: isActive ? "0 2px 8px rgba(0,51,102,0.08)" : "none" }}>
-                        <div onClick={() => {
-                          setActivePrompt(isActive ? null : prompt.id);
-                          if (!isActive && !promptsExpandedRef.current.includes(prompt.id)) {
-                            promptsExpandedRef.current = [...promptsExpandedRef.current, prompt.id];
-                          }
-                        }} style={{ padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
-                          <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isComplete ? UA.green : isActive ? UA.navy : "#D0D4E0"}`, background: isComplete ? UA.green : isActive ? UA.navy : "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: isComplete || isActive ? "white" : "#8890A8", flexShrink: 0, transition: "all 0.2s" }}>
-                            {isComplete ? "✓" : idx + 1}
+                      <div key={idx} style={{ borderRadius: 10, border: `1.5px solid ${isActive ? UA.navy : isDone ? UA.greenBorder : "#E8EAF0"}`, background: isActive ? UA.navyLight : isDone ? UA.greenBg : "#FAFBFC", overflow: "hidden", transition: "all 0.2s" }}>
+                        <div onClick={() => setActiveScaffoldIdx(isActive ? null : idx)}
+                          style={{ padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isDone ? UA.green : isActive ? UA.navy : "#D0D4E0"}`, background: isDone ? UA.green : isActive ? UA.navy : "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: isDone || isActive ? "white" : "#8890A8", flexShrink: 0, transition: "all 0.2s" }}>
+                            {isDone ? "✓" : idx + 1}
                           </div>
-                          <div style={{ flex: 1, fontSize: 12, fontWeight: 700, color: isActive ? UA.navy : isComplete ? UA.green : "#0F1623", lineHeight: 1.4 }}>{prompt.question}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? UA.navy : isDone ? UA.green : "#0F1623", lineHeight: 1.4 }}>{section.title}</div>
+                            {hasContent && !isActive && (
+                              <div style={{ fontSize: 10, color: "#8890A8", marginTop: 2 }}>{wc}/{target} words</div>
+                            )}
+                          </div>
                           <span style={{ fontSize: 11, color: "#8890A8", transform: isActive ? "rotate(180deg)" : "none", display: "inline-block", transition: "transform 0.2s" }}>▾</span>
                         </div>
                         {isActive && (
                           <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+                            {/* Guide text */}
                             <div style={{ fontSize: 11, color: "#4A5068", lineHeight: 1.6, padding: "8px 10px", background: "rgba(0,51,102,0.04)", borderRadius: 8, borderLeft: `3px solid ${UA.navy}` }}>
-                              {prompt.why}
+                              {section.guide}
                             </div>
-                            <textarea value={promptResponses[prompt.id] || ""} onChange={e => setPromptResponses(p => ({ ...p, [prompt.id]: e.target.value }))}
-                              placeholder={prompt.followUp} rows={3}
-                              style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: `1.5px solid #D0D4E0`, fontSize: 12, fontFamily: "inherit", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.6, background: "white", color: "#0F1623", transition: "border-color 0.15s" }}
+                            {/* Hint */}
+                            {section.hint && (
+                              <div style={{ fontSize: 11, color: "#8890A8", fontStyle: "italic", padding: "0 10px" }}>
+                                💡 Try: "{section.hint}"
+                              </div>
+                            )}
+                            {/* Input */}
+                            <textarea
+                              value={scaffoldResponses[idx] || ""}
+                              onChange={e => setScaffoldResponses(p => ({ ...p, [idx]: e.target.value }))}
+                              placeholder={section.hint || "Write here..."}
+                              rows={4}
+                              style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1.5px solid #D0D4E0", fontSize: 12, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.6, background: "white", color: "#0F1623", transition: "border-color 0.15s" }}
                               onFocus={e => e.target.style.borderColor = UA.navy}
                               onBlur={e => e.target.style.borderColor = "#D0D4E0"} />
-                            {(promptResponses[prompt.id] || "").length > 10 && !hasBreakdown && (
-                              <button onClick={() => handleBreakdown(prompt.id)} disabled={isLoading}
-                                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: "none", background: UA.navy, color: "white", fontSize: 11, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit", transition: "opacity 0.15s", opacity: isLoading ? 0.7 : 1 }}>
-                                {isLoading ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> Analyzing...</> : <>✨ Get AI feedback</>}
-                              </button>
-                            )}
-                            {hasBreakdown && (
-                              <div style={{ padding: "10px 12px", background: UA.navyLight, border: `1px solid ${UA.navyBorder}`, borderRadius: 8, fontSize: 12, color: "#0F1623", lineHeight: 1.7 }}>
-                                <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>✨ Feedback</div>
-                                <div style={{ whiteSpace: "pre-wrap" }}>{aiBreakdownText[prompt.id] || "Generating..."}</div>
-                                <button onClick={() => handleBreakdown(prompt.id, true)} disabled={isLoading}
-                                  style={{ marginTop: 8, padding: "5px 10px", borderRadius: 6, border: `1px solid ${UA.navyBorder}`, background: "white", color: UA.navy, fontSize: 10, fontWeight: 700, cursor: isLoading ? "wait" : "pointer", fontFamily: "inherit" }}>
-                                  {isLoading ? "⏳ Analyzing..." : "🔄 Refine my answer"}
-                                </button>
+                            {/* Word count bar */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ flex: 1, height: 4, borderRadius: 99, background: "#E8EAF0", overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${pct}%`, borderRadius: 99, background: isDone ? UA.green : pct > 50 ? UA.navy : "#D0D4E0", transition: "all 0.3s" }} />
                               </div>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: isDone ? UA.green : "#8890A8", whiteSpace: "nowrap" }}>{wc} / {target}</span>
+                            </div>
+                            {/* Help button */}
+                            <button onClick={() => getScaffoldHelp(idx)} disabled={scaffoldStuckLoading && scaffoldStuckIdx === idx}
+                              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, border: "1.5px solid " + UA.navyBorder, background: "white", color: UA.navy, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", alignSelf: "flex-start" }}>
+                              {scaffoldStuckLoading && scaffoldStuckIdx === idx ? "⏳ Thinking..." : "🆘 Stuck on this section"}
+                            </button>
+                            {/* Stuck help response */}
+                            {scaffoldStuckIdx === idx && scaffoldStuckText && !scaffoldStuckLoading && (
+                              <div style={{ padding: "8px 10px", background: UA.navyLight, border: "1px solid " + UA.navyBorder, borderRadius: 8, fontSize: 12, color: "#0F1623", lineHeight: 1.6 }}>
+                                <div style={{ fontSize: 10, fontWeight: 800, color: UA.navy, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Try This</div>
+                                {scaffoldStuckText}
+                              </div>
+                            )}
+                            {/* Next section button */}
+                            {idx < scaffoldSections.length - 1 && (
+                              <button onClick={() => setActiveScaffoldIdx(idx + 1)}
+                                style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: UA.navy, color: "white", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", alignSelf: "flex-end" }}>
+                                Next section →
+                              </button>
                             )}
                           </div>
                         )}
                       </div>
                     );
                   })}
+
+                  {/* Regenerate / copy all */}
+                  {scaffoldSections.length > 0 && (
+                    <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                      <button onClick={generateScaffold} disabled={scaffoldGenerating}
+                        style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #E8EAF0", background: "white", color: "#8890A8", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                        {scaffoldGenerating ? "Generating..." : "🔄 Regenerate"}
+                      </button>
+                      <button onClick={() => {
+                        const full = scaffoldSections.map((s, i) => s.title + ":\n" + (scaffoldResponses[i] || "(not yet written)")).join("\n\n");
+                        setWorkContent(full);
+                        setWordCount(full.trim().split(/\s+/).length);
+                      }}
+                        style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #E8EAF0", background: "white", color: "#8890A8", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                        📋 Copy to editor
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
 
             {/* ─ Section: AI Chat ─ */}
             <div style={{ display: "flex", flexDirection: "column", borderBottom: `1px solid #E8EAF0`, minHeight: 0, flex: "0 0 auto" }}>
