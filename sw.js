@@ -1,7 +1,7 @@
 // CATS Academic Companion — Service Worker
 // Handles PWA caching + Web Push notifications
 
-const CACHE_NAME = 'cats-v2';
+const CACHE_NAME = 'cats-v3';
 const STATIC_ASSETS = ['/Cats-tracker/'];
 
 // ── Install & Cache ──────────────────────────────────────────────────────────
@@ -20,16 +20,30 @@ self.addEventListener('activate', event => {
   );
 });
 
-// ── Fetch — network-first for API, cache-first for static ───────────────────
+// ── Fetch — network-first for API + page navigations, cache-first for assets ─
 self.addEventListener('fetch', event => {
-  const url = event.request.url;
+  const req = event.request;
+  const url = req.url;
   if (url.includes('supabase.co') || url.includes('anthropic.com')) {
     // Always network for API calls
-    event.respondWith(fetch(event.request).catch(() => new Response('', { status: 503 })));
+    event.respondWith(fetch(req).catch(() => new Response('', { status: 503 })));
     return;
   }
+  // Network-first for page navigations so new deploys always render the latest
+  // index.html; fall back to the cached copy only when offline.
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put('/Cats-tracker/', copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match(req).then(cached => cached || caches.match('/Cats-tracker/')))
+    );
+    return;
+  }
+  // Cache-first for other static requests.
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
+    caches.match(req).then(cached => cached || fetch(req))
   );
 });
 
